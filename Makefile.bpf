@@ -1,0 +1,32 @@
+KERNEL ?= /lib/modules/$(shell uname -r)/build/
+ARCH=$(shell uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/')
+
+LLC ?= llc
+CLANG ?= clang
+
+LINUXINCLUDE += -I$(KERNEL)/arch/$(ARCH)/include/generated/uapi
+LINUXINCLUDE += -I$(KERNEL)/arch/$(ARCH)/include/generated
+LINUXINCLUDE += -I$(KERNEL)/arch/$(ARCH)/include
+LINUXINCLUDE += -I$(KERNEL)/arch/$(ARCH)/include/uapi
+LINUXINCLUDE += -I$(KERNEL)/include
+LINUXINCLUDE += -I$(KERNEL)/include/uapi
+LINUXINCLUDE += -include $(KERNEL)/include/linux/kconfig.h
+LINUXINCLUDE += -I$(KERNEL)/include/generated/uapi
+ 
+LIBBPF_INCLUDE += -Ideps/libbpf-0.0.7/src
+LIBBPF_INCLUDE += -Ideps/libbpf-0.0.7/include
+
+all: ipftrace.bpf.o ipftrace.skel.h
+
+ipftrace.bpf.o:
+	$(CLANG) -S $(LINUXINCLUDE) $(LIBBPF_INCLUDE) \
+	    -D__KERNEL__ -D__ASM_SYSREG_H -Wno-unused-value -Wno-pointer-sign \
+	    -Wno-compare-distinct-pointer-types \
+	    -Wno-gnu-variable-sized-type-not-at-end \
+	    -Wno-tautological-compare \
+	    -Wno-address-of-packed-member \
+	    -g -O3 -emit-llvm -c ipftrace.bpf.c
+	$(LLC) -march=bpf -filetype=obj -o $@ ipftrace.bpf.ll
+
+ipftrace.skel.h: ipftrace.bpf.o
+	bpftool gen skeleton ipftrace.bpf.o > ipftrace.skel.h
