@@ -38,7 +38,6 @@ get_mark_offset(Dwarf_Die *die, int level, ptrdiff_t offset)
   int tag;
   ptrdiff_t ret;
   Dwarf_Word uval;
-  char *name, *member_name;
   Dwarf_Attribute *attr, attr_mem;
   Dwarf_Die *type, type_mem, child;
 
