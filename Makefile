@@ -7,19 +7,19 @@ LDLIBS := -lelf -ldw -lz -lpthread
 
 OBJS := symsdb.o trace_store.o ipftrace.o
 
-all: ipftrace2 $(LIBBPF_LIB)
+all: ipftrace2
 
 clean:
 	rm -f ipftrace2
 	rm -f $(OBJS)
 
-ipftrace2: $(OBJS) $(LIBBPF_LIB)
+ipftrace2: $(LIBBPF_LIB) $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LIBBPF_LIB) $(LDLIBS)
 
 $(LIBBPF_LIB): $(LIBBPF_DIR)
 	make -C $(LIBBPF_DIR)/src
 
 $(LIBBPF_DIR):
-	tar xvf $@.tar.gz
+	tar xvf $@.tar.gz -C deps
 
 .PHONY: clean
