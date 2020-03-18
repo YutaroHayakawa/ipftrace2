@@ -5,7 +5,7 @@
 #define __IPFTRACE_BPF_SKEL_H__
 
 #include <stdlib.h>
-#include <libbpf.h>
+#include <bpf/libbpf.h>
 
 struct ipftrace_bpf {
 	struct bpf_object_skeleton *skeleton;
