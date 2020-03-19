@@ -1,20 +1,16 @@
 #include <stdio.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <getopt.h>
 
-#include "ipftrace.h"
-#include "ipftrace.skel.h"
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 
-/*
- * ipftrace -m 0xdeadbeef
- * ipftrace -m 0xdeadbeef -f dwarf
- * ipftrace -m 0xdeadbeef -w trace.fcap
- * ipftrace -r trace.fcap
- * ipftrace --vmlinux /boot/vmlinux-xxx --modules-path /usr/lib/debug
- */
+#include "ipftrace.h"
+#include <ipftrace.elf.h>
 
 #define ERROR_BUF_SIZE 256
 
@@ -29,7 +25,7 @@ static int pr_suppress_warn(enum libbpf_print_level level,
 }
 
 struct ipft_attach_ctx {
-  struct ipftrace_bpf *bpf;
+  struct bpf_object *bpf;
   size_t attached;
   size_t failed;
   size_t total;
@@ -40,22 +36,25 @@ struct ipft_attach_ctx {
 static int
 attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
 {
+  int error;
   struct bpf_link *link;
   libbpf_print_fn_t orig_fn;
   struct ipft_attach_ctx *ctx;
   struct bpf_program *main1, *main2, *main3, *main4;
 
-  printf("%s\t%d\n", sym, si->skb_pos);
-
   ctx = (struct ipft_attach_ctx *)arg;
 
-  main1 = ctx->bpf->progs.ipftrace_main1;
-  main2 = ctx->bpf->progs.ipftrace_main2;
-  main3 = ctx->bpf->progs.ipftrace_main3;
-  main4 = ctx->bpf->progs.ipftrace_main4;
+  main1 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main1");
+  main2 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main2");
+  main3 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main3");
+  main4 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main4");
+  if ((error = libbpf_get_error(main1)) == 0) {
+    libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
+    fprintf(stderr, "bpf_object__find_program_by_title: %s\n", error_buf);
+    return -1;
+  }
 
   orig_fn = libbpf_set_print(pr_suppress_warn);
-  printf("set_print\n");
 
   switch (si->skb_pos) {
     case 1:
@@ -72,10 +71,8 @@ attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
       break;
     default:
       fprintf(stderr, "Invalid skb position\n");
-      exit(EXIT_FAILURE);
+      return -1;
   }
-
-  printf("attach ok\n");
 
   if (libbpf_get_error(link) == 0) {
     ctx->attached++;
@@ -90,17 +87,58 @@ attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
   return 0;
 }
 
+static int debug_pr(enum libbpf_print_level level, const char *format,
+             va_list args)
+{
+  return vfprintf(stderr, format, args);
+}
+
 static void
 do_trace(struct ipft *ipft)
 {
-  int error;
-  struct ipftrace_bpf *bpf;
+  int error, ctrl_map_fd;
+  struct bpf_object *bpf;
+  struct ipft_ctrl_data cdata;
+  struct bpf_object_open_opts oopts;
   struct ipft_attach_ctx attach_ctx;
 
-  bpf = ipftrace_bpf__open_and_load();
-  if ((error = libbpf_get_error(bpf)) == 0) {
+  libbpf_set_print(debug_pr);
+
+  oopts.sz = sizeof(oopts);
+  oopts.object_name = "ipftrace";
+  oopts.relaxed_maps = false;
+  oopts.relaxed_core_relocs = false;
+  oopts.pin_root_path = NULL;
+  oopts.kconfig = NULL;
+
+  bpf = bpf_object__open_mem(obj_ipftrace_bpf_o,
+      obj_ipftrace_bpf_o_len, &oopts);
+  if ((error = libbpf_get_error(bpf)) != 0) {
     libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
-    fprintf(stderr, "ipftrace_bpf__open_and_load: %s\n", error_buf);
+    fprintf(stderr, "bpf_object__open_mem: %s\n", error_buf);
+    return;
+  }
+
+  error = bpf_object__load(bpf);
+  if (error != 0) {
+    libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
+    fprintf(stderr, "bpf_object__load: %s\n", error_buf);
+    return;
+  }
+
+  ctrl_map_fd = bpf_object__find_map_fd_by_name(bpf, "ctrl_map");
+  if (ctrl_map_fd < 0) {
+    libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
+    fprintf(stderr, "bpf_object__find_map_by_name: %s\n", error_buf);
+    return;
+  }
+
+  cdata.mark = ipft->topt->mark;
+  cdata.mark_offset = ipft_symsdb_get_mark_offset(ipft->sdb);
+  error = bpf_map_update_elem(ctrl_map_fd, &(int){0}, &cdata, BPF_ANY);
+  if (error != 0) {
+    libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
+    fprintf(stderr, "bpf_map_update_elem: %s\n", error_buf);
     return;
   }
 
@@ -116,6 +154,8 @@ do_trace(struct ipft *ipft)
   }
 
   printf("\n");
+
+  bpf_object__close(bpf);
 }
 
 static struct option options[] = {
