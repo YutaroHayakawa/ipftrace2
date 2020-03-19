@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <errno.h>
 #include <getopt.h>
 
@@ -14,6 +15,29 @@
 
 #define ERROR_BUF_SIZE 256
 
+enum debug_level {
+  IPFT_DEBUG_DEBUG = 0,
+  IPFT_DEBUG_INFO = 1,
+  IPFT_DEBUG_WARN = 2,
+  IPFT_DEBUG_ERROR = 3
+};
+
+struct attach_stat {
+  size_t total;
+  size_t attached;
+  size_t failed;
+};
+
+struct ipft {
+  int verbose;
+  struct bpf_object *bpf;
+  struct attach_stat astat;
+  struct ipft_symsdb *sdb;
+  struct ipft_trace_store *ts;
+  struct ipft_symsdb_opt *sopt;
+  struct ipft_trace_opt *topt;
+};
+
 static char error_buf[ERROR_BUF_SIZE] = {};
 
 static int pr_suppress_warn(enum libbpf_print_level level,
@@ -24,37 +48,35 @@ static int pr_suppress_warn(enum libbpf_print_level level,
   return vfprintf(stderr, format, args);
 }
 
-struct ipft_attach_ctx {
-  struct bpf_object *bpf;
-  size_t attached;
-  size_t failed;
-  size_t total;
-};
-
 #define ATTACH_FMT "Attaching %zu probes (Attached: %zu Failed: %zu)\r"
 
 static int
 attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
 {
   int error;
+  struct ipft *ipft;
   struct bpf_link *link;
   libbpf_print_fn_t orig_fn;
-  struct ipft_attach_ctx *ctx;
   struct bpf_program *main1, *main2, *main3, *main4;
 
-  ctx = (struct ipft_attach_ctx *)arg;
+  ipft = (struct ipft *)arg;
 
-  main1 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main1");
-  main2 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main2");
-  main3 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main3");
-  main4 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main4");
+  main1 = bpf_object__find_program_by_name(ipft->bpf, "ipftrace_main1");
+  main2 = bpf_object__find_program_by_name(ipft->bpf, "ipftrace_main2");
+  main3 = bpf_object__find_program_by_name(ipft->bpf, "ipftrace_main3");
+  main4 = bpf_object__find_program_by_name(ipft->bpf, "ipftrace_main4");
+
   if ((error = libbpf_get_error(main1)) != 0) {
     libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
     fprintf(stderr, "bpf_object__find_program_by_title: %s\n", error_buf);
     return -1;
   }
 
-  orig_fn = libbpf_set_print(pr_suppress_warn);
+  if (ipft->verbose <= IPFT_DEBUG_WARN) {
+    orig_fn = libbpf_set_print(pr_suppress_warn);
+  } else {
+    orig_fn = NULL;
+  }
 
   switch (si->skb_pos) {
     case 1:
@@ -75,14 +97,17 @@ attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
   }
 
   if (libbpf_get_error(link) == 0) {
-    ctx->attached++;
+    ipft->astat.attached++;
   } else {
-    ctx->failed++;
+    ipft->astat.failed++;
   }
 
-  printf(ATTACH_FMT, ctx->total, ctx->attached, ctx->failed);
+  printf(ATTACH_FMT, ipft->astat.total,
+      ipft->astat.attached, ipft->astat.failed);
 
-  libbpf_set_print(orig_fn);
+  if (orig_fn != NULL) {
+    libbpf_set_print(orig_fn);
+  }
 
   return 0;
 }
@@ -94,14 +119,51 @@ static int debug_pr(enum libbpf_print_level level, const char *format,
 }
 
 static void
+handle_event(void *ctx, int cpu, void *data, __u32 size)
+{
+  int error;
+  struct ipft *ipft;
+  struct ipft_trace *trace;
+
+  ipft = (struct ipft *)ctx;
+  trace = (struct ipft_trace *)data;
+
+  error = ipft_trace_add(ipft->ts, trace);
+  if (error != 0) {
+    fprintf(stderr, "Failed to add trace: %s\n", strerror(error));
+    exit(EXIT_FAILURE);
+  }
+}
+
+static void
+handle_lost(void *ctx, int cpu, __u64 cnt)
+{
+  fprintf(stderr, "%llu events lost\n", cnt);
+}
+
+static bool trace_finish = false;
+
+static void
+handle_sigint(int sig)
+{
+  trace_finish = true;
+}
+
+static void
 do_trace(struct ipft *ipft)
 {
-  int error, ctrl_map_fd;
   struct bpf_object *bpf;
+  struct perf_buffer *pb;
+  libbpf_print_fn_t orig_fn;
   struct ipft_ctrl_data cdata;
-  struct ipft_attach_ctx attach_ctx;
+  struct perf_buffer_opts pb_opts;
+  int error, ctrl_map_fd, events_fd;
 
-  libbpf_set_print(debug_pr);
+  if (ipft->verbose <= IPFT_DEBUG_DEBUG) {
+    orig_fn = libbpf_set_print(debug_pr);
+  } else {
+    orig_fn = NULL;
+  }
 
   bpf = bpf_object__open_buffer(ipftrace_bpf_o,
       ipftrace_bpf_o_len, "ipftrace2");
@@ -134,12 +196,16 @@ do_trace(struct ipft *ipft)
     return;
   }
 
-  attach_ctx.bpf = bpf;
-  attach_ctx.total = ipft_symsdb_get_total(ipft->sdb);
-  attach_ctx.attached = 0;
-  attach_ctx.failed = 0;
+  if (orig_fn != NULL) {
+    libbpf_set_print(orig_fn);
+  }
 
-  error = ipft_symsdb_foreach_syms(ipft->sdb, attach_kprobe, &attach_ctx);
+  ipft->bpf = bpf;
+  ipft->astat.total = ipft_symsdb_get_total(ipft->sdb);
+  ipft->astat.attached = 0;
+  ipft->astat.failed = 0;
+
+  error = ipft_symsdb_foreach_syms(ipft->sdb, attach_kprobe, ipft);
   if (error != 0) {
     fprintf(stderr, "Failed to attach kprobe\n");
     return;
@@ -147,12 +213,41 @@ do_trace(struct ipft *ipft)
 
   printf("\n");
 
+  events_fd = bpf_object__find_map_fd_by_name(bpf, "events");
+  if (events_fd < 0) {
+    libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
+    fprintf(stderr, "bpf_object__find_map_by_name: %s\n", error_buf);
+    return;
+  }
+
+  pb_opts.sample_cb = handle_event;
+  pb_opts.lost_cb = handle_lost;
+  pb_opts.ctx = ipft;
+
+  signal(SIGINT, handle_sigint);
+
+  pb = perf_buffer__new(events_fd, 64, &pb_opts);
+  if ((error = libbpf_get_error(pb)) != 0) {
+    libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
+    fprintf(stderr, "perf_buffer__new: %s\n", error_buf);
+    return;
+  }
+
+  while ((error = perf_buffer__poll(pb, 100)) >= 0) {
+    if (trace_finish) {
+      break;
+    }
+  }
+
+  ipft_trace_dump(ipft->ts, ipft->sdb, stdout);
+
   bpf_object__close(bpf);
 }
 
 static struct option options[] = {
-  { "--mark",   required_argument, 0, 'm' },
-  { "--format", required_argument, 0, 'f' }
+  { "--mark",    required_argument, 0, 'm' },
+  { "--format",  required_argument, 0, 'f' },
+  { "--verbose", required_argument, 0, 'v' },
 };
 
 static void
@@ -171,14 +266,14 @@ usage(void)
 int
 main(int argc, char **argv)
 {
-  int error, opt, optind;
   struct ipft ipft;
-  struct ipft_symsdb *sdb;
-  struct ipft_trace_store *ts;
+  int error, opt, optind;
+  struct ipft_symsdb *sdb = NULL;
   struct ipft_trace_opt topt = {};
   struct ipft_symsdb_opt sopt = {};
+  struct ipft_trace_store *ts = NULL;
 
-  while ((opt = getopt_long(argc, argv, "m:f:",
+  while ((opt = getopt_long(argc, argv, "m:f:v:",
           options, &optind)) != -1) {
     switch (opt) {
     case 'm':
@@ -186,6 +281,9 @@ main(int argc, char **argv)
       break;
     case 'f':
       sopt.format = strdup(optarg);
+      break;
+    case 'v':
+      ipft.verbose = atoi(optarg);
       break;
     default:
       usage();
