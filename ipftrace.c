@@ -10,7 +10,7 @@
 #include <bpf/libbpf.h>
 
 #include "ipftrace.h"
-#include <ipftrace.elf.h>
+#include "ipftrace.elf.h"
 
 #define ERROR_BUF_SIZE 256
 
@@ -103,8 +103,8 @@ do_trace(struct ipft *ipft)
 
   libbpf_set_print(debug_pr);
 
-  bpf = bpf_object__open_buffer(obj_ipftrace_bpf_o,
-      obj_ipftrace_bpf_o_len, "ipftrace2");
+  bpf = bpf_object__open_buffer(ipftrace_bpf_o,
+      ipftrace_bpf_o_len, "ipftrace2");
   if ((error = libbpf_get_error(bpf)) != 0) {
     libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
     fprintf(stderr, "bpf_object__open_mem: %s\n", error_buf);
@@ -135,7 +135,7 @@ do_trace(struct ipft *ipft)
   }
 
   attach_ctx.bpf = bpf;
-  attach_ctx.total = 0;
+  attach_ctx.total = ipft_symsdb_get_total(ipft->sdb);
   attach_ctx.attached = 0;
   attach_ctx.failed = 0;
 

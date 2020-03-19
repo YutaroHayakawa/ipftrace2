@@ -19,9 +19,9 @@ ARCH=$(shell uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/')
 LIBBPF := $(notdir $(patsubst %.tar.gz,%,$(wildcard deps/libbpf*.tar.gz)))
 
 BPF_SRC    := ipftrace.bpf.c
-BPF_OBJ    := $(ODIR)/ipftrace.bpf.o
-BPF_OBJ_LL := $(ODIR)/ipftrace.bpf.ll
-BPF_ELF_H  := $(ODIR)/include/ipftrace.elf.h
+BPF_OBJ    := ipftrace.bpf.o
+BPF_OBJ_LL := ipftrace.bpf.ll
+BPF_ELF_H  := ipftrace.elf.h
 
 BPF_CFLAGS := \
 	$(CFLAGS) \
@@ -52,7 +52,7 @@ DEPS       := $(ODIR)/lib64/libbpf.a
 all: $(BIN)
 
 clean:
-	$(RM) -rf $(BIN) obj/*
+	$(RM) -rf $(BIN) obj/* $(BPF_OBJ) $(BPF_OBJ_LL) $(BPF_ELF_H)
 
 $(BIN): $(OBJ)
 	@echo LINK $(BIN)
