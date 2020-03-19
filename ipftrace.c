@@ -99,20 +99,12 @@ do_trace(struct ipft *ipft)
   int error, ctrl_map_fd;
   struct bpf_object *bpf;
   struct ipft_ctrl_data cdata;
-  struct bpf_object_open_opts oopts;
   struct ipft_attach_ctx attach_ctx;
 
   libbpf_set_print(debug_pr);
 
-  oopts.sz = sizeof(oopts);
-  oopts.object_name = "ipftrace";
-  oopts.relaxed_maps = false;
-  oopts.relaxed_core_relocs = false;
-  oopts.pin_root_path = NULL;
-  oopts.kconfig = NULL;
-
-  bpf = bpf_object__open_mem(obj_ipftrace_bpf_o,
-      obj_ipftrace_bpf_o_len, &oopts);
+  bpf = bpf_object__open_buffer(obj_ipftrace_bpf_o,
+      obj_ipftrace_bpf_o_len, "ipftrace2");
   if ((error = libbpf_get_error(bpf)) != 0) {
     libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
     fprintf(stderr, "bpf_object__open_mem: %s\n", error_buf);
