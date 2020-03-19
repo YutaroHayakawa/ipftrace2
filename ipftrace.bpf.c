@@ -1,3 +1,12 @@
+/*
+ * Work around for "'asm goto' constructs are not supported yet" error
+ * https://github.com/iovisor/bcc/issues/2119
+ */
+#ifdef asm_volatile_goto
+#undef asm_volatile_goto
+#endif
+#define asm_volatile_goto(x...) asm volatile("invalid use of asm_volatile_goto")
+
 #include <linux/types.h>
 #include <linux/bpf.h>
 #include <bpf_helpers.h>
