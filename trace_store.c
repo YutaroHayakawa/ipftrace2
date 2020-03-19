@@ -50,18 +50,22 @@ ipft_trace_add(struct ipft_trace_store *ts, struct ipft_trace *t)
 }
 
 void
-ipft_trace_dump(struct ipft_trace_store *ts, char *format, FILE *f)
+ipft_trace_dump(struct ipft_trace_store *ts, struct ipft_symsdb *sdb, FILE *f)
 {
+  char *name;
   uint64_t skb_addr;
+  uint32_t count = 0;
   struct ipft_trace *t;
   klist_t(trace_list) *l;
   kliter_t(trace_list) *iter;
 
   kh_foreach(ts->ts, skb_addr, l,
+    count++;
+    fprintf(f, "Captured Packet %u\n", count);
     for (iter = kl_begin(l); iter != kl_end(l); iter = kl_next(iter)) {
       t = kl_val(iter);
-      fprintf(f, "skb_addr: %zx tstamp: %zu faddr: %zx\n",
-          skb_addr, t->tstamp, t->faddr);
+      name = ipft_symsdb_get_sym(sdb, t->faddr);
+      fprintf(f, "  %zu %s\n", t->tstamp, name);
     }
   );
 }
