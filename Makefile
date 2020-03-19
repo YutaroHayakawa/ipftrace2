@@ -1,25 +1,88 @@
-LIBBPF_DIR=deps/libbpf-0.0.7
-LIBBPF_INCLUDE=$(LIBBPF_DIR)/src
-LIBBPF_LIB=$(LIBBPF_DIR)/src/libbpf.a
+CFLAGS  += -g -O3 -Wall -std=gnu99
+LIBS    := -lelf -ldw -lz -lpthread
 
-CFLAGS := -g -Ofast -Wall -std=gnu99 -I $(LIBBPF_INCLUDE)
-LDLIBS := -lelf -ldw -lz -lpthread
+SRC     := symsdb.c trace_store.c ipftrace.c
+BIN     := ipftrace2
 
-OBJS := symsdb.o trace_store.o ipftrace.o
+ODIR    := obj
+OBJ     := $(patsubst %.c,$(ODIR)/%.o,$(SRC))
+LIBS    := $(LIBS)
 
-all: ipftrace2
+CFLAGS  += -I$(ODIR)/include
+LDFLAGS += -L$(ODIR)/lib64
+
+LLC   ?= llc
+CLANG ?= clang
+
+KERNEL ?= /lib/modules/$(shell uname -r)/build/
+ARCH=$(shell uname -m | sed 's/x86_64/x86/' | sed 's/i386/x86/')
+LIBBPF := $(notdir $(patsubst %.tar.gz,%,$(wildcard deps/libbpf*.tar.gz)))
+
+BPF_SRC    := ipftrace.bpf.c
+BPF_OBJ    := $(ODIR)/ipftrace.bpf.o
+BPF_OBJ_LL := $(ODIR)/ipftrace.bpf.ll
+BPF_ELF_H  := $(ODIR)/include/ipftrace.elf.h
+
+BPF_CFLAGS := \
+	$(CFLAGS) \
+	-I$(KERNEL)/arch/$(ARCH)/include/generated/uapi \
+	-I$(KERNEL)/arch/$(ARCH)/include/generated \
+	-I$(KERNEL)/arch/$(ARCH)/include \
+	-I$(KERNEL)/arch/$(ARCH)/include/uapi \
+	-I$(KERNEL)/include \
+	-I$(KERNEL)/include/uapi \
+	-include $(KERNEL)/include/linux/kconfig.h \
+	-I$(KERNEL)/include/generated/uapi \
+	-S -D__KERNEL__ -D__ASM_SYSREG_H -Wno-unused-value -Wno-pointer-sign \
+	-Wno-compare-distinct-pointer-types -Wno-gnu-variable-sized-type-not-at-end \
+	-Wno-tautological-compare -Wno-address-of-packed-member -Wno-unused-label \
+	-g -O3 -emit-llvm
+
+BPF_CFLAGS += -I$(KERNEL)/arch/$(ARCH)/include/generated/uapi
+BPF_CFLAGS += -I$(KERNEL)/arch/$(ARCH)/include/generated
+BPF_CFLAGS += -I$(KERNEL)/arch/$(ARCH)/include
+BPF_CFLAGS += -I$(KERNEL)/arch/$(ARCH)/include/uapi
+BPF_CFLAGS += -I$(KERNEL)/include
+BPF_CFLAGS += -I$(KERNEL)/include/uapi
+BPF_CFLAGS += -include $(KERNEL)/include/linux/kconfig.h
+BPF_CFLAGS += -I$(KERNEL)/include/generated/uapi
+
+DEPS       := $(ODIR)/lib64/libbpf.a
+
+all: $(BIN)
 
 clean:
-	rm -f ipftrace2
-	rm -f $(OBJS)
+	$(RM) -rf $(BIN) obj/*
 
-ipftrace2: $(LIBBPF_LIB) $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LIBBPF_LIB) $(LDLIBS)
+$(BIN): $(OBJ)
+	@echo LINK $(BIN)
+	@$(CC) $(LDFLAGS) -o $@ $^ $(DEPS) $(LIBS)
 
-$(LIBBPF_LIB): $(LIBBPF_DIR)
-	make -C $(LIBBPF_DIR)/src
+$(OBJ): $(BPF_ELF_H) | $(ODIR)
 
-$(LIBBPF_DIR):
-	tar xvf $@.tar.gz -C deps
+$(BPF_ELF_H): $(BPF_OBJ) | $(ODIR)
+	echo "#pragma once" > $@
+	xxd -i $(BPF_OBJ) >> $@
 
-.PHONY: clean
+$(BPF_OBJ): $(BPF_OBJ_LL)
+	$(LLC) -march=bpf -filetype=obj -o $@ $(BPF_OBJ_LL)
+
+$(BPF_OBJ_LL): $(DEPS)
+	$(CLANG) $(BPF_CFLAGS) -o $@ -c $(BPF_SRC)
+
+$(ODIR):
+	@mkdir -p $@
+
+$(ODIR)/%.o : %.c
+	@echo CC $<
+	@$(CC) $(CFLAGS) -c -o $@ $<
+
+$(ODIR)/$(LIBBPF): deps/$(LIBBPF).tar.gz | $(ODIR)
+	@tar -C $(ODIR) -xf $<
+
+$(ODIR)/lib64/libbpf.a: $(ODIR)/$(LIBBPF)
+	@echo Building libbpf...
+	@$(MAKE) -C $</src PREFIX=$(abspath $(ODIR)) install
+	@$(MAKE) -C $</src PREFIX=$(abspath $(ODIR)) install_headers
+
+.PHONY: all clean
