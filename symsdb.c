@@ -365,9 +365,11 @@ addr2sym_fill(struct ipft_symsdb *db)
 
     iter = kh_get(sym2info, sym2info, name);
     if (iter != kh_end(sym2info)) {
-      iter = kh_put(addr2sym, addr2sym, addr, &ret);
+      iter = kh_put(addr2sym, addr2sym, addr + 1, &ret);
       if (ret != 0) {
         kh_value(addr2sym, iter) = name;
+      } else {
+        free(name);
       }
     } else {
       free(name);
@@ -392,10 +394,10 @@ ipft_symsdb_get_total(struct ipft_symsdb *_db)
 }
 
 char *
-ipft_symsdb_addr2sym(struct ipft_symsdb *_db, uint64_t addr)
+ipft_symsdb_get_sym(struct ipft_symsdb *_db, uint64_t addr)
 {
   khint_t iter;
-  khash_t(addr2sym) *db = (khash_t(addr2sym) *)_db;
+  khash_t(addr2sym) *db = _db->addr2sym;
 
   iter = kh_get(addr2sym, db, addr);
   if (iter == kh_end(db)) {
