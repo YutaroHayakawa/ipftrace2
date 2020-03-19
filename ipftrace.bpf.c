@@ -15,19 +15,18 @@
 #define BPF
 #include "ipftrace.h"
 
-struct bpf_map_def SEC("maps") ctrl_map = {
-  .type = BPF_MAP_TYPE_ARRAY,
-  .key_size = sizeof(uint32_t),
-  .value_size = sizeof(struct ipft_ctrl_data),
-  .max_entries = 1
-};
+struct {
+  __uint(type, BPF_MAP_TYPE_ARRAY);
+  __uint(max_entries, 1);
+  __type(key, uint32_t);
+  __type(value, struct ipft_ctrl_data);
+} ctrl_map SEC(".maps");
 
-struct bpf_map_def SEC("maps") events = {
-  .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
-  .key_size = sizeof(uint32_t),
-  .value_size = sizeof(uint32_t),
-  .max_entries = 64
-};
+struct {
+  __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+  __uint(key_size, sizeof(u32));
+  __uint(value_size, sizeof(u32));
+} events SEC(".maps");
 
 static __always_inline void
 ipftrace_main(struct pt_regs *ctx, uint8_t *skb)
