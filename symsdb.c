@@ -385,6 +385,12 @@ ipft_symsdb_get_mark_offset(struct ipft_symsdb *_db)
   return _db->mark_offset;
 }
 
+size_t
+ipft_symsdb_get_total(struct ipft_symsdb *_db)
+{
+  return kh_size(_db->sym2info);
+}
+
 char *
 ipft_symsdb_addr2sym(struct ipft_symsdb *_db, uint64_t addr)
 {
