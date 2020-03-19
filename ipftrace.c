@@ -48,7 +48,7 @@ attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
   main2 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main2");
   main3 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main3");
   main4 = bpf_object__find_program_by_name(ctx->bpf, "ipftrace_main4");
-  if ((error = libbpf_get_error(main1)) == 0) {
+  if ((error = libbpf_get_error(main1)) != 0) {
     libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);
     fprintf(stderr, "bpf_object__find_program_by_title: %s\n", error_buf);
     return -1;
