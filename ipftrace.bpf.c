@@ -9,21 +9,20 @@
 
 #include <linux/types.h>
 #include <linux/bpf.h>
-#include <bpf_helpers.h>
-#include <bpf_tracing.h>
-#include <bpf_core_read.h>
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
 #define BPF
 #include "ipftrace.h"
 
-static struct bpf_map_def ctrl_map = {
+struct bpf_map_def SEC("maps") ctrl_map = {
   .type = BPF_MAP_TYPE_ARRAY,
   .key_size = sizeof(uint32_t),
   .value_size = sizeof(struct ipft_ctrl_data),
   .max_entries = 1
 };
 
-static struct bpf_map_def events = {
+struct bpf_map_def SEC("maps") events = {
   .type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
   .key_size = sizeof(uint32_t),
   .value_size = sizeof(uint32_t),
