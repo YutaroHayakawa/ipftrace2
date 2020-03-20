@@ -225,7 +225,7 @@ on_event(void *_ctx, __unused int cpu, void *data, __u32 size)
     fprintf(stderr, "Failed to add trace: %s\n", strerror(error));
   }
 
-  printf("Captured %lu packets\r", ipft_trace_total(ctx->ts));
+  printf("Captured %lu sk_buffs\r", ipft_trace_total(ctx->ts));
 }
 
 static void

@@ -67,7 +67,7 @@ ipft_trace_dump(struct ipft_trace_store *ts, struct ipft_symsdb *sdb, FILE *f)
 
   kh_foreach(ts->ts, skb_addr, l,
     count++;
-    fprintf(f, "Captured Packet %u\n", count);
+    fprintf(f, "sk_buff %u\n", count);
     for (iter = kl_begin(l); iter != kl_end(l); iter = kl_next(iter)) {
       t = kl_val(iter);
       name = ipft_symsdb_get_sym(sdb, t->faddr);
