@@ -41,6 +41,7 @@ int ipft_symsdb_foreach_syms(struct ipft_symsdb *,
 ptrdiff_t ipft_symsdb_get_mark_offset(struct ipft_symsdb *);
 size_t ipft_symsdb_get_total(struct ipft_symsdb *);
 int ipft_trace_store_create(struct ipft_trace_store **);
+size_t ipft_trace_total(struct ipft_trace_store *);
 int ipft_trace_add(struct ipft_trace_store *, struct ipft_trace *);
 void ipft_trace_dump(struct ipft_trace_store *, struct ipft_symsdb *sdb, FILE *);
 

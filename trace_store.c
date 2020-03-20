@@ -28,6 +28,12 @@ struct ipft_trace_store {
   khash_t(trace) *ts;
 };
 
+size_t
+ipft_trace_total(struct ipft_trace_store *ts)
+{
+  return kh_size(ts->ts);
+}
+
 int
 ipft_trace_add(struct ipft_trace_store *ts, struct ipft_trace *t)
 {
