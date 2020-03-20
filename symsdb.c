@@ -32,6 +32,18 @@ struct ipft_symsdb {
   khash_t(addr2sym) *addr2sym;
 };
 
+static void
+dwfl_perror(const char *msg)
+{
+  fprintf(stderr, "%s: %s\n", msg, dwfl_errmsg(dwfl_errno()));
+}
+
+static void
+dwarf_perror(const char *msg)
+{
+  fprintf(stderr, "%s: %s\n", msg, dwarf_errmsg(dwarf_errno()));
+}
+
 static ptrdiff_t
 get_mark_offset(Dwarf_Die *die, int level, ptrdiff_t offset)
 {
@@ -194,7 +206,7 @@ dwarf_scan_func_die(Dwarf_Die *die, void *arg)
         if (db->mark_offset == -1) {
           db->mark_offset = get_mark_offset(ptr_type, level, offset);
           if (db->mark_offset == -1) {
-            fprintf(stderr, "Failed to get mark offset. Unexpected DWARF format.\n");
+            fprintf(stderr, "Failed to get mark offset\n");
             return -1;
           } else if (db->mark_offset > 0) {
             printf("mark_offset: %lx\n", db->mark_offset);
@@ -241,26 +253,26 @@ dwarf_collect_syms(struct ipft_symsdb *db)
 
   dwfl = dwfl_begin(&dwfl_callbacks);
   if (dwfl == NULL) {
-    fprintf(stderr, "dwfl_begin: %s\n", dwfl_errmsg(dwfl_errno()));
+    dwfl_perror("dwfl_begin");
     goto err;
   }
 
   error = dwfl_linux_kernel_report_kernel(dwfl);
   if (error != 0) {
-    fprintf(stderr, "dwfl_linux_kernel_report_kernel: %s\n", dwfl_errmsg(dwfl_errno()));
+    dwfl_perror("dwfl_linux_kernel_report_kernel");
     goto err;
   }
 
   error = dwfl_linux_kernel_report_modules(dwfl);
   if (error != 0) {
-    fprintf(stderr, "dwfl_linux_kernel_report_modules: %s\n", dwfl_errmsg(dwfl_errno()));
+    dwfl_perror("dwfl_linux_kernel_report_modules");
     goto err;
   }
 
   while ((cu = dwfl_nextcu(dwfl, cu, &addr)) != NULL) {
     ret = dwarf_getfuncs(cu, dwarf_scan_func_die, db, 0);
     if (ret == -1) {
-      fprintf(stderr, "dwarf_getfuncs: %s\n", dwfl_errmsg(dwfl_errno()));
+      dwarf_perror("dwarf_getfuncs");
       goto err;
     }
   }
