@@ -31,7 +31,6 @@ struct {
 static __always_inline void
 ipftrace_main(struct pt_regs *ctx, uint8_t *skb)
 {
-  int error;
   uint32_t idx = 0, mark;
   struct ipft_trace t;
   struct ipft_ctrl_data *cdata;
