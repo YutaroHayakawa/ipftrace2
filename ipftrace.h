@@ -1,5 +1,7 @@
 #pragma once
 
+#define __unused __attribute__((unused))
+
 struct ipft_trace {
   uint64_t skb_addr;
   uint64_t tstamp;

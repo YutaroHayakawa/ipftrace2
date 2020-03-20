@@ -16,7 +16,7 @@
 } while (0)
 
 static void
-dtor(void *p)
+dtor(__unused void *p)
 {
   return;
 }
@@ -59,8 +59,8 @@ void
 ipft_trace_dump(struct ipft_trace_store *ts, struct ipft_symsdb *sdb, FILE *f)
 {
   char *name;
-  uint64_t skb_addr;
   uint32_t count = 0;
+  __unused uint64_t skb_addr;
   struct ipft_trace *t;
   klist_t(trace_list) *l;
   kliter_t(trace_list) *iter;

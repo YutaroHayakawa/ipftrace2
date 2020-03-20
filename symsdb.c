@@ -285,7 +285,7 @@ err:
 }
 
 static int
-btf_collect_syms(struct ipft_symsdb *db)
+btf_collect_syms(__unused struct ipft_symsdb *db)
 {
   fprintf(stderr, "BTF format is not supported currently. Sorry.\n");
   return 0;
