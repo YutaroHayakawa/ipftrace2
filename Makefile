@@ -1,4 +1,4 @@
-CFLAGS  += -g -O3 -Wall -std=gnu99
+CFLAGS  += -g -O3 -Wall -Wextra -Werror -std=gnu99
 LIBS    := -lelf -ldw -lz -lpthread
 
 SRC     := symsdb.c trace_store.c ipftrace.c
@@ -24,7 +24,8 @@ BPF_OBJ_LL := ipftrace.bpf.ll
 BPF_ELF_H  := ipftrace.elf.h
 
 BPF_CFLAGS := \
-	$(CFLAGS) \
+	-g -O3 -Wall -std=gnu99 \
+	-I$(ODIR)/include \
 	-I$(KERNEL)/arch/$(ARCH)/include/generated/uapi \
 	-I$(KERNEL)/arch/$(ARCH)/include/generated \
 	-I$(KERNEL)/arch/$(ARCH)/include \
@@ -36,7 +37,7 @@ BPF_CFLAGS := \
 	-S -D__KERNEL__ -D__ASM_SYSREG_H -Wno-unused-value -Wno-pointer-sign \
 	-Wno-compare-distinct-pointer-types -Wno-gnu-variable-sized-type-not-at-end \
 	-Wno-tautological-compare -Wno-address-of-packed-member -Wno-unused-label \
-	-g -O3 -emit-llvm
+	-emit-llvm
 
 BPF_CFLAGS += -I$(KERNEL)/arch/$(ARCH)/include/generated/uapi
 BPF_CFLAGS += -I$(KERNEL)/arch/$(ARCH)/include/generated
