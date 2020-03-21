@@ -2,6 +2,8 @@
 
 #define __unused __attribute__((unused))
 
+struct ipft_symsdb;
+
 struct ipft_trace {
   uint64_t skb_addr;
   uint64_t tstamp;
@@ -14,8 +16,6 @@ struct ipft_ctrl_data {
 };
 
 #ifndef BPF
-
-#include <stddef.h>
 
 struct ipft_symsdb;
 struct ipft_trace_store;
@@ -34,8 +34,17 @@ struct ipft_syminfo {
   int skb_pos;
 };
 
-int ipft_symsdb_create(struct ipft_symsdb **, struct ipft_symsdb_opt *);
-char *ipft_symsdb_get_sym(struct ipft_symsdb *, uint64_t);
+int ipft_symsdb_create(struct ipft_symsdb **sdbp);
+void ipft_symsdb_destroy(struct ipft_symsdb *sdb);
+void symsdb_put_mark_offset(struct ipft_symsdb *sdb, ptrdiff_t mark_offset);
+ptrdiff_t symsdb_get_mark_offset(struct ipft_symsdb *sdb);
+int symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name, struct ipft_syminfo *sinfo);
+int symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name, struct ipft_syminfo **sinfop);
+void symsdb_release_all_sym2info(struct ipft_symsdb *sdb);
+int symsdb_put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *sym);
+int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp);
+void symsdb_release_all_addr2sym(struct ipft_symsdb *sdb);
+
 struct ipft_syminfo *
 ipft_symsdb_get_syminfo(struct ipft_symsdb *, char *);
 int ipft_symsdb_foreach_syms(struct ipft_symsdb *,
