@@ -15,6 +15,12 @@ struct ipft_symsdb {
   khash_t(addr2sym) *addr2sym;
 };
 
+size_t
+symsdb_get_sym2info_total(struct ipft_symsdb *sdb)
+{
+  return kh_size(sdb->sym2info);
+}
+
 void
 symsdb_put_mark_offset(struct ipft_symsdb *sdb, ptrdiff_t mark_offset)
 {
@@ -32,9 +38,9 @@ symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
     struct ipft_syminfo *sinfo)
 {
   char *k;
-  int missing;
   khint_t iter;
   khash_t(sym2info) *db;
+  int error = 0, missing;
   struct ipft_syminfo *v;
 
   k = strdup(name);
@@ -44,6 +50,7 @@ symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
 
   v = (struct ipft_syminfo *)malloc(sizeof(*v));
   if (v == NULL) {
+    error = -1;
     goto err0;
   }
 
@@ -51,9 +58,9 @@ symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
 
   db = ((struct ipft_symsdb *)sdb)->sym2info;
 
-  iter = kh_put(sym2info, db, name, &missing);
+  iter = kh_put(sym2info, db, k, &missing);
   if (missing) {
-    kh_value(db, iter) = sinfo;
+    kh_value(db, iter) = v;
   } else {
     goto err1;
   }
@@ -64,7 +71,7 @@ err1:
   free(v);
 err0:
   free(k);
-  return -1;
+  return error;
 }
 
 int
@@ -98,6 +105,24 @@ symsdb_release_all_sym2info(struct ipft_symsdb *sdb)
 }
 
 int
+symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
+    int (*cb)(const char *, struct ipft_syminfo *, void *), void *arg)
+{
+  int error;
+  const char *k;
+  struct ipft_syminfo *v;
+
+  kh_foreach(sdb->sym2info, k, v,
+    error = cb(k, v, arg);
+    if (error == -1) {
+      return -1;
+    }
+  )
+
+  return 0;
+}
+
+int
 symsdb_put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr,
     char *sym)
 {
@@ -115,7 +140,7 @@ symsdb_put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr,
 
   iter = kh_put(addr2sym, db, addr, &missing);
   if (missing) {
-    kh_value(db, iter) = sym;
+    kh_value(db, iter) = v;
   } else {
     goto err0;
   }
@@ -156,7 +181,7 @@ symsdb_release_all_addr2sym(struct ipft_symsdb *sdb)
 }
 
 int
-ipft_symsdb_create(struct ipft_symsdb **sdbp)
+symsdb_create(struct ipft_symsdb **sdbp)
 {
   struct ipft_symsdb *sdb;
 
@@ -192,7 +217,7 @@ err0:
 }
 
 void
-ipft_symsdb_destroy(struct ipft_symsdb *sdb)
+symsdb_destroy(struct ipft_symsdb *sdb)
 {
   symsdb_release_all_sym2info(sdb);
   kh_destroy(sym2info, sdb->sym2info);
