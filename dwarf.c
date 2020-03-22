@@ -22,7 +22,7 @@ dwarf_perror(const char *msg)
 }
 
 static ptrdiff_t
-find_mark_offset(Dwarf_Die *die, int level, ptrdiff_t offset)
+find_member_offset(Dwarf_Die *die, int level, ptrdiff_t offset, char *name)
 {
   int tag;
   ptrdiff_t ret;
@@ -80,14 +80,14 @@ find_mark_offset(Dwarf_Die *die, int level, ptrdiff_t offset)
       case DW_TAG_structure_type:
       case DW_TAG_union_type:
         level++;
-        ret = find_mark_offset(type, level, offset + uval);
+        ret = find_member_offset(type, level, offset + uval, name);
         if (ret > 0 || ret == -1) {
           return ret;
         }
         level--;
         break;
       default:
-        if (strcmp(dwarf_diename(&child), "mark") == 0) {
+        if (strcmp(dwarf_diename(&child), name) == 0) {
           return offset + uval;
         }
         break;
@@ -176,7 +176,7 @@ dwarf_scan_func_die(Dwarf_Die *die, void *arg)
          * scan all over struct and get it
          */
         if (symsdb_get_mark_offset(db) == -1) {
-          offset = find_mark_offset(ptr_type, level, offset);
+          offset = find_member_offset(ptr_type, level, offset, "mark");
           if (offset == -1) {
             fprintf(stderr, "Failed to get mark offset\n");
             return -1;
