@@ -31,9 +31,9 @@ struct {
 static __always_inline void
 ipftrace_main(struct pt_regs *ctx, uint8_t *skb)
 {
-  uint32_t idx = 0, mark;
-  struct ipft_trace t;
+  struct ipft_trace t = {};
   struct ipft_ctrl_data *cdata;
+  uint32_t idx = 0, mark;
 
   cdata = bpf_map_lookup_elem(&ctrl_map, &idx);
   if (cdata == NULL) {
@@ -50,6 +50,7 @@ ipftrace_main(struct pt_regs *ctx, uint8_t *skb)
     t.tstamp = bpf_ktime_get_ns();
     t.faddr = PT_REGS_IP(ctx);
     t.skb_addr = (uint64_t)skb;
+    t.processor_id = bpf_get_smp_processor_id();
     bpf_perf_event_output(ctx, &events,
         BPF_F_CURRENT_CPU, &t, sizeof(t));
   }
