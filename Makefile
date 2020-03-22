@@ -1,7 +1,7 @@
 CFLAGS  += -g -O3 -Wall -Wextra -Werror -std=gnu99
 LIBS    := -lelf -ldw -lz -lpthread
 
-SRC     := symsdb.c trace_store.c ipftrace.c
+SRC     := symsdb.c tracedb.c ipftrace.c dwarf.c kallsyms.c btf.c trace.c
 BIN     := ipftrace2
 
 ODIR    := obj
