@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -8,118 +9,107 @@
 
 #include "ipftrace.h"
 
-#define assert_malloc(_ptr) do { \
-  if (_ptr == NULL) { \
-    fprintf(stderr, "Cannot allocate memory\n"); \
-    exit(EXIT_FAILURE); \
-  } \
-} while (0)
-
 static void
-dtor(__unused void *p)
+dtor(void *p)
 {
-  return;
+  free(p);
 }
 
 KLIST_INIT(trace_list, struct ipft_trace *, dtor)
 KHASH_MAP_INIT_INT64(trace, klist_t(trace_list ) *)
 
-struct ipft_trace_store {
-  khash_t(trace) *ts;
+struct ipft_tracedb {
+  khash_t(trace) *trace;
 };
 
 size_t
-ipft_trace_total(struct ipft_trace_store *ts)
+tracedb_get_total(struct ipft_tracedb *tdb)
 {
-  return kh_size(ts->ts);
+  return kh_size(tdb->trace);
 }
 
 int
-ipft_trace_add(struct ipft_trace_store *ts, struct ipft_trace *t)
+tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t)
 {
   int ret;
   khint_t iter;
   klist_t(trace_list) *l;
 
-  iter = kh_put(trace, ts->ts, t->skb_addr, &ret);
+  iter = kh_put(trace, tdb->trace, t->skb_addr, &ret);
   if (ret == 0) {
-    l = kh_value(ts->ts, iter);
+    l = kh_value(tdb->trace, iter);
     *kl_pushp(trace_list, l) = t;
   } else {
     l = kl_init(trace_list);
-    assert_malloc(l);
+    if (l == NULL) {
+      perror("kl_init");
+      return -1;
+    }
     *kl_pushp(trace_list, l) = t;
-    kh_value(ts->ts, iter) = l;
+    kh_value(tdb->trace, iter) = l;
   }
 
   return 0;
 }
 
 void
-ipft_trace_dump(struct ipft_trace_store *ts, struct ipft_symsdb *sdb, FILE *f)
+tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb, FILE *f)
 {
+  int error;
   char *name;
   uint32_t count = 0;
-  __unused uint64_t skb_addr;
   struct ipft_trace *t;
   klist_t(trace_list) *l;
   kliter_t(trace_list) *iter;
 
-  kh_foreach(ts->ts, skb_addr, l,
+  kh_foreach_value(tdb->trace, l,
     count++;
     fprintf(f, "sk_buff %u\n", count);
     for (iter = kl_begin(l); iter != kl_end(l); iter = kl_next(iter)) {
       t = kl_val(iter);
-      name = ipft_symsdb_get_sym(sdb, t->faddr);
-      fprintf(f, "  %zu %s\n", t->tstamp, name);
+      error = symsdb_get_addr2sym(sdb, t->faddr, &name);
+      if (error == -1) {
+        fprintf(stderr, "Failed to resolve the symbol from address\n");
+        return;
+      }
+      fprintf(f, "  %zu %04u %s\n", t->tstamp, t->processor_id, name);
     }
-  );
+  )
 }
 
 int
-ipft_trace_store_create(struct ipft_trace_store **tsp)
+tracedb_create(struct ipft_tracedb **tdbp)
 {
-  struct ipft_trace_store *ret;
+  struct ipft_tracedb *tdb;
 
-  ret = (struct ipft_trace_store *)malloc(sizeof(*ret));
-  assert_malloc(ret);
-
-  ret->ts = kh_init(trace);
-  assert_malloc(ret->ts);
-
-  *tsp = ret;
-
-  return 0;
-}
-
-/*
-int
-main(void)
-{
-  int error;
-  struct ipft_trace_store *ts;
-  struct ipft_trace traces[] = {
-    { 1111, 22221 },
-    { 1112, 22222 },
-    { 1113, 22223 },
-    { 1114, 22224 },
-    { 1115, 22225 },
-  };
-
-  error = ipft_trace_store_create(&ts);
-  if (error != 0) {
-    fprintf(stderr, "ipft_trace_store_create: %s\n", strerror(error));
-    return EXIT_FAILURE;
+  tdb = (struct ipft_tracedb *)malloc(sizeof(*tdb));
+  if (tdb == NULL) {
+    perror("malloc");
+    return -1;
   }
 
-  ipft_trace_add(ts, 0, &traces[0]);
-  ipft_trace_add(ts, 1, &traces[1]);
-  ipft_trace_add(ts, 2, &traces[2]);
-  ipft_trace_add(ts, 3, &traces[3]);
-  ipft_trace_add(ts, 0, &traces[4]);
+  tdb->trace = kh_init(trace);
+  if (tdb == NULL) {
+    perror("kh_init");
+    goto err0;
+  }
 
-  ipft_trace_dump(ts);
+  *tdbp = tdb;
 
-  return EXIT_SUCCESS;
+  return 0;
+
+err0:
+  free(tdb);
+  return -1;
 }
-*/
+
+void
+tracedb_destroy(struct ipft_tracedb *tdb)
+{
+  klist_t(trace_list ) *v;
+  kh_foreach_value(tdb->trace, v,
+    kl_destroy(trace_list, v);
+  )
+  kh_destroy(trace, tdb->trace);
+  free(tdb);
+}
