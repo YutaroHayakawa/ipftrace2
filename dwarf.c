@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -8,6 +9,22 @@
 #include "ipftrace.h"
 
 #define MAX_RECURSE_LEVEL 4
+
+struct dwarf_debuginfo {
+  struct ipft_debuginfo base;
+  Dwfl *dwfl;
+  Dwarf_Die *skb;
+  Dwarf_Die *shinfo;
+};
+
+static char *debuginfo_path;
+
+const Dwfl_Callbacks dwfl_callbacks = {
+  .find_debuginfo = dwfl_standard_find_debuginfo,
+  .debuginfo_path = &debuginfo_path,
+  .find_elf = dwfl_linux_kernel_find_elf,
+  .section_address = dwfl_linux_kernel_module_section_address
+};
 
 static void
 dwfl_perror(const char *msg)
@@ -202,27 +219,91 @@ dwarf_scan_func_die(Dwarf_Die *die, void *arg)
   return DWARF_CB_OK;
 }
 
-int
-ipft_dwarf_fill_sym2info(struct ipft_symsdb *sdb)
+static int
+dwarf_debuginfo_fill_sym2info(struct ipft_debuginfo *_dinfo, struct ipft_symsdb *sdb)
 {
-  int error;
-  Dwfl *dwfl;
   ptrdiff_t ret;
   Dwarf_Addr addr;
   Dwarf_Die *cu = NULL;
-  char *debuginfo_path = NULL;
+  struct dwarf_debuginfo *dinfo;
 
-  const Dwfl_Callbacks dwfl_callbacks = {
-    .find_debuginfo = dwfl_standard_find_debuginfo,
-    .debuginfo_path = &debuginfo_path,
-    .find_elf = dwfl_linux_kernel_find_elf,
-    .section_address = dwfl_linux_kernel_module_section_address
-  };
+  dinfo = (struct dwarf_debuginfo *)_dinfo;
+
+  while ((cu = dwfl_nextcu(dinfo->dwfl, cu, &addr)) != NULL) {
+    ret = dwarf_getfuncs(cu, dwarf_scan_func_die, sdb, 0);
+    if (ret == -1) {
+      dwarf_perror("dwarf_getfuncs");
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+static int
+get_struct_die(struct dwarf_debuginfo *dinfo, char *name,
+    Dwarf_Die **diep)
+{
+  int tag;
+  Dwarf_Addr addr;
+  Dwarf_Die *child;
+  const char *die_name;
+  Dwarf_Die *cu = NULL;
+
+  child = malloc(sizeof(*child));
+  if (child == NULL) {
+    perror("malloc");
+    return -1;
+  }
+
+  while ((cu = dwfl_nextcu(dinfo->dwfl, cu, &addr)) != NULL) {
+    if (dwarf_child(cu, child) != 0) {
+      continue;
+    }
+
+    do {
+      tag = dwarf_tag(child);
+      if (tag != DW_TAG_structure_type) {
+        continue;
+      }
+
+      die_name = dwarf_diename(child);
+      if (die_name == NULL) {
+        continue;
+      }
+
+      if (strcmp(name, dwarf_diename(child)) == 0) {
+        *diep = child;
+        goto end;
+      }
+    } while (dwarf_siblingof(child, child) == 0);
+  }
+
+  free(child);
+
+end:
+  return 0;
+}
+
+static void
+dwarf_debuginfo_destroy(struct ipft_debuginfo *_dinfo)
+{
+  struct dwarf_debuginfo *dinfo;
+  dinfo = (struct dwarf_debuginfo *)_dinfo;
+  dwfl_end(dinfo->dwfl);
+}
+
+int
+dwarf_debuginfo_create(struct ipft_debuginfo **dinfop)
+{
+  int error;
+  Dwfl *dwfl;
+  struct dwarf_debuginfo *dinfo;
 
   dwfl = dwfl_begin(&dwfl_callbacks);
   if (dwfl == NULL) {
     dwfl_perror("dwfl_begin");
-    goto err;
+    return -1;
   }
 
   error = dwfl_linux_kernel_report_kernel(dwfl);
@@ -237,18 +318,33 @@ ipft_dwarf_fill_sym2info(struct ipft_symsdb *sdb)
     goto err;
   }
 
-  while ((cu = dwfl_nextcu(dwfl, cu, &addr)) != NULL) {
-    ret = dwarf_getfuncs(cu, dwarf_scan_func_die, sdb, 0);
-    if (ret == -1) {
-      dwarf_perror("dwarf_getfuncs");
-      goto err;
-    }
+  dinfo = (struct dwarf_debuginfo *)malloc(sizeof(*dinfo));
+  if (dinfo == NULL) {
+    perror("malloc");
+    goto err;
   }
 
-  dwfl_end(dwfl);
+  dinfo->base.fill_sym2info = dwarf_debuginfo_fill_sym2info;
+  dinfo->base.destroy = dwarf_debuginfo_destroy;
+  dinfo->dwfl = dwfl;
+
+  error = get_struct_die(dinfo, "sk_buff", &dinfo->skb);
+  if (error == -1) {
+    fprintf(stderr, "Failed to get sk_buff DIE\n");
+    goto err;
+  }
+
+  error = get_struct_die(dinfo, "skb_shared_info", &dinfo->shinfo);
+  if (error == -1) {
+    fprintf(stderr, "Failed to get skb_shared_info DIE\n");
+    goto err;
+  }
+
+  *dinfop = (struct ipft_debuginfo *)dinfo;
 
   return 0;
 
 err:
+  dwfl_end(dwfl);
   return -1;
 }

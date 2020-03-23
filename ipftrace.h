@@ -21,6 +21,7 @@ struct ipft_ctrl_data {
 
 struct ipft_symsdb;
 struct ipft_tracedb;
+struct ipft_debuginfo;
 
 enum log_level {
   IPFT_LOG_INFO = 0,
@@ -43,6 +44,12 @@ struct ipft_syminfo {
   int skb_pos;
 };
 
+struct ipft_debuginfo {
+  int (*fill_sym2info)(struct ipft_debuginfo *,
+      struct ipft_symsdb *);
+  void (*destroy)(struct ipft_debuginfo *);
+};
+
 int symsdb_create(struct ipft_symsdb **sdbp);
 void symsdb_destroy(struct ipft_symsdb *sdb);
 size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
@@ -63,10 +70,12 @@ size_t tracedb_get_total(struct ipft_tracedb *tdb);
 int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t);
 void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb, FILE *f);
 
-int ipft_dwarf_fill_sym2info(struct ipft_symsdb *sdb);
-int ipft_btf_fill_sym2info(struct ipft_symsdb *sdb);
+int btf_debuginfo_create(struct ipft_debuginfo **dinfop);
+int dwarf_debuginfo_create(struct ipft_debuginfo **dinfop);
+void debuginfo_destroy(struct ipft_debuginfo *dinfo);
+int debuginfo_fill_sym2info(struct ipft_debuginfo *dinfo, struct ipft_symsdb *sdb);
 
-int ipft_kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
+int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 
 void do_trace(struct ipft_opt *);
 

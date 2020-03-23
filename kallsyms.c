@@ -20,7 +20,7 @@ const unsigned long long kernel_addr_spacee = 0x0;
 #endif
 
 int
-ipft_kallsyms_fill_addr2sym(struct ipft_symsdb *db)
+kallsyms_fill_addr2sym(struct ipft_symsdb *db)
 {
   FILE *f;
   int error;

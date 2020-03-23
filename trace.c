@@ -251,14 +251,14 @@ run_trace(struct bpf_object *bpf, struct ipft_tracedb *tdb)
 }
 
 static int
-fill_sym2info(struct ipft_symsdb *sdb, struct ipft_opt *opt)
+debuginfo_create(struct ipft_debuginfo **dinfo, struct ipft_opt *opt)
 {
   if (strcmp(opt->debug_format, "dwarf") == 0) {
-    return ipft_dwarf_fill_sym2info(sdb);
+    return dwarf_debuginfo_create(dinfo);
   }
 
   if (strcmp(opt->debug_format, "btf") == 0) {
-    return ipft_btf_fill_sym2info(sdb);
+    return btf_debuginfo_create(dinfo);
   }
 
   return -1;
@@ -271,6 +271,7 @@ do_trace(struct ipft_opt *opt)
   struct bpf_object *bpf;
   struct ipft_symsdb *sdb;
   struct ipft_tracedb *tdb;
+  struct ipft_debuginfo *dinfo;
 
   error = symsdb_create(&sdb);
   if (error == -1) {
@@ -284,48 +285,56 @@ do_trace(struct ipft_opt *opt)
     goto err0;
   }
 
-  error = fill_sym2info(sdb, opt);
+  error = debuginfo_create(&dinfo, opt);
   if (error == -1) {
-    fprintf(stderr, "Failed to fill sym2info\n");
+    fprintf(stderr, "Failed to create debuginfo\n");
     goto err1;
   }
 
-  error = ipft_kallsyms_fill_addr2sym(sdb);
+  error = debuginfo_fill_sym2info(dinfo, sdb);
+  if (error == -1) {
+    fprintf(stderr, "Failed to fill sym2info\n");
+    goto err2;
+  }
+
+  error = kallsyms_fill_addr2sym(sdb);
   if (error == -1) {
     fprintf(stderr, "Failed to fill addr2sym\n");
-    goto err1;
+    goto err2;
   }
 
   bpf = bpf_object_open_and_load(ipftrace_bpf_o,
       ipftrace_bpf_o_len, "ipftrace2");
   if (bpf == NULL) {
     fprintf(stderr, "Failed to open and load BPF object\n");
-    goto err1;
+    goto err2;
   }
 
   error = set_ctrl_data(bpf, opt->mark,
       symsdb_get_mark_offset(sdb));
   if (error == -1) {
     fprintf(stderr, "Failed to set BPF control data\n");
-    goto err2;
+    goto err3;
   }
 
   error = attach_probes(bpf, sdb, opt->verbose);
   if (error == -1) {
     fprintf(stderr, "Failed to attach probes\n");
-    goto err2;
+    goto err3;
   }
 
   error = run_trace(bpf, tdb);
   if (error == -1) {
     fprintf(stderr, "Error occured while running the trace\n");
-    goto err2;
+    goto err3;
   }
 
   tracedb_dump(tdb, sdb, stdout);
 
-err2:
+err3:
   bpf_object__close(bpf);
+err2:
+  debuginfo_destroy(dinfo);
 err1:
   tracedb_destroy(tdb);
 err0:
