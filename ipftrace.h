@@ -1,6 +1,7 @@
 #pragma once
 
 #define __unused __attribute__((unused))
+#define IPFT_DUMMY_HELPER_ID 1024
 
 struct ipft_symsdb;
 
@@ -10,6 +11,7 @@ struct ipft_trace {
   uint64_t faddr;
   uint32_t processor_id;
   uint32_t __pad;
+  uint8_t data[256];
 };
 
 struct ipft_ctrl_data {
@@ -79,4 +81,6 @@ int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 
 void do_trace(struct ipft_opt *);
 
+#else
+static void (*ipft_module_callsite)(uint8_t *, uint8_t *) = (void *)IPFT_DUMMY_HELPER_ID;
 #endif
