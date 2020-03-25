@@ -51,6 +51,14 @@ ipftrace_main(struct pt_regs *ctx, uint8_t *skb)
     t.faddr = PT_REGS_IP(ctx);
     t.skb_addr = (uint64_t)skb;
     t.processor_id = bpf_get_smp_processor_id();
+
+    /*
+     * This function actually does nothing
+     * instead, it will be replaced to the
+     * module code
+     */
+    ipft_module_callsite(t.data, skb);
+
     bpf_perf_event_output(ctx, &events,
         BPF_F_CURRENT_CPU, &t, sizeof(t));
   }
