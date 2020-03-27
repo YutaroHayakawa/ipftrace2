@@ -12,7 +12,7 @@
 static void
 dtor(void *p)
 {
-  free(p);
+  free(*(struct ipft_trace **)p);
 }
 
 KLIST_INIT(trace_list, struct ipft_trace *, dtor)

@@ -290,6 +290,8 @@ dwarf_debuginfo_destroy(struct ipft_debuginfo *_dinfo)
 {
   struct dwarf_debuginfo *dinfo;
   dinfo = (struct dwarf_debuginfo *)_dinfo;
+  free(dinfo->skb);
+  free(dinfo->shinfo);
   dwfl_end(dinfo->dwfl);
 }
 
