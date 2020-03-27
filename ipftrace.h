@@ -3,8 +3,6 @@
 #define __unused __attribute__((unused))
 #define IPFT_DUMMY_HELPER_ID 1024
 
-struct ipft_symsdb;
-
 struct ipft_trace {
   uint64_t skb_addr;
   uint64_t tstamp;
