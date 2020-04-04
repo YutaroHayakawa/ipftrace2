@@ -22,8 +22,8 @@ XZUTILS  := $(notdir $(patsubst %.tar.gz,%,$(wildcard deps/xz*.tar.gz)))
 ZLIB     := $(notdir $(patsubst %.tar.gz,%,$(wildcard deps/zlib*.tar.gz)))
 
 BPF_SRC    := ipftrace.bpf.c
-BPF_OBJ    := ipftrace.bpf.o
-BPF_OBJ_LL := ipftrace.bpf.ll
+BPF_OBJ    := $(ODIR)/ipftrace.bpf.o
+BPF_OBJ_LL := $(ODIR)/ipftrace.bpf.ll
 BPF_ELF_H  := ipftrace.elf.h
 
 BPF_CFLAGS := \
@@ -67,7 +67,7 @@ $(OBJ): $(BPF_ELF_H) | $(ODIR)
 
 $(BPF_ELF_H): $(BPF_OBJ) | $(ODIR)
 	echo "#pragma once" > $@
-	xxd -i $(BPF_OBJ) >> $@
+	cd $(ODIR) && xxd -i ipftrace.bpf.o >> $(abspath $@)
 
 $(BPF_OBJ): $(BPF_OBJ_LL)
 	$(LLC) -march=bpf -filetype=obj -o $@ $(BPF_OBJ_LL)
