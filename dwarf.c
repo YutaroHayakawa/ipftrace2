@@ -1,6 +1,6 @@
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
 #include <string.h>
 
 #include <dwarf.h>
@@ -18,30 +18,25 @@ struct dwarf_debuginfo {
 };
 
 // Took from Systemtap
-static char *debuginfo_path = "+:/usr/lib/debug:/var/cache/abrt-di/usr/lib/debug";
+static char *debuginfo_path =
+    "+:/usr/lib/debug:/var/cache/abrt-di/usr/lib/debug";
 
 const Dwfl_Callbacks dwfl_callbacks = {
-  .find_debuginfo = dwfl_standard_find_debuginfo,
-  .debuginfo_path = &debuginfo_path,
-  .find_elf = dwfl_linux_kernel_find_elf,
-  .section_address = dwfl_linux_kernel_module_section_address
-};
+    .find_debuginfo = dwfl_standard_find_debuginfo,
+    .debuginfo_path = &debuginfo_path,
+    .find_elf = dwfl_linux_kernel_find_elf,
+    .section_address = dwfl_linux_kernel_module_section_address};
 
-static void
-dwfl_perror(const char *msg)
-{
+static void dwfl_perror(const char *msg) {
   fprintf(stderr, "%s: %s\n", msg, dwfl_errmsg(dwfl_errno()));
 }
 
-static void
-dwarf_perror(const char *msg)
-{
+static void dwarf_perror(const char *msg) {
   fprintf(stderr, "%s: %s\n", msg, dwarf_errmsg(dwarf_errno()));
 }
 
-static ptrdiff_t
-find_member_offset(Dwarf_Die *die, int level, ptrdiff_t offset, char *name)
-{
+static ptrdiff_t find_member_offset(Dwarf_Die *die, int level, ptrdiff_t offset,
+                                    char *name) {
   int tag;
   ptrdiff_t ret;
   Dwarf_Word uval;
@@ -88,36 +83,35 @@ find_member_offset(Dwarf_Die *die, int level, ptrdiff_t offset, char *name)
     /*
      * Get the member type die
      */
-    type = dwarf_formref_die(dwarf_attr(&child, DW_AT_type, &attr_mem), &type_mem);
+    type =
+        dwarf_formref_die(dwarf_attr(&child, DW_AT_type, &attr_mem), &type_mem);
     if (type == NULL) {
       return -1;
     }
 
     tag = dwarf_tag(type);
-    switch(tag) {
-      case DW_TAG_structure_type:
-      case DW_TAG_union_type:
-        level++;
-        ret = find_member_offset(type, level, offset + uval, name);
-        if (ret > 0 || ret == -1) {
-          return ret;
-        }
-        level--;
-        break;
-      default:
-        if (strcmp(dwarf_diename(&child), name) == 0) {
-          return offset + uval;
-        }
-        break;
+    switch (tag) {
+    case DW_TAG_structure_type:
+    case DW_TAG_union_type:
+      level++;
+      ret = find_member_offset(type, level, offset + uval, name);
+      if (ret > 0 || ret == -1) {
+        return ret;
+      }
+      level--;
+      break;
+    default:
+      if (strcmp(dwarf_diename(&child), name) == 0) {
+        return offset + uval;
+      }
+      break;
     }
   } while (dwarf_siblingof(&child, &child) == 0);
 
   return 0;
 }
 
-static int
-dwarf_scan_func_die(Dwarf_Die *die, void *arg)
-{
+static int dwarf_scan_func_die(Dwarf_Die *die, void *arg) {
   Dwarf_Die child;
   int i = 0, tag;
   int error, level = 0;
@@ -151,8 +145,8 @@ dwarf_scan_func_die(Dwarf_Die *die, void *arg)
         /*
          * Get the type attribute of the function parameter
          */
-        param_type = dwarf_formref_die(
-            dwarf_attr(&child, DW_AT_type, &attr), &param_type_mem);
+        param_type = dwarf_formref_die(dwarf_attr(&child, DW_AT_type, &attr),
+                                       &param_type_mem);
         if (param_type == NULL) {
           continue;
         }
@@ -168,8 +162,8 @@ dwarf_scan_func_die(Dwarf_Die *die, void *arg)
         /*
          * Get the original type of the pointer
          */
-        ptr_type = dwarf_formref_die(
-            dwarf_attr(param_type, DW_AT_type, &attr), &ptr_type_mem);
+        ptr_type = dwarf_formref_die(dwarf_attr(param_type, DW_AT_type, &attr),
+                                     &ptr_type_mem);
         if (ptr_type == NULL) {
           continue;
         }
@@ -215,14 +209,13 @@ dwarf_scan_func_die(Dwarf_Die *die, void *arg)
         break;
       }
     }
-  } while(dwarf_siblingof(&child, &child) == 0);
+  } while (dwarf_siblingof(&child, &child) == 0);
 
   return DWARF_CB_OK;
 }
 
-static int
-dwarf_debuginfo_fill_sym2info(struct ipft_debuginfo *_dinfo, struct ipft_symsdb *sdb)
-{
+static int dwarf_debuginfo_fill_sym2info(struct ipft_debuginfo *_dinfo,
+                                         struct ipft_symsdb *sdb) {
   ptrdiff_t ret;
   Dwarf_Addr addr;
   Dwarf_Die *cu = NULL;
@@ -241,10 +234,8 @@ dwarf_debuginfo_fill_sym2info(struct ipft_debuginfo *_dinfo, struct ipft_symsdb 
   return 0;
 }
 
-static int
-get_struct_die(struct dwarf_debuginfo *dinfo, char *name,
-    Dwarf_Die **diep)
-{
+static int get_struct_die(struct dwarf_debuginfo *dinfo, char *name,
+                          Dwarf_Die **diep) {
   int tag;
   Dwarf_Addr addr;
   Dwarf_Die *child;
@@ -286,9 +277,7 @@ end:
   return 0;
 }
 
-static void
-dwarf_debuginfo_destroy(struct ipft_debuginfo *_dinfo)
-{
+static void dwarf_debuginfo_destroy(struct ipft_debuginfo *_dinfo) {
   struct dwarf_debuginfo *dinfo;
   dinfo = (struct dwarf_debuginfo *)_dinfo;
   free(dinfo->skb);
@@ -296,9 +285,7 @@ dwarf_debuginfo_destroy(struct ipft_debuginfo *_dinfo)
   dwfl_end(dinfo->dwfl);
 }
 
-int
-dwarf_debuginfo_create(struct ipft_debuginfo **dinfop)
-{
+int dwarf_debuginfo_create(struct ipft_debuginfo **dinfop) {
   int error;
   Dwfl *dwfl;
   struct dwarf_debuginfo *dinfo;

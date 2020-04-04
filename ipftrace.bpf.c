@@ -7,10 +7,10 @@
 #endif
 #define asm_volatile_goto(x...) asm volatile("invalid use of asm_volatile_goto")
 
-#include <linux/types.h>
-#include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
+#include <linux/bpf.h>
+#include <linux/types.h>
 
 #define BPF
 #include "ipftrace.h"
@@ -28,9 +28,7 @@ struct {
   __uint(value_size, sizeof(u32));
 } events SEC(".maps");
 
-static __always_inline void
-ipftrace_main(struct pt_regs *ctx, uint8_t *skb)
-{
+static __always_inline void ipftrace_main(struct pt_regs *ctx, uint8_t *skb) {
   struct ipft_trace t = {};
   struct ipft_ctrl_data *cdata;
   uint32_t idx = 0, mark;
@@ -59,23 +57,16 @@ ipftrace_main(struct pt_regs *ctx, uint8_t *skb)
      */
     ipft_module_callsite(t.data, skb);
 
-    bpf_perf_event_output(ctx, &events,
-        BPF_F_CURRENT_CPU, &t, sizeof(t));
+    bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &t, sizeof(t));
   }
 }
 
-#define ipftrace_mainx(x) \
-SEC("kprobe/ipftrace_main" #x) void \
-ipftrace_main##x(struct pt_regs *ctx) \
-{ \
-  uint8_t *skb = \
-    (uint8_t *)PT_REGS_PARM##x(ctx); \
-  return ipftrace_main(ctx, skb); \
-}
+#define ipftrace_mainx(x)                                                      \
+  SEC("kprobe/ipftrace_main" #x) void ipftrace_main##x(struct pt_regs *ctx) {  \
+    uint8_t *skb = (uint8_t *)PT_REGS_PARM##x(ctx);                            \
+    return ipftrace_main(ctx, skb);                                            \
+  }
 
-ipftrace_mainx(1)
-ipftrace_mainx(2)
-ipftrace_mainx(3)
-ipftrace_mainx(4)
+ipftrace_mainx(1) ipftrace_mainx(2) ipftrace_mainx(3) ipftrace_mainx(4)
 
-SEC("license") char _license[] = "GPL";
+    SEC("license") char _license[] = "GPL";

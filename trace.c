@@ -1,17 +1,17 @@
-#include <stdio.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 #include <errno.h>
 #include <signal.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "klist.h"
-#include "ipftrace.h"
 #include "ipftrace.elf.h"
+#include "ipftrace.h"
+#include "klist.h"
 
 struct attach_ctx {
   int verbose;
@@ -35,9 +35,7 @@ struct trace_ctx {
 static bool trace_finish = false;
 static char error_buf[ERROR_BUF_SIZE] = {};
 
-static void
-links_dtor(void *priv)
-{
+static void links_dtor(void *priv) {
   bpf_link__destroy(*(struct bpf_link **)priv);
 }
 
@@ -45,12 +43,10 @@ KLIST_INIT(links, struct bpf_link *, links_dtor)
 
 struct bpf_prog_priv {
   struct bpf_insn *prog;
-  klist_t(links) *links;
+  klist_t(links) * links;
 };
 
-static int
-bpf_prog_priv_create(struct bpf_prog_priv **privp)
-{
+static int bpf_prog_priv_create(struct bpf_prog_priv **privp) {
   struct bpf_prog_priv *priv;
 
   priv = (struct bpf_prog_priv *)malloc(sizeof(*priv));
@@ -76,9 +72,7 @@ err0:
   return -1;
 }
 
-static void
-bpf_prog_priv_destroy(struct bpf_prog_priv *priv)
-{
+static void bpf_prog_priv_destroy(struct bpf_prog_priv *priv) {
   if (priv->prog != NULL) {
     free(priv->prog);
   }
@@ -86,30 +80,23 @@ bpf_prog_priv_destroy(struct bpf_prog_priv *priv)
   free(priv);
 }
 
-static void
-bpf_prog_priv_dtor(__unused struct bpf_program *prog, void *_priv)
-{
+static void bpf_prog_priv_dtor(__unused struct bpf_program *prog, void *_priv) {
   struct bpf_prog_priv *priv = (struct bpf_prog_priv *)_priv;
   bpf_prog_priv_destroy(priv);
 }
 
-static int pr_suppress_warn(enum libbpf_print_level level,
-    const char *format, va_list args) {
+static int pr_suppress_warn(enum libbpf_print_level level, const char *format,
+                            va_list args) {
   if (level == LIBBPF_WARN) {
     return 0;
   }
   return vfprintf(stderr, format, args);
 }
 
-static void
-on_sigint(__unused int sig)
-{
-  trace_finish = true;
-}
+static void on_sigint(__unused int sig) { trace_finish = true; }
 
-static void
-on_event(void *_ctx, __unused int cpu, void *data, __unused __u32 size)
-{
+static void on_event(void *_ctx, __unused int cpu, void *data,
+                     __unused __u32 size) {
   int error;
   struct ipft_trace *trace;
   struct trace_ctx *ctx;
@@ -133,15 +120,11 @@ on_event(void *_ctx, __unused int cpu, void *data, __unused __u32 size)
   printf("Captured %zu sk_buffs\r", tracedb_get_total(ctx->tdb));
 }
 
-static void
-on_lost(__unused void *ctx, __unused int cpu, __u64 cnt)
-{
+static void on_lost(__unused void *ctx, __unused int cpu, __u64 cnt) {
   fprintf(stderr, "%llu events lost\n", cnt);
 }
 
-static int
-attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
-{
+static int attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg) {
   struct bpf_link *link;
   struct bpf_prog_priv *priv;
   struct attach_ctx *ctx;
@@ -157,21 +140,21 @@ attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
   }
 
   switch (si->skb_pos) {
-    case 1:
-      main_prog = ctx->main1;
-      break;
-    case 2:
-      main_prog = ctx->main2;
-      break;
-    case 3:
-      main_prog = ctx->main3;
-      break;
-    case 4:
-      main_prog = ctx->main4;
-      break;
-    default:
-      fprintf(stderr, "Invalid skb position\n");
-      return -1;
+  case 1:
+    main_prog = ctx->main1;
+    break;
+  case 2:
+    main_prog = ctx->main2;
+    break;
+  case 3:
+    main_prog = ctx->main3;
+    break;
+  case 4:
+    main_prog = ctx->main4;
+    break;
+  default:
+    fprintf(stderr, "Invalid skb position\n");
+    return -1;
   }
 
   link = bpf_program__attach_kprobe(main_prog, false, sym);
@@ -183,8 +166,8 @@ attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
     ctx->failed++;
   }
 
-  printf("Attaching %zu probes (Attached: %zu Failed: %zu)\r",
-      ctx->total, ctx->attached, ctx->failed);
+  printf("Attaching %zu probes (Attached: %zu Failed: %zu)\r", ctx->total,
+         ctx->attached, ctx->failed);
 
   if (orig_fn != NULL) {
     libbpf_set_print(orig_fn);
@@ -193,17 +176,13 @@ attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg)
   return 0;
 }
 
-static int
-prog_preprocess(__unused struct bpf_program *prog,
-    __unused int n, struct bpf_insn *insns, int insns_cnt,
-    struct bpf_prog_prep_result *res)
-{
+static int prog_preprocess(__unused struct bpf_program *prog, __unused int n,
+                           struct bpf_insn *insns, int insns_cnt,
+                           struct bpf_prog_prep_result *res) {
   struct bpf_prog_priv *priv;
   int patch_len, offset = -1;
   struct bpf_insn *p, *patch = NULL;
-  struct bpf_insn patch_default[] = {
-    { BPF_JMP | BPF_JA, 0, 0, 0, 0 }
-  };
+  struct bpf_insn patch_default[] = {{BPF_JMP | BPF_JA, 0, 0, 0, 0}};
 
   // TODO Put module hook to here
 
@@ -236,7 +215,7 @@ prog_preprocess(__unused struct bpf_program *prog,
   memcpy(p, insns, offset * sizeof(*p));
   memcpy(p + offset, patch, patch_len * sizeof(*p));
   memcpy(p + offset + patch_len, insns + offset + 1,
-      (insns_cnt - offset - 1) * sizeof(*p));
+         (insns_cnt - offset - 1) * sizeof(*p));
 
   priv = bpf_program__priv(prog);
   priv->prog = p;
@@ -244,41 +223,43 @@ prog_preprocess(__unused struct bpf_program *prog,
   return 0;
 }
 
-#define bpf_object_find_main(_bpf, _x)  do { \
-  main##_x = bpf_object__find_program_by_name(bpf, "ipftrace_main" #_x); \
-  if ((error = libbpf_get_error(main##_x)) != 0) { \
-    libbpf_strerror(error, error_buf, ERROR_BUF_SIZE); \
-    fprintf(stderr, "bpf_object__find_program_by_title: %s\n", error_buf); \
-    return -1; \
-  } \
-} while(0)
+#define bpf_object_find_main(_bpf, _x)                                         \
+  do {                                                                         \
+    main##_x = bpf_object__find_program_by_name(bpf, "ipftrace_main" #_x);     \
+    if ((error = libbpf_get_error(main##_x)) != 0) {                           \
+      libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);                       \
+      fprintf(stderr, "bpf_object__find_program_by_title: %s\n", error_buf);   \
+      return -1;                                                               \
+    }                                                                          \
+  } while (0)
 
-#define bpf_object_find_all_main(_bpf) do { \
-  bpf_object_find_main(_bpf, 1); \
-  bpf_object_find_main(_bpf, 2); \
-  bpf_object_find_main(_bpf, 3); \
-  bpf_object_find_main(_bpf, 4); \
-} while(0)
+#define bpf_object_find_all_main(_bpf)                                         \
+  do {                                                                         \
+    bpf_object_find_main(_bpf, 1);                                             \
+    bpf_object_find_main(_bpf, 2);                                             \
+    bpf_object_find_main(_bpf, 3);                                             \
+    bpf_object_find_main(_bpf, 4);                                             \
+  } while (0)
 
-#define bpf_object_set_prep_to_main(_bpf, _f, _x) do { \
-  error = bpf_program__set_prep(main##_x, 1, _f); \
-  if (error != 0) { \
-    libbpf_strerror(error, error_buf, ERROR_BUF_SIZE); \
-    fprintf(stderr, "bpf_program__set_prep: %s\n", error_buf); \
-    return -1; \
-  } \
-} while(0)
+#define bpf_object_set_prep_to_main(_bpf, _f, _x)                              \
+  do {                                                                         \
+    error = bpf_program__set_prep(main##_x, 1, _f);                            \
+    if (error != 0) {                                                          \
+      libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);                       \
+      fprintf(stderr, "bpf_program__set_prep: %s\n", error_buf);               \
+      return -1;                                                               \
+    }                                                                          \
+  } while (0)
 
-#define bpf_object_set_prep_to_all_main(_bpf, _f) do { \
-  bpf_object_set_prep_to_main(_bpf, _f, 1); \
-  bpf_object_set_prep_to_main(_bpf, _f, 2); \
-  bpf_object_set_prep_to_main(_bpf, _f, 3); \
-  bpf_object_set_prep_to_main(_bpf, _f, 4); \
-} while(0)
+#define bpf_object_set_prep_to_all_main(_bpf, _f)                              \
+  do {                                                                         \
+    bpf_object_set_prep_to_main(_bpf, _f, 1);                                  \
+    bpf_object_set_prep_to_main(_bpf, _f, 2);                                  \
+    bpf_object_set_prep_to_main(_bpf, _f, 3);                                  \
+    bpf_object_set_prep_to_main(_bpf, _f, 4);                                  \
+  } while (0)
 
-static int
-bpf_object_set_preps(struct bpf_object *bpf)
-{
+static int bpf_object_set_preps(struct bpf_object *bpf) {
   int error;
   struct bpf_program *main1, *main2, *main3, *main4;
 
@@ -288,25 +269,25 @@ bpf_object_set_preps(struct bpf_object *bpf)
   return 0;
 }
 
-#define bpf_object_set_priv_to_main(_f, _priv, _dtor) do { \
-  error = bpf_prog_priv_create(&priv); \
-  if (error == -1) { \
-    fprintf(stderr, "Failed to create bpf_prog_priv\n"); \
-    return -1; \
-  } \
-  bpf_program__set_priv(_f, _priv, _dtor); \
-} while (0)
+#define bpf_object_set_priv_to_main(_f, _priv, _dtor)                          \
+  do {                                                                         \
+    error = bpf_prog_priv_create(&priv);                                       \
+    if (error == -1) {                                                         \
+      fprintf(stderr, "Failed to create bpf_prog_priv\n");                     \
+      return -1;                                                               \
+    }                                                                          \
+    bpf_program__set_priv(_f, _priv, _dtor);                                   \
+  } while (0)
 
-#define bpf_object_set_priv_to_all_main(_priv, _dtor) do { \
-  bpf_object_set_priv_to_main(main1, _priv, _dtor); \
-  bpf_object_set_priv_to_main(main2, _priv, _dtor); \
-  bpf_object_set_priv_to_main(main3, _priv, _dtor); \
-  bpf_object_set_priv_to_main(main4, _priv, _dtor); \
-} while (0)
+#define bpf_object_set_priv_to_all_main(_priv, _dtor)                          \
+  do {                                                                         \
+    bpf_object_set_priv_to_main(main1, _priv, _dtor);                          \
+    bpf_object_set_priv_to_main(main2, _priv, _dtor);                          \
+    bpf_object_set_priv_to_main(main3, _priv, _dtor);                          \
+    bpf_object_set_priv_to_main(main4, _priv, _dtor);                          \
+  } while (0)
 
-static int
-bpf_object_set_privs(struct bpf_object *bpf)
-{
+static int bpf_object_set_privs(struct bpf_object *bpf) {
   int error;
   struct bpf_prog_priv *priv;
   struct bpf_program *main1, *main2, *main3, *main4;
@@ -317,9 +298,8 @@ bpf_object_set_privs(struct bpf_object *bpf)
   return 0;
 }
 
-static struct bpf_object *
-bpf_object_open_and_load(unsigned char *buf, size_t len)
-{
+static struct bpf_object *bpf_object_open_and_load(unsigned char *buf,
+                                                   size_t len) {
   int error;
   struct bpf_object *bpf;
 
@@ -356,10 +336,8 @@ err0:
   return NULL;
 }
 
-static int
-set_ctrl_data(struct bpf_object *bpf,
-    uint32_t mark, uint32_t mark_offset)
-{
+static int set_ctrl_data(struct bpf_object *bpf, uint32_t mark,
+                         uint32_t mark_offset) {
   int error, fd;
   struct ipft_ctrl_data cdata;
 
@@ -383,9 +361,8 @@ set_ctrl_data(struct bpf_object *bpf,
   return 0;
 }
 
-static int
-attach_probes(struct bpf_object *bpf, struct ipft_symsdb *sdb, int verbose)
-{
+static int attach_probes(struct bpf_object *bpf, struct ipft_symsdb *sdb,
+                         int verbose) {
   int error;
   struct attach_ctx ctx;
   struct bpf_program *main1, *main2, *main3, *main4;
@@ -414,9 +391,7 @@ attach_probes(struct bpf_object *bpf, struct ipft_symsdb *sdb, int verbose)
   return 0;
 }
 
-static int
-run_trace(struct bpf_object *bpf, struct ipft_tracedb *tdb)
-{
+static int run_trace(struct bpf_object *bpf, struct ipft_tracedb *tdb) {
   int error, fd;
   struct trace_ctx ctx;
   struct perf_buffer *pb;
@@ -457,9 +432,8 @@ run_trace(struct bpf_object *bpf, struct ipft_tracedb *tdb)
   return 0;
 }
 
-static int
-debuginfo_create(struct ipft_debuginfo **dinfo, struct ipft_opt *opt)
-{
+static int debuginfo_create(struct ipft_debuginfo **dinfo,
+                            struct ipft_opt *opt) {
   if (strcmp(opt->debug_format, "dwarf") == 0) {
     return dwarf_debuginfo_create(dinfo);
   }
@@ -471,9 +445,7 @@ debuginfo_create(struct ipft_debuginfo **dinfo, struct ipft_opt *opt)
   return -1;
 }
 
-void
-do_trace(struct ipft_opt *opt)
-{
+void do_trace(struct ipft_opt *opt) {
   int error;
   struct bpf_object *bpf;
   struct ipft_symsdb *sdb;
@@ -510,15 +482,13 @@ do_trace(struct ipft_opt *opt)
     goto err2;
   }
 
-  bpf = bpf_object_open_and_load(ipftrace_bpf_o,
-      ipftrace_bpf_o_len);
+  bpf = bpf_object_open_and_load(ipftrace_bpf_o, ipftrace_bpf_o_len);
   if (bpf == NULL) {
     fprintf(stderr, "Failed to open and load BPF object\n");
     goto err2;
   }
 
-  error = set_ctrl_data(bpf, opt->mark,
-      symsdb_get_mark_offset(sdb));
+  error = set_ctrl_data(bpf, opt->mark, symsdb_get_mark_offset(sdb));
   if (error == -1) {
     fprintf(stderr, "Failed to set BPF control data\n");
     goto err3;

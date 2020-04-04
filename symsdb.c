@@ -1,45 +1,37 @@
+#include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <stddef.h>
 
-#include "khash.h"
 #include "ipftrace.h"
+#include "khash.h"
 
 KHASH_MAP_INIT_STR(sym2info, struct ipft_syminfo *)
 KHASH_MAP_INIT_INT64(addr2sym, char *)
 
 struct ipft_symsdb {
   ptrdiff_t mark_offset;
-  khash_t(sym2info) *sym2info;
-  khash_t(addr2sym) *addr2sym;
+  khash_t(sym2info) * sym2info;
+  khash_t(addr2sym) * addr2sym;
 };
 
-size_t
-symsdb_get_sym2info_total(struct ipft_symsdb *sdb)
-{
+size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb) {
   return kh_size(sdb->sym2info);
 }
 
-void
-symsdb_put_mark_offset(struct ipft_symsdb *sdb, ptrdiff_t mark_offset)
-{
+void symsdb_put_mark_offset(struct ipft_symsdb *sdb, ptrdiff_t mark_offset) {
   sdb->mark_offset = mark_offset;
 }
 
-ptrdiff_t
-symsdb_get_mark_offset(struct ipft_symsdb *sdb)
-{
+ptrdiff_t symsdb_get_mark_offset(struct ipft_symsdb *sdb) {
   return sdb->mark_offset;
 }
 
-int
-symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
-    struct ipft_syminfo *sinfo)
-{
+int symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
+                        struct ipft_syminfo *sinfo) {
   char *k;
   khint_t iter;
-  khash_t(sym2info) *db;
+  khash_t(sym2info) * db;
   int error = 0, missing;
   struct ipft_syminfo *v;
 
@@ -74,12 +66,10 @@ err0:
   return error;
 }
 
-int
-symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
-    struct ipft_syminfo **sinfop)
-{
+int symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
+                        struct ipft_syminfo **sinfop) {
   khint_t iter;
-  khash_t(sym2info) *db;
+  khash_t(sym2info) * db;
 
   db = ((struct ipft_symsdb *)sdb)->sym2info;
 
@@ -93,43 +83,32 @@ symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
   return 0;
 }
 
-void
-symsdb_release_all_sym2info(struct ipft_symsdb *sdb)
-{
+void symsdb_release_all_sym2info(struct ipft_symsdb *sdb) {
   const char *k;
   struct ipft_syminfo *v;
-  kh_foreach(sdb->sym2info, k, v,
-    free((char *)k);
-    free(v);
-  );
+  kh_foreach(sdb->sym2info, k, v, free((char *)k); free(v););
 }
 
-int
-symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
-    int (*cb)(const char *, struct ipft_syminfo *, void *), void *arg)
-{
+int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
+                            int (*cb)(const char *, struct ipft_syminfo *,
+                                      void *),
+                            void *arg) {
   int error;
   const char *k;
   struct ipft_syminfo *v;
 
-  kh_foreach(sdb->sym2info, k, v,
-    error = cb(k, v, arg);
-    if (error == -1) {
-      return -1;
-    }
-  )
+  kh_foreach(
+      sdb->sym2info, k, v, error = cb(k, v, arg);
+      if (error == -1) { return -1; })
 
-  return 0;
+      return 0;
 }
 
-int
-symsdb_put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr,
-    char *sym)
-{
+int symsdb_put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *sym) {
   char *v;
   int missing;
   khint_t iter;
-  khash_t(addr2sym) *db;
+  khash_t(addr2sym) * db;
 
   v = strdup(sym);
   if (v == NULL) {
@@ -152,12 +131,9 @@ err0:
   return -1;
 }
 
-int
-symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr,
-    char **symp)
-{
+int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp) {
   khint_t iter;
-  khash_t(addr2sym) *db;
+  khash_t(addr2sym) * db;
 
   db = ((struct ipft_symsdb *)sdb)->addr2sym;
 
@@ -171,18 +147,12 @@ symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr,
   return 0;
 }
 
-void
-symsdb_release_all_addr2sym(struct ipft_symsdb *sdb)
-{
+void symsdb_release_all_addr2sym(struct ipft_symsdb *sdb) {
   char *v;
-  kh_foreach_value(sdb->addr2sym, v,
-    free(v);
-  )
+  kh_foreach_value(sdb->addr2sym, v, free(v);)
 }
 
-int
-symsdb_create(struct ipft_symsdb **sdbp)
-{
+int symsdb_create(struct ipft_symsdb **sdbp) {
   struct ipft_symsdb *sdb;
 
   sdb = (struct ipft_symsdb *)malloc(sizeof(*sdb));
@@ -216,9 +186,7 @@ err0:
   return -1;
 }
 
-void
-symsdb_destroy(struct ipft_symsdb *sdb)
-{
+void symsdb_destroy(struct ipft_symsdb *sdb) {
   symsdb_release_all_sym2info(sdb);
   kh_destroy(sym2info, sdb->sym2info);
   symsdb_release_all_addr2sym(sdb);

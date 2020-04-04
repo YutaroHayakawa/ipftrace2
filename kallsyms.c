@@ -1,9 +1,9 @@
-#include <stdio.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <errno.h>
-#include <unistd.h>
 #include <ctype.h>
+#include <errno.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "khash.h"
 
@@ -19,9 +19,7 @@ const unsigned long long kernel_addr_space = 0x00ffffffffffffff;
 const unsigned long long kernel_addr_spacee = 0x0;
 #endif
 
-int
-kallsyms_fill_addr2sym(struct ipft_symsdb *db)
-{
+int kallsyms_fill_addr2sym(struct ipft_symsdb *db) {
   FILE *f;
   int error;
   uint64_t addr;
@@ -32,8 +30,7 @@ kallsyms_fill_addr2sym(struct ipft_symsdb *db)
   f = fopen("/proc/kallsyms", "r");
   if (f == NULL) {
     error = errno;
-    fprintf(stderr, "Failed to open /proc/kallsyms: %s\n",
-        strerror(error));
+    fprintf(stderr, "Failed to open /proc/kallsyms: %s\n", strerror(error));
     return error;
   }
 
@@ -55,7 +52,7 @@ kallsyms_fill_addr2sym(struct ipft_symsdb *db)
 
     // Ignore data symbols
     if (*symname == 'b' || *symname == 'B' || *symname == 'd' ||
-        *symname == 'D' || *symname == 'r' || *symname =='R') {
+        *symname == 'D' || *symname == 'r' || *symname == 'R') {
       continue;
     }
 
