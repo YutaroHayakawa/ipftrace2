@@ -17,7 +17,8 @@ struct dwarf_debuginfo {
   Dwarf_Die *shinfo;
 };
 
-static char *debuginfo_path;
+// Took from Systemtap
+static char *debuginfo_path = "+:/usr/lib/debug:/var/cache/abrt-di/usr/lib/debug";
 
 const Dwfl_Callbacks dwfl_callbacks = {
   .find_debuginfo = dwfl_standard_find_debuginfo,
