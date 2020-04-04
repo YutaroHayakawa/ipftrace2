@@ -17,6 +17,7 @@ static struct option options[] = {
   { "mark-offset" , required_argument, 0,  0  },
   { "vmlinux-path", required_argument, 0,  0  },
   { "modules-path", required_argument, 0,  0  },
+  { NULL          ,                 0, 0,  0  },
 };
 
 static void
