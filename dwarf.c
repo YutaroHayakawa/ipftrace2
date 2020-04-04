@@ -8,7 +8,7 @@
 
 #include "ipftrace.h"
 
-#define MAX_RECURSE_LEVEL 4
+#define MAX_RECURSE_LEVEL 8
 
 struct dwarf_debuginfo {
   struct ipft_debuginfo base;
@@ -44,14 +44,14 @@ static ptrdiff_t find_member_offset(Dwarf_Die *die, int level, ptrdiff_t offset,
   Dwarf_Die *type, type_mem, child;
 
   if (level == MAX_RECURSE_LEVEL) {
-    return -1;
+    return 0;
   }
 
   /*
    * Get member type die
    */
   if (dwarf_child(die, &child) != 0) {
-    return -1;
+    return 0;
   }
 
   /*
