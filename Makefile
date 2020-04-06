@@ -97,7 +97,7 @@ $(ODIR)/$(XZUTILS): deps/$(XZUTILS).tar.gz | $(ODIR)
 $(ODIR)/$(ZLIB): deps/$(ZLIB).tar.gz | $(ODIR)
 	@tar -C $(ODIR) -xf $<
 
-$(ODIR)/lib64/libbpf.a: $(ODIR)/$(LIBBPF)
+$(ODIR)/lib64/libbpf.a: $(ODIR)/$(LIBBPF) $(ODIR)/lib/libelf.a $(ODIR)/lib/libz.a
 	@echo Building libbpf...
 	@$(MAKE) -C $</src PREFIX=$(abspath $(ODIR)) install
 	@$(MAKE) -C $</src PREFIX=$(abspath $(ODIR)) install_headers
