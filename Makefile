@@ -57,23 +57,13 @@ DEPS       := $(ODIR)/lib64/libbpf.a $(ODIR)/lib/libdw.a $(ODIR)/lib/libelf.a \
 all: $(BIN)
 
 clean:
-	$(RM) -rf $(BIN) obj/* $(BPF_OBJ) $(BPF_OBJ_LL) $(BPF_ELF_H)
+	$(RM) -rf $(BIN) $(OBJ) $(ODIR)/*
 
 $(BIN): $(OBJ)
 	@echo LINK $(BIN)
 	@$(CC) $(LDFLAGS) -o $@ $^ $(DEPS) $(LIBS)
 
-$(OBJ): $(BPF_ELF_H) | $(ODIR)
-
-$(BPF_ELF_H): $(BPF_OBJ) | $(ODIR)
-	echo "#pragma once" > $@
-	cd $(ODIR) && xxd -i ipftrace.bpf.o >> $(abspath $@)
-
-$(BPF_OBJ): $(BPF_OBJ_LL)
-	$(LLC) -march=bpf -filetype=obj -o $@ $(BPF_OBJ_LL)
-
-$(BPF_OBJ_LL): $(DEPS)
-	$(CLANG) $(BPF_CFLAGS) -o $@ -c $(BPF_SRC)
+$(OBJ): $(DEPS) | $(BPF_ELF_H) $(ODIR)
 
 $(ODIR):
 	@mkdir -p $@
@@ -81,6 +71,19 @@ $(ODIR):
 $(ODIR)/%.o : %.c
 	@echo CC $<
 	@$(CC) $(CFLAGS) -c -o $@ $<
+
+bpf: $(BPF_OBJ) | $(ODIR)
+	echo "#pragma once" > $@
+	cd $(ODIR) && xxd -i ipftrace.bpf.o >> $(abspath $(BPF_ELF_H))
+
+$(BPF_OBJ): $(BPF_OBJ_LL)
+	$(LLC) -march=bpf -filetype=obj -o $@ $(BPF_OBJ_LL)
+
+$(BPF_OBJ_LL): $(DEPS)
+	$(CLANG) $(BPF_CFLAGS) -o $@ -c $(BPF_SRC)
+
+clean-deps:
+	$(RM) -rf obj/*
 
 $(ODIR)/$(LIBBPF): deps/$(LIBBPF).tar.gz | $(ODIR)
 	@tar -C $(ODIR) -xf $<
@@ -116,4 +119,4 @@ $(ODIR)/lib/libz.a: $(ODIR)/$(ZLIB)
 	cd $< && ./configure --prefix $(abspath $(ODIR))
 	@$(MAKE) -C $< install
 
-.PHONY: all clean
+.PHONY: all clean bpf clean-bpf clean-deps
