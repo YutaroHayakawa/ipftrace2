@@ -73,7 +73,7 @@ $(ODIR)/%.o : %.c
 	@$(CC) $(CFLAGS) -c -o $@ $<
 
 bpf: $(BPF_OBJ) | $(ODIR)
-	echo "#pragma once" > $@
+	echo "#pragma once" > $(abspath $(BPF_ELF_H))
 	cd $(ODIR) && xxd -i ipftrace.bpf.o >> $(abspath $(BPF_ELF_H))
 
 $(BPF_OBJ): $(BPF_OBJ_LL)
