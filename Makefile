@@ -76,14 +76,14 @@ bpf: $(BPF_OBJ) | $(ODIR)
 	echo "#pragma once" > $(abspath $(BPF_ELF_H))
 	cd $(ODIR) && xxd -i ipftrace.bpf.o >> $(abspath $(BPF_ELF_H))
 
+clean-bpf:
+	$(RM) -f $(BPF_ELF_H)
+
 $(BPF_OBJ): $(BPF_OBJ_LL)
 	$(LLC) -march=bpf -filetype=obj -o $@ $(BPF_OBJ_LL)
 
 $(BPF_OBJ_LL): $(DEPS)
 	$(CLANG) $(BPF_CFLAGS) -o $@ -c $(BPF_SRC)
-
-clean-deps:
-	$(RM) -rf obj/*
 
 $(ODIR)/$(LIBBPF): deps/$(LIBBPF).tar.gz | $(ODIR)
 	@tar -C $(ODIR) -xf $<
