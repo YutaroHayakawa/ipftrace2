@@ -7,10 +7,10 @@
 #endif
 #define asm_volatile_goto(x...) asm volatile("invalid use of asm_volatile_goto")
 
-#include <bpf/bpf_helpers.h>
-#include <bpf/bpf_tracing.h>
 #include <linux/bpf.h>
 #include <linux/types.h>
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_tracing.h>
 
 #define BPF
 #include "ipftrace.h"
