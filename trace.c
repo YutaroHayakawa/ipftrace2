@@ -118,6 +118,7 @@ static void on_event(void *_ctx, __unused int cpu, void *data,
   }
 
   printf("Captured %zu sk_buffs\r", tracedb_get_total(ctx->tdb));
+  fflush(stdout);
 }
 
 static void on_lost(__unused void *ctx, __unused int cpu, __u64 cnt) {
@@ -168,6 +169,7 @@ static int attach_kprobe(const char *sym, struct ipft_syminfo *si, void *arg) {
 
   printf("Attaching %zu probes (Attached: %zu Failed: %zu)\r", ctx->total,
          ctx->attached, ctx->failed);
+  fflush(stdout);
 
   if (orig_fn != NULL) {
     libbpf_set_print(orig_fn);
