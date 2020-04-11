@@ -227,7 +227,7 @@ static int prog_preprocess(__unused struct bpf_program *prog, __unused int n,
 
 #define bpf_object_find_main(_bpf, _x)                                         \
   do {                                                                         \
-    main##_x = bpf_object__find_program_by_name(bpf, "ipftrace_main" #_x);     \
+    main##_x = bpf_object__find_program_by_title(bpf, "kprobe/ipftrace_main" #_x);     \
     if ((error = libbpf_get_error(main##_x)) != 0) {                           \
       libbpf_strerror(error, error_buf, ERROR_BUF_SIZE);                       \
       fprintf(stderr, "bpf_object__find_program_by_title: %s\n", error_buf);   \
