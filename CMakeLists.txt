@@ -66,11 +66,12 @@ endif(STATIC_LINKING)
 
 # Some libc like musl-libc doesn't have built-in fts. Test it.
 CHECK_C_SOURCE_COMPILES("
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fts.h>
 int main(void) {
-  FTS *fts_open(\"/\", 0, NULL);
+  FTS *fts = fts_open(NULL, 0, NULL);
   return 0;
 }" LIBC_HAS_FTS)
 
