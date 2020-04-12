@@ -41,6 +41,7 @@ set(CMAKE_REQUIRED_LINK_OPTIONS)
 
 include(ExternalProject)
 
+# Build newer version of libbpf
 ExternalProject_Add(
   LibBpf
   GIT_REPOSITORY https://github.com/libbpf/libbpf
@@ -62,5 +63,19 @@ if(STATIC_LINKING)
 else()
   set(LIBBPF_LIBRARIES ${INSTALL_DIR}/lib64/libbpf.so)
 endif(STATIC_LINKING)
+
+# Some libc like musl-libc doesn't have built-in fts. Test it.
+CHECK_C_SOURCE_COMPILES("
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fts.h>
+int main(void) {
+  FTS *fts_open(\"/\", 0, NULL);
+  return 0;
+}" LIBC_HAS_FTS)
+
+if(NOT LIBC_HAS_FTS)
+  find_package(LibFts REQUIRED)
+endif()
 
 add_subdirectory(src)
