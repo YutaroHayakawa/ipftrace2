@@ -61,7 +61,7 @@ void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb, FILE *f) {
           fprintf(stderr, "Failed to resolve the symbol from address\n");
           return;
         }
-        fprintf(f, "  %zu %04u %s\n", t->tstamp, t->processor_id, name);
+        fprintf(f, "%zu %04u %s\n", t->tstamp, t->processor_id, name);
       })
 }
 
