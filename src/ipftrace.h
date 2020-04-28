@@ -1,8 +1,5 @@
 #pragma once
 
-#define __unused __attribute__((unused))
-#define IPFT_DUMMY_HELPER_ID 1024
-
 struct ipft_trace {
   uint64_t skb_addr;
   uint64_t tstamp;
@@ -16,8 +13,6 @@ struct ipft_ctrl_data {
   uint32_t mark;
   uint32_t mark_offset;
 };
-
-#ifndef BPF
 
 struct ipft_symsdb;
 struct ipft_tracedb;
@@ -78,7 +73,3 @@ int debuginfo_fill_sym2info(struct ipft_debuginfo *dinfo, struct ipft_symsdb *sd
 int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 
 void do_trace(struct ipft_opt *);
-
-#else
-static void (*ipft_module_callsite)(uint8_t *, uint8_t *) = (void *)IPFT_DUMMY_HELPER_ID;
-#endif
