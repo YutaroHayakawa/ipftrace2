@@ -5,8 +5,9 @@ struct ipft_trace {
   uint64_t tstamp;
   uint64_t faddr;
   uint32_t processor_id;
-  uint32_t __pad;
-  uint8_t data[256];
+  uint8_t _pad[36]; // for future use
+  uint8_t data[64];
+  /* 128Bytes */
 };
 
 struct ipft_ctrl_data {
@@ -42,6 +43,10 @@ struct ipft_syminfo {
 struct ipft_debuginfo {
   int (*fill_sym2info)(struct ipft_debuginfo *,
       struct ipft_symsdb *);
+  int (*sizeof_fn)(struct ipft_debuginfo *,
+      const char *, size_t *);
+  int (*offsetof_fn)(struct ipft_debuginfo *,
+      const char *, const char *, size_t *);
   void (*destroy)(struct ipft_debuginfo *);
 };
 
@@ -69,6 +74,10 @@ int btf_debuginfo_create(struct ipft_debuginfo **dinfop);
 int dwarf_debuginfo_create(struct ipft_debuginfo **dinfop);
 void debuginfo_destroy(struct ipft_debuginfo *dinfo);
 int debuginfo_fill_sym2info(struct ipft_debuginfo *dinfo, struct ipft_symsdb *sdb);
+int debuginfo_sizeof(struct ipft_debuginfo *dinfo,
+    const char *type, size_t *sizep);
+int debuginfo_offsetof(struct ipft_debuginfo *dinfo,
+    const char *type, const char *member, size_t *offsetp);
 
 int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 
