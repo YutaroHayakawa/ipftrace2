@@ -35,8 +35,8 @@ static void dwarf_perror(const char *msg) {
   fprintf(stderr, "%s: %s\n", msg, dwarf_errmsg(dwarf_errno()));
 }
 
-static ptrdiff_t find_member_offset(Dwarf_Die *die, int level, ptrdiff_t offset,
-                                    char *name) {
+static ptrdiff_t find_member_offset(Dwarf_Die *die, int level,
+    ptrdiff_t offset, const char *name) {
   int tag;
   ptrdiff_t ret;
   Dwarf_Word uval;
@@ -114,8 +114,7 @@ static ptrdiff_t find_member_offset(Dwarf_Die *die, int level, ptrdiff_t offset,
 static int dwarf_scan_func_die(Dwarf_Die *die, void *arg) {
   Dwarf_Die child;
   int i = 0, tag;
-  int error, level = 0;
-  ptrdiff_t offset = 0;
+  int error;
   struct ipft_syminfo si;
   struct ipft_symsdb *db;
 
@@ -184,19 +183,6 @@ static int dwarf_scan_func_die(Dwarf_Die *die, void *arg) {
         }
 
         /*
-         * If we don't know the offset of the mark,
-         * scan all over struct and get it
-         */
-        if (symsdb_get_mark_offset(db) == -1) {
-          offset = find_member_offset(ptr_type, level, offset, "mark");
-          if (offset == -1) {
-            fprintf(stderr, "Failed to get mark offset\n");
-            return -1;
-          }
-          symsdb_put_mark_offset(db, offset);
-        }
-
-        /*
          * Put the function information to the symsdb
          */
         si.skb_pos = i;
@@ -234,8 +220,19 @@ static int dwarf_debuginfo_fill_sym2info(struct ipft_debuginfo *_dinfo,
   return 0;
 }
 
-static int get_struct_die(struct dwarf_debuginfo *dinfo, char *name,
-                          Dwarf_Die **diep) {
+static bool
+is_ctype(int tag)
+{
+  return tag == DW_TAG_array_type ||
+         tag == DW_TAG_enumeration_type ||
+         tag == DW_TAG_pointer_type ||
+         tag == DW_TAG_structure_type ||
+         tag == DW_TAG_typedef ||
+         tag == DW_TAG_union_type;
+}
+
+static int get_ctype_die(struct dwarf_debuginfo *dinfo,
+    const char *name, Dwarf_Die **diep) {
   int tag;
   Dwarf_Addr addr;
   Dwarf_Die *child;
@@ -255,7 +252,7 @@ static int get_struct_die(struct dwarf_debuginfo *dinfo, char *name,
 
     do {
       tag = dwarf_tag(child);
-      if (tag != DW_TAG_structure_type) {
+      if (!is_ctype(tag)) {
         continue;
       }
 
@@ -274,6 +271,60 @@ static int get_struct_die(struct dwarf_debuginfo *dinfo, char *name,
   free(child);
 
 end:
+  return 0;
+}
+
+static int dwarf_sizeof(struct ipft_debuginfo *dinfo,
+    const char *type, size_t *sizep) {
+  int error, size;
+  Dwarf_Die *die;
+
+  error = get_ctype_die((struct dwarf_debuginfo *)dinfo,
+      type, &die);
+  if (error == -1) {
+    fprintf(stderr, "Couldn't find type die\n");
+    return -1;
+  }
+
+  size = dwarf_bytesize(die);
+  if (size == -1) {
+    fprintf(stderr, "Couldn't get size\n");
+    return -1;
+  }
+
+  *sizep = size;
+
+  return 0;
+}
+
+static int dwarf_offsetof(struct ipft_debuginfo *dinfo,
+    const char *type, const char *member, size_t *offsetp) {
+  int tag, error;
+  Dwarf_Die *die;
+  ptrdiff_t offset;
+
+  error = get_ctype_die((struct dwarf_debuginfo *)dinfo,
+      type, &die);
+  if (error == -1) {
+    fprintf(stderr, "Couldn't find type die\n");
+    return -1;
+  }
+
+  tag = dwarf_tag(die);
+  if (tag != DW_TAG_structure_type &&
+      tag != DW_TAG_union_type) {
+    fprintf(stderr, "%s is not a struct or union\n", type);
+    return -1;
+  }
+
+  offset = find_member_offset(die, 0, 0, member);
+  if (offset == -1) {
+    fprintf(stderr, "Couldn't find member offset\n");
+    return -1;
+  }
+
+  *offsetp = offset;
+
   return 0;
 }
 
@@ -315,20 +366,10 @@ int dwarf_debuginfo_create(struct ipft_debuginfo **dinfop) {
   }
 
   dinfo->base.fill_sym2info = dwarf_debuginfo_fill_sym2info;
+  dinfo->base.sizeof_fn = dwarf_sizeof;
+  dinfo->base.offsetof_fn = dwarf_offsetof;
   dinfo->base.destroy = dwarf_debuginfo_destroy;
   dinfo->dwfl = dwfl;
-
-  error = get_struct_die(dinfo, "sk_buff", &dinfo->skb);
-  if (error == -1) {
-    fprintf(stderr, "Failed to get sk_buff DIE\n");
-    goto err;
-  }
-
-  error = get_struct_die(dinfo, "skb_shared_info", &dinfo->shinfo);
-  if (error == -1) {
-    fprintf(stderr, "Failed to get skb_shared_info DIE\n");
-    goto err;
-  }
 
   *dinfop = (struct ipft_debuginfo *)dinfo;
 
