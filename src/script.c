@@ -11,6 +11,7 @@
 
 #include "ipftrace.h"
 #include "bpf_lua.h"
+#include "bpf.h"
 
 struct ipft_script {
   lua_State *L;
@@ -166,7 +167,7 @@ script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
   /*
    * Load BPF library
    */
-  (void) luaL_dostring(L, bpf_lua_prog);
+  (void) luaL_dostring(L, bpf_lua);
 
   /*
    * Register debuginfo functions
@@ -183,7 +184,7 @@ script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
   /*
    * Load user script
    */
-  error = luaL_dofile(L, opt->path);
+  error = luaL_dofile(L, path);
   if (error != 0) {
     const char *cause = lua_tostring(L, -1);
     fprintf(stderr, "Lua error: %s\n", cause);
