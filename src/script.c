@@ -114,9 +114,9 @@ script_has_dump(lua_State *L)
 }
 
 static bool
-script_has_gen_module(lua_State *L)
+script_has_emit(lua_State *L)
 {
-  return script_is_function(L, "gen_module");
+  return script_is_function(L, "emit");
 }
 
 static void
@@ -221,11 +221,11 @@ script_exec_emit(struct ipft_script *script,
   const char *raw;
   struct bpf_insn *mod;
 
-  if (!script_has_gen_module(script->L)) {
+  if (!script_has_emit(script->L)) {
     return 0;
   }
 
-  lua_getglobal(script->L, "gen_module");
+  lua_getglobal(script->L, "emit");
   lua_call(script->L, 0, 1);
 
   raw = lua_tolstring(script->L, -1, &len);
