@@ -13,8 +13,6 @@
 struct dwarf_debuginfo {
   struct ipft_debuginfo base;
   Dwfl *dwfl;
-  Dwarf_Die *skb;
-  Dwarf_Die *shinfo;
 };
 
 // Took from Systemtap
@@ -331,8 +329,6 @@ static int dwarf_offsetof(struct ipft_debuginfo *dinfo,
 static void dwarf_debuginfo_destroy(struct ipft_debuginfo *_dinfo) {
   struct dwarf_debuginfo *dinfo;
   dinfo = (struct dwarf_debuginfo *)_dinfo;
-  free(dinfo->skb);
-  free(dinfo->shinfo);
   dwfl_end(dinfo->dwfl);
 }
 
