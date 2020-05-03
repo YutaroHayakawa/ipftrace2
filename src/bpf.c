@@ -295,8 +295,15 @@ detach_perf_buffer(struct ipft_bpf_prog *prog)
 }
 
 int
-ipft_bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark,
-                   ptrdiff_t mark_offset, struct bpf_insn *mod,
+bpf_prog_get(struct ipft_bpf_prog *prog, int skb_pos)
+{
+  assert(skb_pos <= MAX_SKB_POS);
+  return prog->progs[skb_pos - 1].fd;
+}
+
+int
+bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark,
+                   size_t mark_offset, struct bpf_insn *mod,
                    uint32_t mod_cnt)
 {
   int error, perf_map_fd;
@@ -334,8 +341,7 @@ err0:
 }
 
 int
-ipft_bpf_prog_attach_perf_buffer(struct ipft_bpf_prog *prog,
-                                 int fd)
+bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int perf_fd)
 {
   int error;
   long i, ncpus;
@@ -368,7 +374,7 @@ end:
 }
 
 void
-ipft_bpf_prog_unload(struct ipft_bpf_prog *prog)
+bpf_prog_unload(struct ipft_bpf_prog *prog)
 {
   unload_program(prog);
   detach_perf_buffer(prog);
