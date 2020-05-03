@@ -85,7 +85,7 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
     BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, TRACE_OFFSET),
     BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
     BPF_LD_MAP_FD(BPF_REG_2, perf_map_fd),
-    BPF_MOV64_IMM(BPF_REG_3, BPF_F_CURRENT_CPU),
+    BPF_MOV64_IMM(BPF_REG_3, 0),
     BPF_MOV64_IMM(BPF_REG_5, (uint32_t)sizeof(struct ipft_trace)),
     BPF_CALL_INSN(BPF_FUNC_perf_event_output),
     BPF_EXIT_INSN(),
@@ -181,15 +181,12 @@ get_kernel_version(void)
 static int
 create_perf_map(void)
 {
-  long ncpus;
   union bpf_attr attr = {};
-
-  ncpus = sysconf(_SC_NPROCESSORS_CONF);
 
   attr.map_type = BPF_MAP_TYPE_PERF_EVENT_ARRAY;
   attr.key_size = sizeof(uint32_t);
   attr.value_size = sizeof(uint32_t);
-  attr.max_entries = ncpus;
+  attr.max_entries = 1;
 
   return bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
 }
@@ -285,13 +282,11 @@ detach_perf_buffer(struct ipft_bpf_prog *prog)
   union bpf_attr attr = {};
 
   attr.map_fd = prog->perf_map_fd;
+  attr.key = (__u64)&(int){0};
   attr.flags = 0;
 
-  for (long i = 0; i < ncpus = sysconf(_SC_NPROCESSORS_CONF); i++) {
-    attr.key = (__u64)&(int){i};
-    error = bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
-    assert(error == 0);
-  }
+  error = bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
+  assert(error == 0);
 }
 
 int
@@ -344,33 +339,19 @@ int
 bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int perf_fd)
 {
   int error;
-  long i, ncpus;
   union bpf_attr attr = {};
 
-  ncpus = sysconf(_SC_NPROCESSORS_CONF);
-
   attr.map_fd = prog->perf_map_fd;
-  attr.value = (__u64)&(int){fd};
-  attr.flags = 0;
+  attr.key = (uint64_t)&(int){0};
+  attr.value = (uint64_t)&(int){perf_fd};
 
-  for (i = 0; i < ncpus; i++) {
-    attr.key = (__u64)&(int){i};
-    error = bpf(BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
-    if (error == -1) {
-      goto end;
-    }
+  error = bpf(BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
+  if (error == -1) {
+    perror("bpf");
+    return -1;
   }
 
   return 0;
-
-end:
-  memset(&attr, 0, sizeof(attr));
-  for (i = i - 1; i > 0; i--) {
-    attr.key = (__u64)&(int){i};
-    error = bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
-    assert(error == 0);
-  }
-  return -1;
 }
 
 void
