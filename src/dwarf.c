@@ -222,7 +222,8 @@ static int dwarf_debuginfo_fill_sym2info(struct ipft_debuginfo *_dinfo,
 static bool
 is_ctype(int tag)
 {
-  return tag == DW_TAG_array_type ||
+  return tag == DW_TAG_base_type ||
+         tag == DW_TAG_array_type ||
          tag == DW_TAG_enumeration_type ||
          tag == DW_TAG_pointer_type ||
          tag == DW_TAG_structure_type ||
