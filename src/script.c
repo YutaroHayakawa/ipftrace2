@@ -142,8 +142,8 @@ script_exec_fini(lua_State *L)
 }
 
 int
-ipft_script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
-    struct ipft_script_opt *opt)
+script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
+    const char *path)
 {
   int error;
   lua_State *L;
@@ -206,7 +206,7 @@ err0:
 }
 
 void
-ipft_script_destroy(struct ipft_script *script)
+script_destroy(struct ipft_script *script)
 {
   script_exec_fini(script->L);
   lua_close(script->L);
@@ -214,7 +214,7 @@ ipft_script_destroy(struct ipft_script *script)
 }
 
 int
-ipft_script_exec_gen_module(struct ipft_script *script,
+script_exec_emit(struct ipft_script *script,
     struct bpf_insn **modp, uint32_t *mod_cnt)
 {
   size_t len;
@@ -255,7 +255,7 @@ err0:
 }
 
 char *
-ipft_script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len)
+script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len)
 {
   const char *dump;
   size_t dump_len;
