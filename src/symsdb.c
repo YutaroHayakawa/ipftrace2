@@ -10,21 +10,12 @@ KHASH_MAP_INIT_STR(sym2info, struct ipft_syminfo *)
 KHASH_MAP_INIT_INT64(addr2sym, char *)
 
 struct ipft_symsdb {
-  ptrdiff_t mark_offset;
   khash_t(sym2info) * sym2info;
   khash_t(addr2sym) * addr2sym;
 };
 
 size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb) {
   return kh_size(sdb->sym2info);
-}
-
-void symsdb_put_mark_offset(struct ipft_symsdb *sdb, ptrdiff_t mark_offset) {
-  sdb->mark_offset = mark_offset;
-}
-
-ptrdiff_t symsdb_get_mark_offset(struct ipft_symsdb *sdb) {
-  return sdb->mark_offset;
 }
 
 int symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
@@ -160,8 +151,6 @@ int symsdb_create(struct ipft_symsdb **sdbp) {
     perror("malloc");
     return -1;
   }
-
-  sdb->mark_offset = -1;
 
   sdb->sym2info = kh_init(sym2info);
   if (sdb->sym2info == NULL) {
