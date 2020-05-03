@@ -188,36 +188,7 @@ struct ipft_bpf_prog;
     .off   = 0,          \
     .imm   = 0 })
 
-/*
- * Architecture dependent parameters
- */
-#ifdef __x86_64__
-/*
- * PT_REGS_IP(regs)
- */
-const uint32_t pt_regs_ip_offset = offsetof(struct pt_regs, rip);
-/*
- * PT_REGS_PARAM[1-5], indexed by parameter position
- */
-static uint32_t pt_regs_param_offset[] = {
-  offsetof(struct pt_regs, rdi),
-  offsetof(struct pt_regs, rsi),
-  offsetof(struct pt_regs, rdx),
-  offsetof(struct pt_regs, rcx),
-  offsetof(struct pt_regs, r8)
-};
-#else
-#error Unsupported architecture
-#endif
-
-static int
-bpf(enum bpf_cmd cmd, void *attr, size_t size)
-{
-  return syscall(__NR_bpf, cmd, attr, size);
-}
-
 int ipft_bpf_prog_load(struct ipft_bpf_prog **progp,
                        uint32_t mark, ptrdiff_t mark_offset,
                        struct bpf_insn *mod, uint32_t mod_cnt);
-int ipft_bpf_prog_attach_perf_buffer(struct ipft_bpf_prog *prog, int fd);
 void ipft_bpf_prog_unload(struct ipft_bpf_prog *prog);

@@ -13,6 +13,27 @@
 #include "bpf.h"
 #include "ipftrace.h"
 
+/*
+ * Architecture dependent parameters
+ */
+#ifdef __x86_64__
+/*
+ * PT_REGS_IP(regs)
+ */
+static const uint32_t pt_regs_ip_offset = offsetof(struct pt_regs, rip);
+/*
+ * PT_REGS_PARAM[1-5], indexed by parameter position
+ */
+static uint32_t pt_regs_param_offset[] = {
+  offsetof(struct pt_regs, rdi),
+  offsetof(struct pt_regs, rsi),
+  offsetof(struct pt_regs, rdx),
+  offsetof(struct pt_regs, rcx),
+  offsetof(struct pt_regs, r8)
+};
+#else
+#error Unsupported architecture
+#endif
 
 /*
  * Leave r10 - MODULE_STACK_SIZE of stack space for module.
@@ -44,12 +65,11 @@ struct ipft_bpf_prog {
   } progs[MAX_SKB_POS];
 };
 
-struct perf_buffer {
-  size_t page_cnt;
-  size_t page_size;
-  int fd;
-  uint8_t *base;
-};
+static int
+bpf(enum bpf_cmd cmd, union bpf_attr *attr, size_t size)
+{
+  return syscall(__NR_bpf, cmd, attr, size);
+}
 
 static int
 gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
