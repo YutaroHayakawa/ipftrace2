@@ -345,6 +345,8 @@ static int dwarf_sizeof(struct ipft_debuginfo *dinfo,
 
   *sizep = size;
 
+  free(die);
+
   return 0;
 }
 
@@ -375,6 +377,8 @@ static int dwarf_offsetof(struct ipft_debuginfo *dinfo,
   }
 
   *offsetp = offset;
+
+  free(die);
 
   return 0;
 }
