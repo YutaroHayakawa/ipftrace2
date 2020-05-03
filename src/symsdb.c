@@ -138,7 +138,7 @@ int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp) {
   return 0;
 }
 
-void symsdb_release_all_addr2sym(struct ipft_symsdb *sdb) {
+static void symsdb_release_all_addr2sym(struct ipft_symsdb *sdb) {
   char *v;
   kh_foreach_value(sdb->addr2sym, v, free(v);)
 }
