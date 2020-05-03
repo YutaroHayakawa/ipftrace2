@@ -1,9 +1,5 @@
 BPF = {}
 
-emit = function (code, dst, src, off, imm)
-  return string.pack("=I1I1I2I4", code, dst << 4 | src, off, imm)
-end
-
 -- Register
 BPF.R0 = 0
 BPF.R1 = 1
@@ -118,6 +114,23 @@ BPF.FUNC.get_current_uid_gid = 15
 BPF.FUNC.get_current_comm = 16
 BPF.FUNC.perf_event_read = 22
 BPF.FUNC.perf_event_output = 25
+
+-- Function to emit instruction
+local emit_protect = function (code, dst, src, off, imm)
+  return string.pack("I1I1i2i4", code, src << 4 | dst, off, imm)
+end
+
+local emit = function (code, dst, src, off, imm)
+  ok, ret = pcall(emit_protect, code, dst, src, off, imm)
+  if (ok) then
+    return ret
+  else
+    errmsg = debug.traceback("\nemit(code:"..tostring(code)..", dst: "..
+             tostring(dst)..", src: "..tostring(src)..", off: "..tostring(off)..", imm: "..
+             tostring(imm)..")")
+    error(errmsg)
+  end
+end
 
 -- Opcodes
 BPF.ALU64_REG = function (op, dst, src)
