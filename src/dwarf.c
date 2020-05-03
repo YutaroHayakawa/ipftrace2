@@ -231,13 +231,53 @@ is_ctype(int tag)
          tag == DW_TAG_union_type;
 }
 
+static int resolve_typedef(Dwarf_Die *die, int level, Dwarf_Die **orig_diep) {
+  int error, tag;
+  Dwarf_Attribute attr_mem;
+  Dwarf_Die *type, *orig_die, type_mem;
+
+  if (level == MAX_RECURSE_LEVEL) {
+    printf("Max recurse level reached\n");
+    return -1;
+  }
+
+  type = dwarf_formref_die(
+      dwarf_attr(die, DW_AT_type, &attr_mem), &type_mem);
+  if (type == NULL) {
+    return -1;
+  }
+
+  tag = dwarf_tag(type);
+  switch (tag) {
+  case DW_TAG_typedef:
+    level++;
+    error = resolve_typedef(type, level, orig_diep);
+    if (error == -1) {
+      return -1;
+    }
+    level--;
+    break;
+  default:
+    orig_die = malloc(sizeof(*orig_die));
+    if (orig_die == NULL) {
+      perror("malloc");
+      return -1;
+    }
+    memcpy(orig_die, type, sizeof(*orig_die));
+    *orig_diep = orig_die;
+    break;
+  }
+
+  return 0;
+}
+
 static int get_ctype_die(struct dwarf_debuginfo *dinfo,
     const char *name, Dwarf_Die **diep) {
-  int tag;
+  int error, tag;
   Dwarf_Addr addr;
   Dwarf_Die *child;
   const char *die_name;
-  Dwarf_Die *cu = NULL;
+  Dwarf_Die *cu = NULL, *type_die;
 
   child = malloc(sizeof(*child));
   if (child == NULL) {
@@ -261,17 +301,28 @@ static int get_ctype_die(struct dwarf_debuginfo *dinfo,
         continue;
       }
 
-      if (strcmp(name, dwarf_diename(child)) == 0) {
+      if (strcmp(name, die_name) != 0) {
+        continue;
+      }
+
+      if (tag == DW_TAG_typedef) {
+        error = resolve_typedef(child, 0, &type_die);
+        if (error == -1) {
+          fprintf(stderr, "resolve_typedef failed\n");
+          return -1;
+        }
+        free(child);
+        *diep = type_die;
+        return 0;
+      } else {
         *diep = child;
-        goto end;
+        return 0;
       }
     } while (dwarf_siblingof(child, child) == 0);
   }
 
   free(child);
-
-end:
-  return 0;
+  return -1;
 }
 
 static int dwarf_sizeof(struct ipft_debuginfo *dinfo,
