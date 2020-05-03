@@ -44,25 +44,43 @@ int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t) {
   return 0;
 }
 
-void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb, FILE *f) {
+void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
+    char *(*cb)(uint8_t *, size_t, void *), void *arg) {
   int error;
-  char *name;
+  char *name, *dump;
   uint32_t count = 0;
   struct ipft_trace *t;
   klist_t(trace_list) * l;
   kliter_t(trace_list) * iter;
 
   kh_foreach_value(
-      tdb->trace, l, count++; fprintf(f, "sk_buff %u\n", count);
+      tdb->trace, l, count++;
+
+      printf("===\n");
+
       for (iter = kl_begin(l); iter != kl_end(l); iter = kl_next(iter)) {
         t = kl_val(iter);
+
         error = symsdb_get_addr2sym(sdb, t->faddr, &name);
         if (error == -1) {
           fprintf(stderr, "Failed to resolve the symbol from address\n");
           return;
         }
-        fprintf(f, "%zu %04u %s\n", t->tstamp, t->processor_id, name);
-      })
+
+        if (cb != NULL) {
+          dump = cb(t->data, sizeof(t->data), arg);
+        } else {
+          dump = NULL;
+        }
+
+        if (dump == NULL) {
+          printf("%zu %04u %32.32s\n", t->tstamp, t->processor_id, name);
+        } else {
+          printf("%zu %04u %32.32s %s\n", t->tstamp, t->processor_id, name, dump);
+          free(dump);
+        }
+      }
+    )
 }
 
 int tracedb_create(struct ipft_tracedb **tdbp) {
