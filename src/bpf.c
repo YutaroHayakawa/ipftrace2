@@ -108,7 +108,7 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
     BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
     BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_10, -4),
     /* if (mark != target_mark) goto end; */
-    BPF_JMP32_IMM(BPF_JNE, BPF_REG_8, mark, 23 + mod_cnt + bottom_half_cnt - 1),
+    BPF_JMP32_IMM(BPF_JNE, BPF_REG_8, mark, 25 + mod_cnt + bottom_half_cnt - 1),
     /* trace->skb_addr = skb */
     BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_7, TRACE_OFFSET),
     /* trace->tstamp = bpf_ktime_get_ns(); */
@@ -139,6 +139,12 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
     BPF_ST_MEM(BPF_DW, BPF_REG_1, 56, 0),
     BPF_MOV64_REG(BPF_REG_2, BPF_REG_6),
     BPF_MOV64_REG(BPF_REG_3, BPF_REG_7),
+    /*
+     * Initialize the unused callee-saved registers in here.
+     * Otherwise, users may save the uninitialized callee-saved
+     * registers which verifier doesn't allow.
+     */
+    BPF_MOV64_IMM(BPF_REG_9, 0),
     /* 
      * Module code comes to here
      * REG1 = trace->data
