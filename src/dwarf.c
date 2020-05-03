@@ -42,6 +42,7 @@ static ptrdiff_t find_member_offset(Dwarf_Die *die, int level,
   Dwarf_Die *type, type_mem, child;
 
   if (level == MAX_RECURSE_LEVEL) {
+    printf("Max recurse level reached\n");
     return 0;
   }
 
@@ -280,13 +281,13 @@ static int dwarf_sizeof(struct ipft_debuginfo *dinfo,
   error = get_ctype_die((struct dwarf_debuginfo *)dinfo,
       type, &die);
   if (error == -1) {
-    fprintf(stderr, "Couldn't find type die\n");
+    fprintf(stderr, "Couldn't find type die of %s\n", type);
     return -1;
   }
 
   size = dwarf_bytesize(die);
   if (size == -1) {
-    fprintf(stderr, "Couldn't get size\n");
+    fprintf(stderr, "Couldn't get size of %s\n", type);
     return -1;
   }
 
@@ -304,7 +305,7 @@ static int dwarf_offsetof(struct ipft_debuginfo *dinfo,
   error = get_ctype_die((struct dwarf_debuginfo *)dinfo,
       type, &die);
   if (error == -1) {
-    fprintf(stderr, "Couldn't find type die\n");
+    fprintf(stderr, "Couldn't find type die of %s\n", type);
     return -1;
   }
 
@@ -317,7 +318,7 @@ static int dwarf_offsetof(struct ipft_debuginfo *dinfo,
 
   offset = find_member_offset(die, 0, 0, member);
   if (offset == -1) {
-    fprintf(stderr, "Couldn't find member offset\n");
+    fprintf(stderr, "Couldn't find member offset of %s->%s\n", type, member);
     return -1;
   }
 
