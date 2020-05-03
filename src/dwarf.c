@@ -130,7 +130,7 @@ static int dwarf_scan_func_die(Dwarf_Die *die, void *arg) {
        * skb_pos should be <= 4 due to the limitation of
        * eBPF + kprobe.
        */
-      if (dwarf_diename(&child) != NULL && i <= 4) {
+      if (dwarf_diename(&child) != NULL && i <= MAX_SKB_POS) {
         Dwarf_Attribute attr;
         Dwarf_Die *param_type, param_type_mem;
         Dwarf_Die *ptr_type, ptr_type_mem;

@@ -1,4 +1,13 @@
 #pragma once
+#include <stddef.h>
+#include <stdint.h>
+#include <linux/bpf.h>
+#include <linux/perf_event.h>
+
+/*
+ * Max skb position in the function parameters
+ */
+#define MAX_SKB_POS 5
 
 struct ipft_trace {
   uint64_t skb_addr;

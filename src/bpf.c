@@ -51,11 +51,6 @@ static uint32_t pt_regs_param_offset[] = {
  */
 #define LICENSE "Dual BSD/GPL"
 
-/*
- * Max skb position in the function parameters
- */
-#define MAX_SKB_POS 5
-
 struct ipft_bpf_prog {
   int perf_map_fd;
   struct {
