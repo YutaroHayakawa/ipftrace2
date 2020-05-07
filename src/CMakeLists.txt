@@ -1,16 +1,19 @@
 add_executable(ipftrace2
   btf.c
+  bpf.c
   debuginfo.c
   dwarf.c
   ipftrace.c
   kallsyms.c
+  perf.c
+  script.c
   symsdb.c
   trace.c
   tracedb.c
 )
 
 if(STATIC_LINKING)
-  add_library(LIBBPF STATIC IMPORTED)
+  add_library(LIBLUA STATIC IMPORTED)
   add_library(LIBDW STATIC IMPORTED)
   add_library(ZLIB STATIC IMPORTED)
   add_library(BZIP2 STATIC IMPORTED)
@@ -20,7 +23,7 @@ if(STATIC_LINKING)
     add_library(LIBFTS STATIC IMPORTED)
   endif()
 else()
-  add_library(LIBBPF SHARED IMPORTED)
+  add_library(LIBLUA STATIC IMPORTED)
   add_library(LIBDW SHARED IMPORTED)
   add_library(ZLIB SHARED IMPORTED)
   add_library(BZIP2 SHARED IMPORTED)
@@ -31,7 +34,7 @@ else()
   endif()
 endif(STATIC_LINKING)
 
-set_property(TARGET LIBBPF PROPERTY IMPORTED_LOCATION ${LIBBPF_LIBRARIES})
+set_property(TARGET LIBLUA PROPERTY IMPORTED_LOCATION ${LIBLUA_LIBRARIES})
 set_property(TARGET LIBDW PROPERTY IMPORTED_LOCATION ${LIBDW_LIBRARIES})
 set_property(TARGET ZLIB PROPERTY IMPORTED_LOCATION ${ZLIB_LIBRARIES})
 set_property(TARGET BZIP2 PROPERTY IMPORTED_LOCATION ${BZIP2_LIBRARIES})
@@ -42,7 +45,7 @@ if(NOT LIBC_HAS_FTS)
 endif()
 
 target_link_libraries(ipftrace2
-  LIBBPF
+  LIBLUA
   LIBDW
   ZLIB
   BZIP2
@@ -50,6 +53,7 @@ target_link_libraries(ipftrace2
   LIBELF
   -lpthread
   -ldl
+  -lm
 )
 
 if(NOT LIBC_HAS_FTS)
