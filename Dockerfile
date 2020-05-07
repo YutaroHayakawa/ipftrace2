@@ -3,7 +3,6 @@
 FROM alpine:edge
 
 RUN apk add \
-  git \
   cmake \
   xz-dev \
   fts-dev \
@@ -19,4 +18,5 @@ RUN apk add \
 
 ADD . /ipftrace2
 WORKDIR /ipftrace2
-RUN mkdir build && cd build && cmake -DSTATIC_LINKING=1 -DSTATIC_LIBC=1 ../ && make
+
+RUN cmake -DSTATIC_LINKING=1 -DSTATIC_LIBC=1 . && make
