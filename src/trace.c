@@ -30,13 +30,6 @@ struct perf_sample_data {
   uint8_t data[0];
 };
 
-struct ipft_tracer_opt {
-  uint32_t mark;
-  char *script_path;
-  char *debug_info_type;
-  size_t perf_page_cnt;
-};
-
 struct kprobe_events {
   int *fds;
   size_t cnt;
@@ -437,7 +430,7 @@ err0:
 }
 
 int
-ipft_tracer_run(struct ipft_tracer_opt *opt)
+tracer_run(struct ipft_tracer_opt *opt)
 {
   int error;
   struct trace_ctx ctx;
@@ -534,24 +527,4 @@ err1:
 err0:
   symsdb_destroy(sdb);
   return error;
-}
-
-int
-main(void)
-{
-  int error;
-  struct ipft_tracer_opt opt;
-
-  opt.mark = 0xd;
-  opt.script_path = "script.lua";
-  opt.debug_info_type = "dwarf";
-  opt.perf_page_cnt = 32;
-  
-  error = ipft_tracer_run(&opt);
-  if (error == -1) {
-    fprintf(stderr, "ipft_tracer_run failed\n");
-    return EXIT_FAILURE;
-  }
-
-  return EXIT_SUCCESS;
 }
