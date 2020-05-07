@@ -9,6 +9,13 @@
  */
 #define MAX_SKB_POS 5
 
+struct ipft_symsdb;
+struct ipft_tracedb;
+struct ipft_script;
+struct ipft_bpf_prog;
+struct ipft_perf_buffer;
+struct ipft_debuginfo;
+
 struct ipft_trace {
   uint64_t skb_addr;
   uint64_t tstamp;
@@ -19,20 +26,11 @@ struct ipft_trace {
   /* 128Bytes */
 };
 
-struct ipft_symsdb;
-struct ipft_tracedb;
-struct ipft_script;
-struct ipft_bpf_prog;
-struct ipft_perf_buffer;
-struct ipft_debuginfo;
-
-struct ipft_opt {
-  int verbose;
+struct ipft_tracer_opt {
   uint32_t mark;
-  uint32_t mark_offset;
-  char *debug_format;
-  char *vmlinux_path;
-  char *modules_path;
+  char *script_path;
+  char *debug_info_type;
+  size_t perf_page_cnt;
 };
 
 struct ipft_syminfo {
@@ -98,3 +96,5 @@ int bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark,
 int bpf_prog_get(struct ipft_bpf_prog *prog, int skb_pos);
 int bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int fd);
 void bpf_prog_unload(struct ipft_bpf_prog *prog);
+
+int tracer_run(struct ipft_tracer_opt *opt);
