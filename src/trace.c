@@ -44,6 +44,8 @@ struct attach_ctx {
 };
 
 struct trace_ctx {
+  size_t nsamples;
+  size_t nlost;
   struct ipft_symsdb *sdb;
   struct ipft_tracedb *tdb;
   struct ipft_script *script;
@@ -171,9 +173,9 @@ attach_prog(const char *name, struct ipft_syminfo *si, void *args)
 
   ctx->ke->fds[ctx->success + ctx->fail - 1] = pfd;
 
-  printf("Attaching program (total %zu, success %zu, fail %zu)\r",
+  fprintf(stderr, "Attaching program (total %zu, success %zu, fail %zu)\r",
       ctx->total, ctx->success, ctx->fail);
-  fflush(stdout);
+  fflush(stderr);
 
   return 0;
 }
@@ -350,17 +352,29 @@ err0:
 static int
 handle_perf_buffer_event(struct perf_event_header *ehdr, void *data)
 {
+  int error;
   struct perf_sample_data *s;
   struct trace_ctx *ctx = data;
 
   switch (ehdr->type) {
   case PERF_RECORD_SAMPLE:
+    ctx->nsamples++;
     s = (struct perf_sample_data *)ehdr;
-    return store_trace(ctx->tdb, s->data, s->size);
+    error = store_trace(ctx->tdb, s->data, s->size);
+    break;
+  case PERF_RECORD_LOST:
+    ctx->nlost++;
+    error = 0;
+    break;
   default:
     fprintf(stderr, "Unknown event type %d\n", ehdr->type);
     return -1;
   }
+
+  fprintf(stderr, "Samples: %zu Lost: %zu\r", ctx->nsamples, ctx->nlost);
+  fflush(stderr);
+
+  return error;
 }
 
 static void
@@ -388,7 +402,7 @@ do_trace(struct trace_ctx *ctx)
     goto err1;
   }
 
-  printf("Trace ready!\n");
+  fprintf(stderr, "Trace ready!\n");
 
   while (true) {
     nfds = epoll_wait(epfd, events, 2, -1);
@@ -409,7 +423,8 @@ do_trace(struct trace_ctx *ctx)
         }
         break;
       case EVENT_TYPE_SIGNAL:
-        printf("Trace done!\n");
+        /* Insert line break since we have statistics displayed with \r */
+        fprintf(stderr, "\nTrace done!\n");
         goto end;
       default:
         printf("Got unknown event\n");
@@ -502,6 +517,8 @@ tracer_run(struct ipft_tracer_opt *opt)
     goto err6;
   }
 
+  ctx.nsamples = 0;
+  ctx.nlost = 0;
   ctx.sdb = sdb;
   ctx.tdb = tdb;
   ctx.script = script;
