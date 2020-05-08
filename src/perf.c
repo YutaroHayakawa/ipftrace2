@@ -96,6 +96,11 @@ perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt)
   struct ipft_perf_buffer *pb;
   struct perf_event_attr attr = {};
 
+  if (page_cnt & (page_cnt - 1)) {
+    fprintf(stderr, "Page count should be power of 2\n");
+    return -1;
+  }
+
   page_size = sysconf(_SC_PAGESIZE);
 
   attr.type = PERF_TYPE_SOFTWARE;
