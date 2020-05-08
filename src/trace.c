@@ -197,7 +197,7 @@ attach_progs(struct kprobe_events *ke, struct ipft_symsdb *sdb,
     return -1;
   }
 
-  printf("\n");
+  fprintf(stderr, "\n");
 
   return 0;
 }

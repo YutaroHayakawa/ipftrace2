@@ -28,7 +28,10 @@ int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t) {
   klist_t(trace_list) * l;
 
   iter = kh_put(trace, tdb->trace, t->skb_addr, &ret);
-  if (ret == 0) {
+  if (ret == -1) {
+    fprintf(stderr, "Cannot allocate tracedb element\n");
+    exit(EXIT_FAILURE);
+  } else if (ret == 0) {
     l = kh_value(tdb->trace, iter);
     *kl_pushp(trace_list, l) = t;
   } else {
