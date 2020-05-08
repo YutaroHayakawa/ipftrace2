@@ -73,7 +73,7 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
 {
   struct bpf_insn bottom_half[] = {
     /*
-     * bpf_perf_event_output(ctx, &perf_map, BPF_F_CURRENT_CPU,
+     * bpf_perf_event_output(ctx, &perf_map, 0,
      *                       &trace, sizeof(trace));
      */
     BPF_MOV64_REG(BPF_REG_4, BPF_REG_10),
