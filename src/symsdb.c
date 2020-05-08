@@ -130,7 +130,8 @@ int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp) {
 
   iter = kh_get(addr2sym, db, addr);
   if (iter == kh_end(db)) {
-    return -1;
+    *symp = "(unknown)";
+    return 0;
   }
 
   *symp = kh_value(db, iter);
