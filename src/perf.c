@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdbool.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,9 +54,11 @@ perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
 {
   int error;
   void *base;
+  bool needs_free;
+  size_t ehdr_size;
   uint64_t data_head, data_tail;
-  struct perf_event_header *ehdr;
   struct perf_event_mmap_page *header;
+  struct perf_event_header *ehdr, *copy;
 
   header = (struct perf_event_mmap_page *)pb->base;
   base = pb->base + pb->page_size;
@@ -63,7 +66,29 @@ perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
   data_tail = header->data_tail;
 
   while (data_head != data_tail) {
+    needs_free = false;
     ehdr = base + (data_tail & (pb->mmap_size - 1));
+    ehdr_size = ehdr->size;
+
+    /*
+     * Handle the rounding
+     */
+    if (((void *)ehdr) + ehdr_size > base + pb->mmap_size) {
+      void *copy_start = ehdr;
+      size_t len_first = base + pb->mmap_size - copy_start;
+      size_t len_second = ehdr_size - len_first;
+
+      copy = calloc(1, ehdr_size);
+      if (copy == NULL) {
+        perror("calloc");
+        exit(EXIT_FAILURE);
+      }
+
+      memcpy(copy, copy_start, len_first);
+      memcpy((uint8_t *)copy + len_first, base, len_second);
+      ehdr = copy;
+      needs_free = true;
+    }
 
     error = cb(ehdr, data);
     if (error == -1) {
@@ -72,6 +97,10 @@ perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
     }
 
     data_tail += ehdr->size;
+
+    if (needs_free) {
+      free(ehdr);
+    }
   }
 
   ring_buffer_write_tail(header, data_tail);
