@@ -106,10 +106,6 @@ perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt)
   attr.type = PERF_TYPE_SOFTWARE;
   attr.config = PERF_COUNT_SW_BPF_OUTPUT;
   attr.sample_period = 1;
-  /*
-  attr.sample_type = PERF_SAMPLE_TIME | PERF_SAMPLE_ADDR |
-                     PERF_SAMPLE_CPU | PERF_SAMPLE_RAW;
-  */
   attr.sample_type = PERF_SAMPLE_RAW;
   attr.wakeup_events = 1;
 
