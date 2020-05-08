@@ -22,6 +22,7 @@
 #ifndef _AC_KLIST_H
 #define _AC_KLIST_H
 
+#include <stdio.h>
 #include <stdlib.h>
 
 #ifndef klib_unused
@@ -99,6 +100,11 @@
   }                                 \
   SCOPE kltype_t *kl_pushp_##name(kl_##name##_t *kl) {        \
     kl1_##name *q, *p = kmp_alloc(name, kl->mp);          \
+    /* Safety to detect memory exhausion */ \
+    if (p == NULL) { \
+      fprintf(stderr, "Cannot allocate memory\n"); \
+      exit(EXIT_FAILURE); \
+    } \
     q = kl->tail; p->next = 0; kl->tail->next = p; kl->tail = p;  \
     ++kl->size;                           \
     return &q->data;                        \
