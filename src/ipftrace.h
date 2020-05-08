@@ -24,7 +24,7 @@ struct ipft_trace {
   uint8_t _pad[36]; // for future use
   uint8_t data[64];
   /* 128Bytes */
-};
+} __attribute__((aligned(8)));
 
 struct ipft_tracer_opt {
   uint32_t mark;
