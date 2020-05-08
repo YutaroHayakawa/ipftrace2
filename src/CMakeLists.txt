@@ -12,6 +12,16 @@ add_executable(ipftrace2
   tracedb.c
 )
 
+if (BUILD_ASAN)
+  if(${CMAKE_VERSION} VERSION_LESS "3.13.0")
+    # target_link_options is supported in CMake 3.13 and newer
+    message("Please use CMake 3.13 or newer to enable ASAN")
+  endif()
+  target_compile_definitions(ipftrace2 PRIVATE BUILD_ASAN)
+  target_compile_options(ipftrace2 PUBLIC "-fsanitize=address")
+  target_link_options(ipftrace2 PUBLIC "-fsanitize=address")
+endif()
+
 if(STATIC_LINKING)
   add_library(LIBLUA STATIC IMPORTED)
   add_library(LIBDW STATIC IMPORTED)
