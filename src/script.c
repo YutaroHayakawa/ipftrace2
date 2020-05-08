@@ -151,6 +151,11 @@ script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
   struct ipft_script *script;
   struct ipft_debuginfo **extraspace;
 
+  if (path == NULL) {
+    *scriptp = NULL;
+    return 0;
+  }
+
   script = malloc(sizeof(*script));
   if (script == NULL) {
     fprintf(stderr, "Cannot allocate memory\n");
@@ -209,6 +214,9 @@ err0:
 void
 script_destroy(struct ipft_script *script)
 {
+  if (script == NULL) {
+    return;
+  }
   script_exec_fini(script->L);
   lua_close(script->L);
   free(script);
@@ -221,6 +229,12 @@ script_exec_emit(struct ipft_script *script,
   size_t len;
   const char *raw;
   struct bpf_insn *mod;
+
+  if (script == NULL) {
+    *modp = NULL;
+    *mod_cnt = 0;
+    return 0;
+  }
 
   if (!script_has_emit(script->L)) {
     return 0;
@@ -260,6 +274,10 @@ script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len)
 {
   const char *dump;
   size_t dump_len;
+
+  if (script == NULL) {
+    return NULL;
+  }
 
   if (!script_has_dump(script->L)) {
     return NULL;
