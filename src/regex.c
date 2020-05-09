@@ -32,20 +32,14 @@ regex_create(struct ipft_regex **rep, const char *regex)
     return -1;
   }
 
-  re->compiled = pcre2_compile(
-      (PCRE2_SPTR8) regex,
-      PCRE2_ZERO_TERMINATED,
-      0,
-      &error,
-      &error_offset,
-      NULL
-  );
+  re->compiled = pcre2_compile((PCRE2_SPTR8)regex, PCRE2_ZERO_TERMINATED, 0,
+                               &error, &error_offset, NULL);
 
   if (re->compiled == NULL) {
     PCRE2_UCHAR buffer[256];
     pcre2_get_error_message(error, buffer, sizeof(buffer));
-    printf("PCRE2 compilation failed at offset %ld: %s\n",
-        error_offset, buffer);
+    printf("PCRE2 compilation failed at offset %ld: %s\n", error_offset,
+           buffer);
     free(re);
     return -1;
   }
@@ -67,15 +61,8 @@ regex_match(struct ipft_regex *re, const char *s)
 
   match = pcre2_match_data_create_from_pattern(re->compiled, NULL);
 
-  error = pcre2_match(
-    re->compiled,
-    (PCRE2_SPTR8) s,
-    strlen(s),
-    0,
-    0,
-    match,
-    NULL
-  );
+  error =
+      pcre2_match(re->compiled, (PCRE2_SPTR8)s, strlen(s), 0, 0, match, NULL);
 
   pcre2_match_data_free(match);
 

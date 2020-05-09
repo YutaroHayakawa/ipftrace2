@@ -17,10 +17,7 @@
 
 #include "ipftrace.h"
 
-enum event_types {
-  EVENT_TYPE_PERF_BUFFER,
-  EVENT_TYPE_SIGNAL
-};
+enum event_types { EVENT_TYPE_PERF_BUFFER, EVENT_TYPE_SIGNAL };
 
 struct trace_data {
   enum event_types type;
@@ -74,7 +71,8 @@ debuginfo_create(const char *type, struct ipft_debuginfo **dinfop)
 
 static int
 load_progs(struct ipft_bpf_prog **progp, struct ipft_script *script,
-    struct ipft_debuginfo *dinfo, struct ipft_perf_buffer *pb, uint32_t mark)
+           struct ipft_debuginfo *dinfo, struct ipft_perf_buffer *pb,
+           uint32_t mark)
 {
   int error = 0;
   size_t offset;
@@ -183,8 +181,10 @@ attach_prog(const char *name, struct ipft_syminfo *si, void *args)
     ctx->filtered++;
   }
 
-  fprintf(stderr, "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: %zu)",
-      ctx->total, ctx->succeeded, ctx->failed, ctx->filtered);
+  fprintf(stderr,
+          "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
+          "%zu)",
+          ctx->total, ctx->succeeded, ctx->failed, ctx->filtered);
   fflush(stderr);
 
   return 0;
@@ -192,7 +192,7 @@ attach_prog(const char *name, struct ipft_syminfo *si, void *args)
 
 static int
 attach_progs(struct kprobe_events *ke, struct ipft_symsdb *sdb,
-    struct ipft_bpf_prog *prog, struct ipft_regex *re)
+             struct ipft_bpf_prog *prog, struct ipft_regex *re)
 {
   int error;
   struct attach_ctx ctx = {};
@@ -225,8 +225,7 @@ detach_progs(struct kprobe_events *ke)
 }
 
 static int
-register_trace_event(struct trace_data **datap, int epfd,
-    struct trace_ctx *ctx)
+register_trace_event(struct trace_data **datap, int epfd, struct trace_ctx *ctx)
 {
   int error, pfd;
   struct epoll_event ev;
@@ -264,7 +263,7 @@ err0:
 
 static int
 register_signal_event(struct trace_data **datap, int epfd,
-    struct trace_ctx *ctx)
+                      struct trace_ctx *ctx)
 {
   int error, sigfd;
   sigset_t sigmask;
@@ -426,8 +425,8 @@ do_trace(struct trace_ctx *ctx)
       data = (struct trace_data *)(events[i].data.ptr);
       switch (data->type) {
       case EVENT_TYPE_PERF_BUFFER:
-        error = perf_event_process_mmap_page(ctx->pb,
-            handle_perf_buffer_event, ctx);
+        error = perf_event_process_mmap_page(ctx->pb, handle_perf_buffer_event,
+                                             ctx);
         if (error == -1) {
           fprintf(stderr, "handle_perf_buffer_event failed\n");
           goto err2;

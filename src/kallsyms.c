@@ -23,7 +23,9 @@ const unsigned long long kernel_addr_space = 0x00ffffffffffffff;
 const unsigned long long kernel_addr_spacee = 0x0;
 #endif
 
-int kallsyms_fill_addr2sym(struct ipft_symsdb *db) {
+int
+kallsyms_fill_addr2sym(struct ipft_symsdb *db)
+{
   FILE *f;
   int error;
   uint64_t addr;

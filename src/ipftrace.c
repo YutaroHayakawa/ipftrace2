@@ -23,26 +23,31 @@ static struct option options[] = {
     {NULL, 0, 0, 0},
 };
 
-static void usage(void) {
-  fprintf(stderr, "Usage: ipftrace [OPTIONS]\n"
-                  "\n"
-                  "Options:\n"
-                  " -f, --debug-format  [DEBUG-FORMAT]    Read the debug "
-                  "information with specified format\n"
-                  " -m, --mark          [MARK]            Trace the packet "
-                  "marked with <mark> [required]\n"
-                  " -r, --regex         [REGEX]           Filter the function to trace"
-                  "with regex\n"
-                  " -s, --script-path   [PATH]            Path to the Lua script file"
-                  "\n"
-                  "MARK         := hex number\n"
-                  "DEBUG-FORMAT := { dwarf, btf }\n"
-                  "PATH         := path\n"
-                  "\n");
+static void
+usage(void)
+{
+  fprintf(stderr,
+          "Usage: ipftrace [OPTIONS]\n"
+          "\n"
+          "Options:\n"
+          " -f, --debug-format  [DEBUG-FORMAT]    Read the debug "
+          "information with specified format\n"
+          " -m, --mark          [MARK]            Trace the packet "
+          "marked with <mark> [required]\n"
+          " -r, --regex         [REGEX]           Filter the function to trace"
+          "with regex\n"
+          " -s, --script-path   [PATH]            Path to the Lua script file"
+          "\n"
+          "MARK         := hex number\n"
+          "DEBUG-FORMAT := { dwarf, btf }\n"
+          "PATH         := path\n"
+          "\n");
   exit(EXIT_FAILURE);
 }
 
-static void opt_init(struct ipft_tracer_opt *opt) {
+static void
+opt_init(struct ipft_tracer_opt *opt)
+{
   opt->mark = 0;
   opt->script_path = NULL;
   opt->debug_info_type = "dwarf";
@@ -50,7 +55,9 @@ static void opt_init(struct ipft_tracer_opt *opt) {
   opt->regex = NULL;
 }
 
-static void opt_deinit(struct ipft_tracer_opt *opt) {
+static void
+opt_deinit(struct ipft_tracer_opt *opt)
+{
   /* Compare address */
   if (opt->debug_info_type != (char *)"dwarf") {
     free(opt->debug_info_type);
@@ -60,12 +67,14 @@ static void opt_deinit(struct ipft_tracer_opt *opt) {
     free(opt->script_path);
   }
 
-  if (opt->regex != NULL) { 
+  if (opt->regex != NULL) {
     free(opt->regex);
   }
 }
 
-static bool opt_validate(struct ipft_tracer_opt *opt) {
+static bool
+opt_validate(struct ipft_tracer_opt *opt)
+{
   if (opt->mark == 0) {
     fprintf(stderr, "-m --mark is missing (or specified 0 which is invalid)\n");
     return false;
@@ -85,7 +94,9 @@ static bool opt_validate(struct ipft_tracer_opt *opt) {
   return true;
 }
 
-int main(int argc, char **argv) {
+int
+main(int argc, char **argv)
+{
   int error, c, optind;
   const char *optname;
   struct ipft_tracer_opt opt;

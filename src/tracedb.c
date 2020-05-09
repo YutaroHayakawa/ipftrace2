@@ -13,7 +13,11 @@
 
 #include "ipftrace.h"
 
-static void dtor(void *p) { free(*(struct ipft_trace **)p); }
+static void
+dtor(void *p)
+{
+  free(*(struct ipft_trace **)p);
+}
 
 KLIST_INIT(trace_list, struct ipft_trace *, dtor)
 KHASH_MAP_INIT_INT64(trace, klist_t(trace_list) *)
@@ -22,11 +26,15 @@ struct ipft_tracedb {
   khash_t(trace) * trace;
 };
 
-size_t tracedb_get_total(struct ipft_tracedb *tdb) {
+size_t
+tracedb_get_total(struct ipft_tracedb *tdb)
+{
   return kh_size(tdb->trace);
 }
 
-int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t) {
+int
+tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t)
+{
   int ret;
   khint_t iter;
   klist_t(trace_list) * l;
@@ -51,8 +59,10 @@ int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t) {
   return 0;
 }
 
-void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
-    char *(*cb)(uint8_t *, size_t, void *), void *arg) {
+void
+tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
+             char *(*cb)(uint8_t *, size_t, void *), void *arg)
+{
   int error;
   char *name, *dump;
   uint32_t count = 0;
@@ -83,14 +93,16 @@ void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
         if (dump == NULL) {
           printf("%zu %04u %32.32s\n", t->tstamp, t->processor_id, name);
         } else {
-          printf("%zu %04u %32.32s %s\n", t->tstamp, t->processor_id, name, dump);
+          printf("%zu %04u %32.32s %s\n", t->tstamp, t->processor_id, name,
+                 dump);
           free(dump);
         }
-      }
-    )
+      })
 }
 
-int tracedb_create(struct ipft_tracedb **tdbp) {
+int
+tracedb_create(struct ipft_tracedb **tdbp)
+{
   struct ipft_tracedb *tdb;
 
   tdb = (struct ipft_tracedb *)malloc(sizeof(*tdb));
@@ -114,7 +126,9 @@ err0:
   return -1;
 }
 
-void tracedb_destroy(struct ipft_tracedb *tdb) {
+void
+tracedb_destroy(struct ipft_tracedb *tdb)
+{
   klist_t(trace_list) * v;
   kh_foreach_value(tdb->trace, v, kl_destroy(trace_list, v);)
       kh_destroy(trace, tdb->trace);

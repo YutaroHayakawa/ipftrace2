@@ -45,24 +45,25 @@ struct ipft_syminfo {
 };
 
 struct ipft_debuginfo {
-  int (*fill_sym2info)(struct ipft_debuginfo *,
-      struct ipft_symsdb *);
-  int (*sizeof_fn)(struct ipft_debuginfo *,
-      const char *, size_t *);
-  int (*offsetof_fn)(struct ipft_debuginfo *,
-      const char *, const char *, size_t *);
+  int (*fill_sym2info)(struct ipft_debuginfo *, struct ipft_symsdb *);
+  int (*sizeof_fn)(struct ipft_debuginfo *, const char *, size_t *);
+  int (*offsetof_fn)(struct ipft_debuginfo *, const char *, const char *,
+                     size_t *);
   void (*destroy)(struct ipft_debuginfo *);
 };
 
 int symsdb_create(struct ipft_symsdb **sdbp);
 void symsdb_destroy(struct ipft_symsdb *sdb);
 size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
-int symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name, struct ipft_syminfo *sinfo);
-int symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name, struct ipft_syminfo **sinfop);
+int symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
+                        struct ipft_syminfo *sinfo);
+int symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
+                        struct ipft_syminfo **sinfop);
 int symsdb_put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *sym);
 int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp);
 int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
-                            int (*cb)(const char *, struct ipft_syminfo *, void *),
+                            int (*cb)(const char *, struct ipft_syminfo *,
+                                      void *),
                             void *arg);
 
 int tracedb_create(struct ipft_tracedb **tdbp);
@@ -70,24 +71,25 @@ void tracedb_destroy(struct ipft_tracedb *tdb);
 size_t tracedb_get_total(struct ipft_tracedb *tdb);
 int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t);
 void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
-    char *(*cb)(uint8_t *, size_t, void *), void *data);
+                  char *(*cb)(uint8_t *, size_t, void *), void *data);
 
 int btf_debuginfo_create(struct ipft_debuginfo **dinfop);
 int dwarf_debuginfo_create(struct ipft_debuginfo **dinfop);
 void debuginfo_destroy(struct ipft_debuginfo *dinfo);
-int debuginfo_fill_sym2info(struct ipft_debuginfo *dinfo, struct ipft_symsdb *sdb);
-int debuginfo_sizeof(struct ipft_debuginfo *dinfo,
-    const char *type, size_t *sizep);
-int debuginfo_offsetof(struct ipft_debuginfo *dinfo,
-    const char *type, const char *member, size_t *offsetp);
+int debuginfo_fill_sym2info(struct ipft_debuginfo *dinfo,
+                            struct ipft_symsdb *sdb);
+int debuginfo_sizeof(struct ipft_debuginfo *dinfo, const char *type,
+                     size_t *sizep);
+int debuginfo_offsetof(struct ipft_debuginfo *dinfo, const char *type,
+                       const char *member, size_t *offsetp);
 
 int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 
 int script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
-    const char *path);
+                  const char *path);
 void script_destroy(struct ipft_script *script);
 int script_exec_emit(struct ipft_script *script, struct bpf_insn **modp,
-    uint32_t *mod_cnt);
+                     uint32_t *mod_cnt);
 char *script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len);
 
 int perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt);
@@ -96,10 +98,11 @@ int perf_buffer_get_fd(struct ipft_perf_buffer *pb);
 void *perf_buffer_get_base(struct ipft_perf_buffer *pb);
 int perf_event_attach_kprobe(const char *name, int prog_fd);
 int perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
-    int (*cb)(struct perf_event_header *, void *), void *data);
+                                 int (*cb)(struct perf_event_header *, void *),
+                                 void *data);
 
 int bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark,
-                   size_t mark_offset, struct bpf_insn *mod, uint32_t mod_cnt);
+                  size_t mark_offset, struct bpf_insn *mod, uint32_t mod_cnt);
 int bpf_prog_get(struct ipft_bpf_prog *prog, int skb_pos);
 int bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int fd);
 void bpf_prog_unload(struct ipft_bpf_prog *prog);

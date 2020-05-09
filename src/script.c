@@ -70,7 +70,7 @@ script_ipft_sizeof(lua_State *L)
   struct ipft_debuginfo **dinfop;
 
   n = lua_gettop(L);
-  if (n != 1)  {
+  if (n != 1) {
     lua_pushliteral(L, "Incorrect number of argument. Expect 1.");
     lua_error(L);
   }
@@ -148,7 +148,7 @@ script_exec_fini(lua_State *L)
 
 int
 script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
-    const char *path)
+              const char *path)
 {
   int error;
   lua_State *L;
@@ -176,7 +176,7 @@ script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
   /*
    * Load BPF library
    */
-  (void) luaL_dostring(L, bpf_lua);
+  (void)luaL_dostring(L, bpf_lua);
 
   /*
    * Register debuginfo functions
@@ -227,8 +227,8 @@ script_destroy(struct ipft_script *script)
 }
 
 int
-script_exec_emit(struct ipft_script *script,
-    struct bpf_insn **modp, uint32_t *mod_cnt)
+script_exec_emit(struct ipft_script *script, struct bpf_insn **modp,
+                 uint32_t *mod_cnt)
 {
   size_t len;
   const char *raw;

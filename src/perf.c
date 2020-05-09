@@ -25,8 +25,8 @@ struct ipft_perf_buffer {
 };
 
 static int
-perf_event_open(struct perf_event_attr *attr, pid_t pid,
-    int cpu, int group_fd, unsigned long flags)
+perf_event_open(struct perf_event_attr *attr, pid_t pid, int cpu, int group_fd,
+                unsigned long flags)
 {
   return syscall(__NR_perf_event_open, attr, pid, cpu, group_fd, flags);
 }
@@ -54,7 +54,8 @@ perf_buffer_get_fd(struct ipft_perf_buffer *pb)
 
 int
 perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
-    int (*cb)(struct perf_event_header *, void *), void *data)
+                             int (*cb)(struct perf_event_header *, void *),
+                             void *data)
 {
   int error;
   void *base;
@@ -115,7 +116,7 @@ perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
 void
 perf_buffer_destroy(struct ipft_perf_buffer *pb)
 {
-  munmap(pb->base, pb->page_cnt * pb->page_size); 
+  munmap(pb->base, pb->page_cnt * pb->page_size);
   close(pb->fd);
   free(pb);
 }
@@ -154,8 +155,8 @@ perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt)
     goto err0;
   }
 
-  base = mmap(NULL, page_size * (page_cnt + 1),
-      PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+  base = mmap(NULL, page_size * (page_cnt + 1), PROT_READ | PROT_WRITE,
+              MAP_SHARED, fd, 0);
   if (base == MAP_FAILED) {
     perror("mmap");
     goto err1;
@@ -186,7 +187,8 @@ err0:
   return -1;
 }
 
-static int get_kprobe_perf_type(void)
+static int
+get_kprobe_perf_type(void)
 {
   FILE *f;
   int error, type;

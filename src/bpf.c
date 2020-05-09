@@ -29,12 +29,9 @@ static const uint32_t pt_regs_ip_offset = offsetof(struct pt_regs, rip);
  * PT_REGS_PARAM[1-5], indexed by parameter position
  */
 static uint32_t pt_regs_param_offset[] = {
-  offsetof(struct pt_regs, rdi),
-  offsetof(struct pt_regs, rsi),
-  offsetof(struct pt_regs, rdx),
-  offsetof(struct pt_regs, rcx),
-  offsetof(struct pt_regs, r8)
-};
+    offsetof(struct pt_regs, rdi), offsetof(struct pt_regs, rsi),
+    offsetof(struct pt_regs, rdx), offsetof(struct pt_regs, rcx),
+    offsetof(struct pt_regs, r8)};
 #else
 #error Unsupported architecture
 #endif
@@ -72,89 +69,89 @@ bpf(enum bpf_cmd cmd, union bpf_attr *attr, size_t size)
 
 static int
 gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
-    struct bpf_insn *mod, uint32_t mod_cnt, int perf_map_fd,
-    struct bpf_insn **insnp, uint32_t *insn_cnt)
+            struct bpf_insn *mod, uint32_t mod_cnt, int perf_map_fd,
+            struct bpf_insn **insnp, uint32_t *insn_cnt)
 {
   struct bpf_insn bottom_half[] = {
-    /*
-     * bpf_perf_event_output(ctx, &perf_map, 0,
-     *                       &trace, sizeof(trace));
-     */
-    BPF_MOV64_REG(BPF_REG_4, BPF_REG_10),
-    BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, TRACE_OFFSET),
-    BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
-    BPF_LD_MAP_FD(BPF_REG_2, perf_map_fd),
-    BPF_MOV64_IMM(BPF_REG_3, 0),
-    BPF_MOV64_IMM(BPF_REG_5, (uint32_t)sizeof(struct ipft_trace)),
-    BPF_CALL_INSN(BPF_FUNC_perf_event_output),
-    BPF_EXIT_INSN(),
+      /*
+       * bpf_perf_event_output(ctx, &perf_map, 0,
+       *                       &trace, sizeof(trace));
+       */
+      BPF_MOV64_REG(BPF_REG_4, BPF_REG_10),
+      BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, TRACE_OFFSET),
+      BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
+      BPF_LD_MAP_FD(BPF_REG_2, perf_map_fd),
+      BPF_MOV64_IMM(BPF_REG_3, 0),
+      BPF_MOV64_IMM(BPF_REG_5, (uint32_t)sizeof(struct ipft_trace)),
+      BPF_CALL_INSN(BPF_FUNC_perf_event_output),
+      BPF_EXIT_INSN(),
   };
 
   uint32_t bottom_half_cnt = sizeof(bottom_half) / sizeof(bottom_half[0]);
 
   struct bpf_insn top_half[] = {
-    /* Save ctx for future use */
-    BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
-    /* skb = PT_REGS_PARAM1(ctx) */
-    BPF_LDX_MEM(BPF_DW, BPF_REG_7, BPF_REG_6, pt_regs_param_offset[skb_pos - 1]),
-    /* bpf_probe_read(&mark, 4, skb + mark_offset) */
-    BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
-    BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -4),
-    BPF_MOV64_IMM(BPF_REG_2, 4),
-    BPF_MOV64_REG(BPF_REG_3, BPF_REG_7),
-    BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, mark_offset),
-    BPF_CALL_INSN(BPF_FUNC_probe_read),
-    BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
-    BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_10, -4),
-    /* if (mark != target_mark) goto end; */
-    BPF_JMP32_IMM(BPF_JNE, BPF_REG_8, mark, 25 + mod_cnt + bottom_half_cnt - 1),
-    /* trace->skb_addr = skb */
-    BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_7, TRACE_OFFSET),
-    /* trace->tstamp = bpf_ktime_get_ns(); */
-    BPF_CALL_INSN(BPF_FUNC_ktime_get_ns),
-    BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, TRACE_OFFSET + 8),
-    /* trace->faddr = PT_REGS_IP(ctx) */
-    BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_6, pt_regs_ip_offset),
-    BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, TRACE_OFFSET + 16),
-    /* trace->processor_id = bpf_get_smp_processor_id(); */
-    BPF_CALL_INSN(BPF_FUNC_get_smp_processor_id),
-    BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_0, TRACE_OFFSET + 24),
-    /* zero clear the trace->_pad to satisfy the verifier */
-    BPF_ST_MEM(BPF_W, BPF_REG_10, TRACE_OFFSET + 28, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_10, TRACE_OFFSET + 32, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_10, TRACE_OFFSET + 40, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_10, TRACE_OFFSET + 48, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_10, TRACE_OFFSET + 56, 0),
-    /* zero clear the trace->data to satisfy the verifier */
-    BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
-    BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, TRACE_OFFSET + (int32_t)offsetof(struct ipft_trace, data)),
-    BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_1, 8, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_1, 16, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_1, 24, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_1, 32, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_1, 40, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_1, 48, 0),
-    BPF_ST_MEM(BPF_DW, BPF_REG_1, 56, 0),
-    BPF_MOV64_REG(BPF_REG_2, BPF_REG_6),
-    BPF_MOV64_REG(BPF_REG_3, BPF_REG_7),
-    /*
-     * Initialize the unused callee-saved registers in here.
-     * Otherwise, users may save the uninitialized callee-saved
-     * registers which verifier doesn't allow.
-     */
-    BPF_MOV64_IMM(BPF_REG_9, 0),
-    /* 
-     * Module code comes to here
-     * REG1 = trace->data
-     * REG2 = ctx
-     * REG3 = skb
-     */
+      /* Save ctx for future use */
+      BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+      /* skb = PT_REGS_PARAM1(ctx) */
+      BPF_LDX_MEM(BPF_DW, BPF_REG_7, BPF_REG_6,
+                  pt_regs_param_offset[skb_pos - 1]),
+      /* bpf_probe_read(&mark, 4, skb + mark_offset) */
+      BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
+      BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -4), BPF_MOV64_IMM(BPF_REG_2, 4),
+      BPF_MOV64_REG(BPF_REG_3, BPF_REG_7),
+      BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, mark_offset),
+      BPF_CALL_INSN(BPF_FUNC_probe_read), BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
+      BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_10, -4),
+      /* if (mark != target_mark) goto end; */
+      BPF_JMP32_IMM(BPF_JNE, BPF_REG_8, mark,
+                    25 + mod_cnt + bottom_half_cnt - 1),
+      /* trace->skb_addr = skb */
+      BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_7, TRACE_OFFSET),
+      /* trace->tstamp = bpf_ktime_get_ns(); */
+      BPF_CALL_INSN(BPF_FUNC_ktime_get_ns),
+      BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, TRACE_OFFSET + 8),
+      /* trace->faddr = PT_REGS_IP(ctx) */
+      BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_6, pt_regs_ip_offset),
+      BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, TRACE_OFFSET + 16),
+      /* trace->processor_id = bpf_get_smp_processor_id(); */
+      BPF_CALL_INSN(BPF_FUNC_get_smp_processor_id),
+      BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_0, TRACE_OFFSET + 24),
+      /* zero clear the trace->_pad to satisfy the verifier */
+      BPF_ST_MEM(BPF_W, BPF_REG_10, TRACE_OFFSET + 28, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_10, TRACE_OFFSET + 32, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_10, TRACE_OFFSET + 40, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_10, TRACE_OFFSET + 48, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_10, TRACE_OFFSET + 56, 0),
+      /* zero clear the trace->data to satisfy the verifier */
+      BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
+      BPF_ALU64_IMM(BPF_ADD, BPF_REG_1,
+                    TRACE_OFFSET + (int32_t)offsetof(struct ipft_trace, data)),
+      BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 0), BPF_ST_MEM(BPF_DW, BPF_REG_1, 8, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_1, 16, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_1, 24, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_1, 32, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_1, 40, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_1, 48, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_1, 56, 0), BPF_MOV64_REG(BPF_REG_2, BPF_REG_6),
+      BPF_MOV64_REG(BPF_REG_3, BPF_REG_7),
+      /*
+       * Initialize the unused callee-saved registers in here.
+       * Otherwise, users may save the uninitialized callee-saved
+       * registers which verifier doesn't allow.
+       */
+      BPF_MOV64_IMM(BPF_REG_9, 0),
+      /*
+       * Module code comes to here
+       * REG1 = trace->data
+       * REG2 = ctx
+       * REG3 = skb
+       */
   };
 
   uint32_t top_half_cnt = sizeof(top_half) / sizeof(top_half[0]);
 
-  *insnp = calloc(top_half_cnt + mod_cnt + bottom_half_cnt, sizeof(top_half[0]));
+  *insnp =
+      calloc(top_half_cnt + mod_cnt + bottom_half_cnt, sizeof(top_half[0]));
   if (*insnp == NULL) {
     return -1;
   }
@@ -164,7 +161,7 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
   memcpy(*insnp, top_half, top_half_cnt * sizeof(top_half[0]));
   memcpy(*insnp + top_half_cnt, mod, mod_cnt * sizeof(mod[0]));
   memcpy(*insnp + top_half_cnt + mod_cnt, bottom_half,
-	  bottom_half_cnt * sizeof(bottom_half[0]));
+         bottom_half_cnt * sizeof(bottom_half[0]));
 
   return 0;
 }
@@ -199,9 +196,8 @@ create_perf_map(void)
 #define LOGBUF_SIZE 0xffff
 
 static int
-load_program(uint32_t mark, ptrdiff_t mark_offset,
-             struct bpf_insn *mod, uint32_t mod_cnt,
-             int perf_map_fd, struct ipft_bpf_prog *prog)
+load_program(uint32_t mark, ptrdiff_t mark_offset, struct bpf_insn *mod,
+             uint32_t mod_cnt, int perf_map_fd, struct ipft_bpf_prog *prog)
 {
   char *log_buf;
   int i, fd, error;
@@ -226,8 +222,8 @@ load_program(uint32_t mark, ptrdiff_t mark_offset,
   attr.kern_version = get_kernel_version();
 
   for (i = 0; i < MAX_SKB_POS; i++) {
-    error = gen_program(i + 1, mark, mark_offset, mod, mod_cnt,
-        perf_map_fd, &insns, &insns_cnt);
+    error = gen_program(i + 1, mark, mark_offset, mod, mod_cnt, perf_map_fd,
+                        &insns, &insns_cnt);
     if (error == -1) {
       goto err0;
     }
@@ -240,13 +236,13 @@ load_program(uint32_t mark, ptrdiff_t mark_offset,
     fd = bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
     if (fd < 0) {
       switch (errno) {
-        case EPERM:
-          fprintf(stderr, "%s\n", log_buf);
-          break;
-        default:
-          perror("bpf");
-          fprintf(stderr, "%s\n", log_buf);
-          break;
+      case EPERM:
+        fprintf(stderr, "%s\n", log_buf);
+        break;
+      default:
+        perror("bpf");
+        fprintf(stderr, "%s\n", log_buf);
+        break;
       }
       goto err0;
     }
@@ -287,7 +283,7 @@ detach_perf_buffer(struct ipft_bpf_prog *prog)
   union bpf_attr attr = {};
 
   attr.map_fd = prog->perf_map_fd;
-  attr.key = (__u64)&(int){0};
+  attr.key = (__u64) & (int){0};
   attr.flags = 0;
 
   error = bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
@@ -302,9 +298,8 @@ bpf_prog_get(struct ipft_bpf_prog *prog, int skb_pos)
 }
 
 int
-bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark,
-                   size_t mark_offset, struct bpf_insn *mod,
-                   uint32_t mod_cnt)
+bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark, size_t mark_offset,
+              struct bpf_insn *mod, uint32_t mod_cnt)
 {
   int error, perf_map_fd;
   struct ipft_bpf_prog *prog;
@@ -323,8 +318,7 @@ bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark,
 
   prog->perf_map_fd = perf_map_fd;
 
-  error = load_program(mark, mark_offset, mod,
-      mod_cnt, perf_map_fd, prog);
+  error = load_program(mark, mark_offset, mod, mod_cnt, perf_map_fd, prog);
   if (error == -1) {
     goto err1;
   }
@@ -347,8 +341,8 @@ bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int perf_fd)
   union bpf_attr attr = {};
 
   attr.map_fd = prog->perf_map_fd;
-  attr.key = (uint64_t)&(int){0};
-  attr.value = (uint64_t)&(int){perf_fd};
+  attr.key = (uint64_t) & (int){0};
+  attr.value = (uint64_t) & (int){perf_fd};
 
   error = bpf(BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
   if (error == -1) {
