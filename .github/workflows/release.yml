@@ -14,9 +14,10 @@ jobs:
         docker build -t ipftrace2:latest .
         docker run -d --name ipft-tmp ipftrace2:latest /sbin/init
         docker cp ipft-tmp:/ipftrace2/src/ipftrace2 .
+        tar cfvz ipftrace2.tar.gz ipftrace2
     - name: Publish binary
       uses: skx/github-action-publish-binaries@master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        args: "ipftrace2"
+        args: "ipftrace2.tar.gz"
