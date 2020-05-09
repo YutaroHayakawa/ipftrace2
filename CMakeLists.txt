@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.12)
 
-project(ipftrace2)
+project(ipftrace2 C)
 
 # Taken from bpftrace (https://github.com/iovisor/bpftrace)
 set(STATIC_LINKING OFF CACHE BOOL "Build ipftrace2 as a statically linked executable")
