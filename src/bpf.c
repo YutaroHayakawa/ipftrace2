@@ -105,8 +105,8 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
       BPF_CALL_INSN(BPF_FUNC_probe_read), BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
       BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_10, -4),
       /* if (mark != target_mark) goto end; */
-      BPF_JMP32_IMM(BPF_JNE, BPF_REG_8, mark,
-                    25 + mod_cnt + bottom_half_cnt - 1),
+      BPF_JMP_IMM(BPF_JNE, BPF_REG_8, mark,
+          25 + mod_cnt + bottom_half_cnt - 1),
       /* trace->skb_addr = skb */
       BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_7, TRACE_OFFSET),
       /* trace->tstamp = bpf_ktime_get_ns(); */
