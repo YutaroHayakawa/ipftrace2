@@ -1,17 +1,22 @@
-name: Test build
-
 on:
   push:
     branches: [ master ]
-  pull_request:
-    branches: [ master ]
 
 jobs:
-  build:
-
-    runs-on: [ubuntu-latest]
-
+  generate:
+    name: Create latest binary
+    runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: make
-      run: make
+    - name: Checkout the repository
+      uses: actions/checkout@v2
+    - name: Build static binary with Docker
+      run: |
+        docker build -t ipftrace2:latest .
+        docker run -d --name ipft-tmp ipftrace2:latest /sbin/init
+        docker cp ipft-tmp:/ipftrace2/src/ipftrace2 .
+    - name: Publish binary
+      uses: skx/github-action-publish-binaries@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        args: "ipftrace2"
