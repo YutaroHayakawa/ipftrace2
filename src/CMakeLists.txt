@@ -1,4 +1,4 @@
-add_executable(ipftrace2
+add_executable(ipft
   btf.c
   bpf.c
   debuginfo.c
@@ -18,9 +18,9 @@ if (BUILD_ASAN)
     # target_link_options is supported in CMake 3.13 and newer
     message("Please use CMake 3.13 or newer to enable ASAN")
   endif()
-  target_compile_definitions(ipftrace2 PRIVATE BUILD_ASAN)
-  target_compile_options(ipftrace2 PUBLIC "-fsanitize=address")
-  target_link_options(ipftrace2 PUBLIC "-fsanitize=address")
+  target_compile_definitions(ipft PRIVATE BUILD_ASAN)
+  target_compile_options(ipft PUBLIC "-fsanitize=address")
+  target_link_options(ipft PUBLIC "-fsanitize=address")
 endif()
 
 if(STATIC_LINKING)
@@ -58,7 +58,7 @@ if(NOT LIBC_HAS_FTS)
   set_property(TARGET LIBFTS PROPERTY IMPORTED_LOCATION ${LIBFTS_LIBRARIES})
 endif()
 
-target_link_libraries(ipftrace2
+target_link_libraries(ipft
   LIBLUA
   LIBDW
   ZLIB
@@ -72,5 +72,5 @@ target_link_libraries(ipftrace2
 )
 
 if(NOT LIBC_HAS_FTS)
-  target_link_libraries(ipftrace2 LIBFTS)
+  target_link_libraries(ipft LIBFTS)
 endif()

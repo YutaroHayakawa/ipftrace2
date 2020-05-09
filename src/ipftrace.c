@@ -27,7 +27,7 @@ static void
 usage(void)
 {
   fprintf(stderr,
-          "Usage: ipftrace [OPTIONS]\n"
+          "Usage: ipft [OPTIONS]\n"
           "\n"
           "Options:\n"
           " -f, --debug-format  [DEBUG-FORMAT]    Read the debug "
