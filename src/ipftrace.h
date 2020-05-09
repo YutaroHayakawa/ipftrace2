@@ -1,6 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <linux/bpf.h>
 #include <linux/perf_event.h>
 
@@ -15,6 +16,7 @@ struct ipft_script;
 struct ipft_bpf_prog;
 struct ipft_perf_buffer;
 struct ipft_debuginfo;
+struct ipft_regex;
 
 struct ipft_trace {
   uint64_t skb_addr;
@@ -28,6 +30,7 @@ struct ipft_trace {
 
 struct ipft_tracer_opt {
   uint32_t mark;
+  char *regex;
   char *script_path;
   char *debug_info_type;
   size_t perf_page_cnt;
@@ -96,5 +99,9 @@ int bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark,
 int bpf_prog_get(struct ipft_bpf_prog *prog, int skb_pos);
 int bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int fd);
 void bpf_prog_unload(struct ipft_bpf_prog *prog);
+
+int regex_create(struct ipft_regex **rep, const char *regex);
+bool regex_match(struct ipft_regex *re, const char *s);
+void regex_destroy(struct ipft_regex *re);
 
 int tracer_run(struct ipft_tracer_opt *opt);

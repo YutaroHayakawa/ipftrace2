@@ -10,6 +10,7 @@ add_executable(ipftrace2
   symsdb.c
   trace.c
   tracedb.c
+  regex.c
 )
 
 if (BUILD_ASAN)
@@ -29,6 +30,7 @@ if(STATIC_LINKING)
   add_library(BZIP2 STATIC IMPORTED)
   add_library(LIBLZMA STATIC IMPORTED)
   add_library(LIBELF STATIC IMPORTED)
+  add_library(LIBPCRE STATIC IMPORTED)
   if(NOT LIBC_HAS_FTS)
     add_library(LIBFTS STATIC IMPORTED)
   endif()
@@ -39,6 +41,7 @@ else()
   add_library(BZIP2 SHARED IMPORTED)
   add_library(LIBLZMA SHARED IMPORTED)
   add_library(LIBELF SHARED IMPORTED)
+  add_library(LIBPCRE SHARED IMPORTED)
   if(NOT LIBC_HAS_FTS)
     add_library(LIBFTS SHARED IMPORTED)
   endif()
@@ -50,6 +53,7 @@ set_property(TARGET ZLIB PROPERTY IMPORTED_LOCATION ${ZLIB_LIBRARIES})
 set_property(TARGET BZIP2 PROPERTY IMPORTED_LOCATION ${BZIP2_LIBRARIES})
 set_property(TARGET LIBLZMA PROPERTY IMPORTED_LOCATION ${LIBLZMA_LIBRARIES})
 set_property(TARGET LIBELF PROPERTY IMPORTED_LOCATION ${LIBELF_LIBRARIES})
+set_property(TARGET LIBPCRE PROPERTY IMPORTED_LOCATION ${LIBPCRE_LIBRARIES})
 if(NOT LIBC_HAS_FTS)
   set_property(TARGET LIBFTS PROPERTY IMPORTED_LOCATION ${LIBFTS_LIBRARIES})
 endif()
@@ -61,6 +65,7 @@ target_link_libraries(ipftrace2
   BZIP2
   LIBLZMA
   LIBELF
+  LIBPCRE
   -lpthread
   -ldl
   -lm

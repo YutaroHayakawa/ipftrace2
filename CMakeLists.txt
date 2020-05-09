@@ -32,6 +32,7 @@ find_package(ZLIB REQUIRED)
 find_package(BZip2 REQUIRED)
 find_package(LibLZMA REQUIRED)
 find_package(LibElf REQUIRED)
+find_package(LibPcre REQUIRED)
 
 include_directories(SYSTEM ${LIBDW_INCLUDE_DIRS})
 

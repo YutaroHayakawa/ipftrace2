@@ -13,6 +13,7 @@
 static struct option options[] = {
     {"debug-format", required_argument, 0, 'f'},
     {"mark", required_argument, 0, 'm'},
+    {"regex", optional_argument, 0, 'r'},
     {"script", optional_argument, 0, 's'},
     {"perf-page-count", optional_argument, 0, '0'},
     {NULL, 0, 0, 0},
@@ -22,10 +23,12 @@ static void usage(void) {
   fprintf(stderr, "Usage: ipftrace [OPTIONS]\n"
                   "\n"
                   "Options:\n"
-                  " -m, --mark          [MARK]            Trace the packet "
-                  "marked with <mark> [required]\n"
                   " -f, --debug-format  [DEBUG-FORMAT]    Read the debug "
                   "information with specified format\n"
+                  " -m, --mark          [MARK]            Trace the packet "
+                  "marked with <mark> [required]\n"
+                  " -r, --regex         [REGEX]           Filter the function to trace"
+                  "with regex\n"
                   " -s, --script-path   [PATH]            Path to the Lua script file"
                   "\n"
                   "MARK         := hex number\n"
@@ -40,6 +43,7 @@ static void opt_init(struct ipft_tracer_opt *opt) {
   opt->script_path = NULL;
   opt->debug_info_type = "dwarf";
   opt->perf_page_cnt = 8;
+  opt->regex = NULL;
 }
 
 static bool opt_validate(struct ipft_tracer_opt *opt) {
@@ -69,7 +73,7 @@ int main(int argc, char **argv) {
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "f:m:s:0", options, &optind)) != -1) {
+  while ((c = getopt_long(argc, argv, "f:m:r:s:0", options, &optind)) != -1) {
     switch (c) {
     case 'f':
       opt.debug_info_type = strdup(optarg);
@@ -77,16 +81,14 @@ int main(int argc, char **argv) {
     case 'm':
       opt.mark = strtoul(optarg, NULL, 16);
       break;
+    case 'r':
+      opt.regex = strdup(optarg);
+      break;
     case 's':
       opt.script_path = strdup(optarg);
       break;
     case '0':
       optname = options[optind].name;
-
-      if (strcmp(optname, "debug-format") == 0) {
-        opt.debug_info_type = strdup(optarg);
-        break;
-      }
 
       if (strcmp(optname, "perf-page-count") == 0) {
         opt.perf_page_cnt = atoi(optarg);

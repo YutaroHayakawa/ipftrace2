@@ -37,10 +37,12 @@ struct kprobe_events {
 
 struct attach_ctx {
   size_t total;
-  size_t success;
-  size_t fail;
+  size_t succeeded;
+  size_t failed;
+  size_t filtered;
   struct kprobe_events *ke;
   struct ipft_bpf_prog *prog;
+  struct ipft_regex *re;
 };
 
 struct trace_ctx {
@@ -162,19 +164,23 @@ attach_prog(const char *name, struct ipft_syminfo *si, void *args)
 
   ctx = (struct attach_ctx *)args;
 
-  prog_fd = bpf_prog_get(ctx->prog, si->skb_pos);
+  if (regex_match(ctx->re, name)) {
+    prog_fd = bpf_prog_get(ctx->prog, si->skb_pos);
 
-  pfd = perf_event_attach_kprobe(name, prog_fd);
-  if (pfd > 0) {
-    ctx->success++;
+    pfd = perf_event_attach_kprobe(name, prog_fd);
+    if (pfd > 0) {
+      ctx->succeeded++;
+    } else {
+      ctx->failed++;
+    }
+
+    ctx->ke->fds[ctx->succeeded + ctx->failed + ctx->filtered - 1] = pfd;
   } else {
-    ctx->fail++;
+    ctx->filtered++;
   }
 
-  ctx->ke->fds[ctx->success + ctx->fail - 1] = pfd;
-
-  fprintf(stderr, "Attaching program (total %zu, success %zu, fail %zu)\r",
-      ctx->total, ctx->success, ctx->fail);
+  fprintf(stderr, "Attaching program (total %zu, succeeded %zu, failed %zu filtered: %zu)\r",
+      ctx->total, ctx->succeeded, ctx->failed, ctx->filtered);
   fflush(stderr);
 
   return 0;
@@ -182,7 +188,7 @@ attach_prog(const char *name, struct ipft_syminfo *si, void *args)
 
 static int
 attach_progs(struct kprobe_events *ke, struct ipft_symsdb *sdb,
-    struct ipft_bpf_prog *prog)
+    struct ipft_bpf_prog *prog, struct ipft_regex *re)
 {
   int error;
   struct attach_ctx ctx = {};
@@ -190,6 +196,7 @@ attach_progs(struct kprobe_events *ke, struct ipft_symsdb *sdb,
   ctx.total = symsdb_get_sym2info_total(sdb);
   ctx.prog = prog;
   ctx.ke = ke;
+  ctx.re = re;
 
   error = symsdb_sym2info_foreach(sdb, attach_prog, &ctx);
   if (error == -1) {
@@ -449,6 +456,7 @@ tracer_run(struct ipft_tracer_opt *opt)
 {
   int error;
   struct trace_ctx ctx;
+  struct ipft_regex *re;
   struct ipft_symsdb *sdb;
   struct ipft_tracedb *tdb;
   struct kprobe_events *ke;
@@ -457,64 +465,70 @@ tracer_run(struct ipft_tracer_opt *opt)
   struct ipft_perf_buffer *pb;
   struct ipft_debuginfo *dinfo;
 
+  error = regex_create(&re, opt->regex);
+  if (error == -1) {
+    fprintf(stderr, "regex_create failed\n");
+    return -1;
+  }
+
   error = symsdb_create(&sdb);
   if (error == -1) {
     fprintf(stderr, "symsdb_create failed\n");
-    return -1;
+    goto err0;
   }
 
   error = tracedb_create(&tdb);
   if (error == -1) {
     fprintf(stderr, "tracedb_create failed\n");
-    goto err0;
+    goto err1;
   }
 
   error = debuginfo_create(opt->debug_info_type, &dinfo);
   if (error == -1) {
     fprintf(stderr, "debuginfo_create failed\n");
-    goto err1;
+    goto err2;
   }
 
   error = debuginfo_fill_sym2info(dinfo, sdb);
   if (error == -1) {
     fprintf(stderr, "debuginfo_fill_sym2info failed\n");
-    goto err2;
+    goto err3;
   }
 
   error = kallsyms_fill_addr2sym(sdb);
   if (error == -1) {
     fprintf(stderr, "kallsyms_fill_addr2sym failed\n");
-    goto err2;
+    goto err3;
   }
 
   error = script_create(&script, dinfo, opt->script_path);
   if (error == -1) {
     fprintf(stderr, "script_create failed\n");
-    goto err2;
+    goto err3;
   }
 
   error = perf_buffer_create(&pb, opt->perf_page_cnt);
   if (error == -1) {
     fprintf(stderr, "perf_buffer_create failed\n");
-    goto err3;
+    goto err4;
   }
 
   error = load_progs(&prog, script, dinfo, pb, opt->mark);
   if (error == -1) {
     fprintf(stderr, "load_progs failed\n");
-    goto err4;
+    goto err5;
   }
 
   error = kprobe_events_create(&ke, symsdb_get_sym2info_total(sdb));
   if (error == -1) {
     fprintf(stderr, "kprobe_events_create failed\n");
-    goto err5;
+    goto err6;
   }
 
-  error = attach_progs(ke, sdb, prog);
+  error = attach_progs(ke, sdb, prog, re);
   if (error == -1) {
     fprintf(stderr, "attach_progs failed\n");
-    goto err6;
+    goto err7;
   }
 
   ctx.nsamples = 0;
@@ -529,19 +543,21 @@ tracer_run(struct ipft_tracer_opt *opt)
   do_trace(&ctx);
 
   detach_progs(ke);
-err6:
+err7:
   kprobe_events_destroy(ke);
-err5:
+err6:
   unload_progs(prog);
-err4:
+err5:
   perf_buffer_destroy(pb);
-err3:
+err4:
   script_destroy(script);
-err2:
+err3:
   debuginfo_destroy(dinfo);
-err1:
+err2:
   tracedb_destroy(tdb);
-err0:
+err1:
   symsdb_destroy(sdb);
+err0:
+  regex_destroy(re);
   return error;
 }
