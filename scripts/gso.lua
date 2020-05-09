@@ -1,3 +1,6 @@
+-- SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+-- Copyright (C) 2020 Yutaro Hayakawa
+
 GSO_FLAGS = {
   [ 1 << 0 ]  = "tcpv4",
   [ 1 << 1 ]  = "dodgy",
