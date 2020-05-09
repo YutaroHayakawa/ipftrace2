@@ -55,8 +55,6 @@ ExternalProject_Add(
 
 ExternalProject_Get_Property(LibLua INSTALL_DIR)
 set(LIBLUA_INCLUDE_DIRS ${INSTALL_DIR}/include)
-message("liblua include hogehoge")
-message(${LIBLUA_INCLUDE_DIRS})
 include_directories(SYSTEM ${LIBLUA_INCLUDE_DIRS})
 # Lua doesn't support dynamic linking
 set(LIBLUA_LIBRARIES ${INSTALL_DIR}/lib/liblua.a)
