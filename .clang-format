@@ -1,0 +1,22 @@
+AlwaysBreakAfterReturnType: AllDefinitions
+BreakBeforeBraces: Custom
+BraceWrapping: {
+  AfterFunction: 'true'
+}
+ColumnLimit: 80
+IndentCaseLabels: false
+IndentWidth: 2
+MaxEmptyLinesToKeep: 1
+PointerAlignment: Right
+IncludeCategories:
+  - Regex: '.*'
+  - Priority: 1
+SortIncludes: false
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesBeforeTrailingComments: 1
+SpacesInCStyleCastParentheses: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+TabWidth: 2
