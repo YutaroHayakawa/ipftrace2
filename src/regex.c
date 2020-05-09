@@ -58,7 +58,7 @@ regex_match(struct ipft_regex *re, const char *s)
   pcre2_match_data *match;
 
   if (re == NULL) {
-    return false;
+    return true;
   }
 
   match = pcre2_match_data_create_from_pattern(re->compiled, NULL);
