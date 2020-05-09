@@ -11,8 +11,10 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sys/utsname.h>
+#include <sys/syscall.h>
 #include <linux/version.h>
 #include <linux/types.h>
+#include <linux/ptrace.h>
 
 #include "bpf.h"
 #include "ipftrace.h"
