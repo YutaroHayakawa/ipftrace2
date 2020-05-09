@@ -179,7 +179,7 @@ attach_prog(const char *name, struct ipft_syminfo *si, void *args)
     ctx->filtered++;
   }
 
-  fprintf(stderr, "Attaching program (total %zu, succeeded %zu, failed %zu filtered: %zu)\r",
+  fprintf(stderr, "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: %zu)",
       ctx->total, ctx->succeeded, ctx->failed, ctx->filtered);
   fflush(stderr);
 
@@ -378,7 +378,7 @@ handle_perf_buffer_event(struct perf_event_header *ehdr, void *data)
     return -1;
   }
 
-  fprintf(stderr, "Samples: %zu Lost: %zu\r", ctx->nsamples, ctx->nlost);
+  fprintf(stderr, "\rSamples: %zu Lost: %zu", ctx->nsamples, ctx->nlost);
   fflush(stderr);
 
   return error;
