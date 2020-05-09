@@ -46,6 +46,21 @@ static void opt_init(struct ipft_tracer_opt *opt) {
   opt->regex = NULL;
 }
 
+static void opt_deinit(struct ipft_tracer_opt *opt) {
+  /* Compare address */
+  if (opt->debug_info_type != (char *)"dwarf") {
+    free(opt->debug_info_type);
+  }
+
+  if (opt->script_path != NULL) {
+    free(opt->script_path);
+  }
+
+  if (opt->regex != NULL) { 
+    free(opt->regex);
+  }
+}
+
 static bool opt_validate(struct ipft_tracer_opt *opt) {
   if (opt->mark == 0) {
     fprintf(stderr, "-m --mark is missing (or specified 0 which is invalid)\n");
@@ -111,6 +126,8 @@ int main(int argc, char **argv) {
     fprintf(stderr, "Trace failed with error\n");
     return EXIT_FAILURE;
   }
+
+  opt_deinit(&opt);
 
   return EXIT_SUCCESS;
 }
