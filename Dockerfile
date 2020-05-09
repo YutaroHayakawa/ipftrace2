@@ -14,6 +14,8 @@ RUN apk add \
   bzip2-dev \
   bzip2-static \
   libelf-static \
+  pcre2-dev \
+  readline-dev \
   linux-headers
 
 ADD . /ipftrace2
