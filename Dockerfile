@@ -16,6 +16,7 @@ RUN apk add \
   libelf-static \
   pcre2-dev \
   readline-dev \
+  readline-static \
   linux-headers
 
 ADD . /ipftrace2
