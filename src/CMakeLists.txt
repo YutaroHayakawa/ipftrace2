@@ -6,11 +6,12 @@ add_executable(ipft
   ipftrace.c
   kallsyms.c
   perf.c
+  regex.c
   script.c
   symsdb.c
   trace.c
   tracedb.c
-  regex.c
+  utils.c
 )
 
 if (BUILD_ASAN)

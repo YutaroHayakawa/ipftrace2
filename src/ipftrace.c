@@ -21,6 +21,7 @@ static struct option options[] = {
     {"regex", optional_argument, 0, 'r'},
     {"script", optional_argument, 0, 's'},
     {"perf-page-count", optional_argument, 0, '0'},
+    {"test", optional_argument, 0, '0'},
     {NULL, 0, 0, 0},
 };
 
@@ -31,13 +32,17 @@ usage(void)
           "Usage: ipft [OPTIONS]\n"
           "\n"
           "Options:\n"
-          " -f, --debug-format  [DEBUG-FORMAT]    Read the debug "
+          " -f, --debug-format    [DEBUG-FORMAT]  Read the debug "
           "information with specified format\n"
-          " -m, --mark          [MARK]            Trace the packet "
+          " -l, --list                            List functions\n"
+          " -m, --mark            [MARK]          Trace the packet "
           "marked with <mark> [required]\n"
-          " -r, --regex         [REGEX]           Filter the function to trace"
+          " -r, --regex           [REGEX]         Filter the function to trace"
           "with regex\n"
-          " -s, --script-path   [PATH]            Path to the Lua script file"
+          " -s, --script-path     [PATH]          Path to the Lua script file\n"
+          "   , --perf-page-count [NUMBER]        Number of pages to use with"
+          "perf\n"
+          "   , --test                            Run in eBPF test mode\n"
           "\n"
           "MARK         := hex number\n"
           "DEBUG-FORMAT := { dwarf, btf }\n"
@@ -94,72 +99,14 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
   return true;
 }
 
-#define __unused __attribute__((unused))
-
-static int
-print_sym(const char *name,
-    __unused struct ipft_syminfo *sinfo,
-    __unused void *data)
-{
-  printf("%s\n", name);
-  return 0;
-}
-
-static int
-list_functions(struct ipft_tracer_opt *opt)
-{
-  int error;
-  struct ipft_symsdb *sdb;
-  struct ipft_debuginfo *dinfo;
-
-  error = symsdb_create(&sdb);
-  if (error == -1) {
-    fprintf(stderr, "Failed to initialize symsdb\n");
-    return -1;
-  }
-
-  if (strcmp(opt->debug_info_type, "dwarf") == 0) {
-    error = dwarf_debuginfo_create(&dinfo);
-  } else if (strcmp(opt->debug_info_type, "btf") == 0) {
-    error = btf_debuginfo_create(&dinfo);
-  } else {
-    error = -1;
-    fprintf(stderr, "Unknown debug info type\n");
-    goto err0;
-  }
-
-  if (error == -1) {
-    fprintf(stderr, "Error in initializing debuginfo\n");
-    goto err0;
-  }
-
-  error = debuginfo_fill_sym2info(dinfo, sdb);
-  if (error == -1) {
-    fprintf(stderr, "Failed to fill sym2info\n");
-    goto err0;
-  }
-
-  error = symsdb_sym2info_foreach(sdb, print_sym, NULL);
-  if (error == -1) {
-    fprintf(stderr, "Failed to traverse sym2info\n");
-    goto err0;
-  }
-
-  error = EXIT_SUCCESS;
-
-err0:
-  symsdb_destroy(sdb);
-  return error;
-}
-
 int
 main(int argc, char **argv)
 {
   int c, optind;
   int error = -1;
-  bool list = false;
   const char *optname;
   struct ipft_tracer_opt opt;
+  bool list = false, test = false;
 
   opt_init(&opt);
 
@@ -188,6 +135,11 @@ main(int argc, char **argv)
         break;
       }
 
+      if (strcmp(optname, "test") == 0) {
+        test = true;
+        break;
+      }
+
       break;
     default:
       usage();
@@ -202,6 +154,11 @@ main(int argc, char **argv)
 
   if (list) {
     error = list_functions(&opt);
+    goto end;
+  }
+
+  if (test) {
+    error = test_bpf_prog(&opt);
     goto end;
   }
 

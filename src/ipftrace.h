@@ -112,3 +112,5 @@ bool regex_match(struct ipft_regex *re, const char *s);
 void regex_destroy(struct ipft_regex *re);
 
 int tracer_run(struct ipft_tracer_opt *opt);
+int list_functions(struct ipft_tracer_opt *opt);
+int test_bpf_prog(struct ipft_tracer_opt *opt);
