@@ -1,0 +1,28 @@
+on: [push]
+
+jobs:
+  build:
+    name: Run unittests
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout the repository
+      uses: actions/checkout@v2
+    - name: Build static binary with Docker
+      run: |
+        docker build -t ipftrace2:latest .
+        docker run -d --name ipft-tmp ipftrace2:latest /sbin/init
+        sudo docker cp ipft-tmp:/ipftrace2/src/ipft /usr/local/bin/ipft
+    - name: Install debuginfo package
+      run: |
+        sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C8CAB6595FDFF622
+        codename=$(lsb_release -c | awk  '{print $2}')
+        sudo tee /etc/apt/sources.list.d/ddebs.list << EOF
+        deb http://ddebs.ubuntu.com/ ${codename}          main restricted universe multiverse
+        deb http://ddebs.ubuntu.com/ ${codename}-updates  main restricted universe multiverse
+        deb http://ddebs.ubuntu.com/ ${codename}-proposed main restricted universe multiverse
+        EOF
+        sudo apt-get update
+        sudo apt-get install linux-image-$(uname -r)-dbgsym
+    - name: Run tests
+      run: |
+        cd tests && sudo ./run_test.sh
