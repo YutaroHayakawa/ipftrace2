@@ -212,7 +212,7 @@ load_program(uint32_t mark, ptrdiff_t mark_offset, struct bpf_insn *mod,
              uint32_t mod_cnt, int perf_map_fd, struct ipft_bpf_prog *prog)
 {
   char *log_buf;
-  int i, fd, error;
+  int fd, error;
   uint32_t insns_cnt;
   struct bpf_insn *insns;
   union bpf_attr attr = {};
@@ -233,7 +233,7 @@ load_program(uint32_t mark, ptrdiff_t mark_offset, struct bpf_insn *mod,
   attr.log_buf = (uint64_t)log_buf;
   attr.kern_version = get_kernel_version();
 
-  for (i = 0; i < MAX_SKB_POS; i++) {
+  for (int i = 0; i < MAX_SKB_POS; i++) {
     error = gen_program(i + 1, mark, mark_offset, mod, mod_cnt, perf_map_fd,
                         &insns, &insns_cnt);
     if (error == -1) {
@@ -256,6 +256,7 @@ load_program(uint32_t mark, ptrdiff_t mark_offset, struct bpf_insn *mod,
         fprintf(stderr, "%s\n", log_buf);
         break;
       }
+      free(insns);
       goto err0;
     }
 
@@ -269,9 +270,14 @@ load_program(uint32_t mark, ptrdiff_t mark_offset, struct bpf_insn *mod,
   return 0;
 
 err0:
-  for (i = i - 1; i > 0; i--) {
-    free(prog->progs[i].insns);
-    close(prog->progs[i].fd);
+  for (int i = 0; i < MAX_SKB_POS; i++) {
+    if (prog->progs[i].insns != NULL) {
+      free(prog->progs[i].insns);
+    }
+
+    if (prog->progs[i].fd != 0) {
+      close(prog->progs[i].fd);
+    }
   }
 
   free(log_buf);
@@ -299,7 +305,16 @@ detach_perf_buffer(struct ipft_bpf_prog *prog)
   attr.flags = 0;
 
   error = bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
-  assert(error == 0);
+  if (error == -1) {
+    switch (errno) {
+    case ENOENT:
+      /* OK to fail in this case */
+      break;
+    default:
+      fprintf(stderr, "Failed to delete perf map elem\n");
+      break;
+    }
+  }
 }
 
 int
@@ -340,9 +355,9 @@ bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark, size_t mark_offset,
   return 0;
 
 err1:
-  free(*progp);
-err0:
   close(perf_map_fd);
+err0:
+  free(prog);
   return -1;
 }
 
