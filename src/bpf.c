@@ -4,6 +4,7 @@
  */
 #include <assert.h>
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -196,6 +197,7 @@ get_kernel_version(void)
 static int
 create_perf_map(void)
 {
+  int fd;
   union bpf_attr attr = {};
 
   attr.map_type = BPF_MAP_TYPE_PERF_EVENT_ARRAY;
@@ -203,8 +205,21 @@ create_perf_map(void)
   attr.value_size = sizeof(uint32_t);
   attr.max_entries = 1;
 
-  return bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
+  fd = bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
+  if (fd == -1) {
+    switch (errno) {
+    case EPERM:
+      fprintf(stderr, "Hint: Your resource limit may be too small, try ulimit -l unlimited\n");
+      break;
+    default:
+      break;
+    }
+    return -1;
+  }
+
+  return fd;
 }
+
 
 #define LOGBUF_SIZE 0xffff
 

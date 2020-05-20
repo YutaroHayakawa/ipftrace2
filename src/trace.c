@@ -3,6 +3,7 @@
  * Copyright (C) 2020 Yutaro Hayakawa
  */
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -224,6 +225,10 @@ attach_prog(const char *name, struct ipft_syminfo *si, void *args)
     if (pfd > 0) {
       ctx->succeeded++;
     } else {
+      if (errno == EMFILE) {
+        fprintf(stderr, "Hint: Your resource limit may be too small, try ulimit -n <some large number>\n");
+        return -1;
+      }
       ctx->failed++;
     }
 
