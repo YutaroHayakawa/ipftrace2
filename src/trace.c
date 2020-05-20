@@ -13,6 +13,7 @@
 #include <sys/epoll.h>
 #include <linux/bpf.h>
 #include <sys/signalfd.h>
+#include <sys/resource.h>
 #include <linux/perf_event.h>
 
 #include "ipftrace.h"
@@ -55,6 +56,56 @@ struct trace_ctx {
   struct ipft_perf_buffer *pb;
   struct ipft_bpf_prog *prog;
 };
+
+static int
+set_rlimit(struct ipft_symsdb *sdb)
+{
+  int error;
+  size_t nfiles;
+  struct rlimit lim;
+
+  /* 
+   * Rough estimations for various file descriptors like eBPF
+   * program, maps or perf events and kprobe events.
+   */
+  nfiles = 32 + symsdb_get_sym2info_total(sdb);
+
+  /*
+   * Set locked memory limit to infinity
+   */
+  lim.rlim_cur = RLIM_INFINITY;
+  lim.rlim_max = RLIM_INFINITY;
+  error = setrlimit(RLIMIT_MEMLOCK, &lim);
+  if (error == -1) {
+    perror("setrlimit");
+    return -1;
+  }
+
+  /*
+   * Set file limit
+   */
+  error = getrlimit(RLIMIT_NOFILE, &lim);
+  if (error == -1) {
+    perror("getrlimit");
+    return -1;
+  }
+
+  if (lim.rlim_cur != RLIM_INFINITY) {
+    lim.rlim_cur += nfiles;
+  }
+
+  if (lim.rlim_max != RLIM_INFINITY) {
+    lim.rlim_max += nfiles;
+  }
+
+  error = setrlimit(RLIMIT_NOFILE, &lim);
+  if (error == -1) {
+    perror("setrlimit");
+    return -1;
+  }
+
+  return 0;
+}
 
 static int
 debuginfo_create(const char *type, struct ipft_debuginfo **dinfop)
@@ -514,6 +565,14 @@ tracer_run(struct ipft_tracer_opt *opt)
   if (error == -1) {
     fprintf(stderr, "perf_buffer_create failed\n");
     goto err4;
+  }
+
+  if (opt->set_rlimit) {
+    error = set_rlimit(sdb);
+    if (error == -1) {
+      fprintf(stderr, "set_rlimit failed\n");
+      goto err5;
+    }
   }
 
   error = load_progs(&prog, script, dinfo, pb, opt->mark);

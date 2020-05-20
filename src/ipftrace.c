@@ -22,6 +22,7 @@ static struct option options[] = {
     {"script", optional_argument, 0, 's'},
     {"perf-page-count", optional_argument, 0, '0'},
     {"test", optional_argument, 0, '0'},
+    {"no-set-rlimit", optional_argument, 0, '0'},
     {NULL, 0, 0, 0},
 };
 
@@ -43,6 +44,7 @@ usage(void)
           "   , --perf-page-count [NUMBER]        Number of pages to use with"
           "perf\n"
           "   , --test                            Run in eBPF test mode\n"
+          "   , --no-set-rlimit                   Don't set rlimit\n"
           "\n"
           "MARK         := hex number\n"
           "DEBUG-FORMAT := { dwarf, btf }\n"
@@ -58,6 +60,7 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->debug_info_type = "dwarf";
   opt->perf_page_cnt = 8;
   opt->regex = NULL;
+  opt->set_rlimit = true;
 }
 
 static void
@@ -137,6 +140,11 @@ main(int argc, char **argv)
 
       if (strcmp(optname, "test") == 0) {
         test = true;
+        break;
+      }
+
+      if (strcmp(optname, "no-set-rlimit") == 0) {
+        opt.set_rlimit = false;
         break;
       }
 

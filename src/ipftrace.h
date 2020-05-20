@@ -38,6 +38,7 @@ struct ipft_tracer_opt {
   char *script_path;
   char *debug_info_type;
   size_t perf_page_cnt;
+  bool set_rlimit;
 };
 
 struct ipft_syminfo {
