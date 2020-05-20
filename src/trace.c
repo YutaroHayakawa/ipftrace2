@@ -65,7 +65,7 @@ set_rlimit(struct ipft_symsdb *sdb)
   size_t nfiles;
   struct rlimit lim;
 
-  /* 
+  /*
    * Rough estimations for various file descriptors like eBPF
    * program, maps or perf events and kprobe events.
    */
@@ -226,7 +226,8 @@ attach_prog(const char *name, struct ipft_syminfo *si, void *args)
       ctx->succeeded++;
     } else {
       if (errno == EMFILE) {
-        fprintf(stderr, "Hint: Your resource limit may be too small, try ulimit -n <some large number>\n");
+        fprintf(stderr, "Hint: Your resource limit may be too small, try "
+                        "ulimit -n <some large number>\n");
         return -1;
       }
       ctx->failed++;
