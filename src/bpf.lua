@@ -136,6 +136,9 @@ local emit = function (code, dst, src, off, imm)
 end
 
 -- Opcodes
+
+-- ALU ops on registers, bpf_add|sub|...: dst_reg += src_reg 
+
 BPF.ALU64_REG = function (op, dst, src)
   return emit(BPF.ALU64 | BPF.OP(op) | BPF.X, dst, src, 0, 0)
 end
@@ -143,6 +146,8 @@ end
 BPF.ALU32_REG = function (op, dst, src)
   return emit(BPF.ALU | BPF.OP(op) | BPF.X, dst, src, 0, 0)
 end
+
+-- ALU ops on immediates, bpf_add|sub|...: dst_reg += imm32 
 
 BPF.ALU64_IMM = function (op, dst, imm)
   return emit(BPF.ALU64 | BPF.OP(op) | BPF.K, dst, 0, 0, imm)
@@ -152,9 +157,13 @@ BPF.ALU32_IMM = function (op, dst, imm)
   return emit(BPF.ALU | BPF.OP(op) | BPF.K, dst, 0, 0, imm)
 end
 
+-- Endianess conversion, cpu_to_{l,b}e(), {l,b}e_to_cpu()
+
 BPF.ENDIAN = function (t, dst, len)
   return emit(BPF.ALU | BPF.END | BPF.SRC(t), dst, 0, 0, len)
 end
+
+-- Short form of mov, dst_reg = src_reg
 
 BPF.MOV64_REG = function (dst, src)
   return emit(BPF.ALU64 | BPF.MOV | BPF.X, dst, src, 0, 0)
@@ -164,6 +173,8 @@ BPF.MOV32_REG = function (dst, src)
   return emit(BPF.ALU | BPF.MOV | BPF.X, dst, src, 0, 0)
 end
 
+-- Short form of mov, dst_reg = imm32
+
 BPF.MOV64_IMM = function (dst, imm)
   return emit(BPF.ALU64 | BPF.MOV | BPF.K, dst, 0, 0, imm)
 end
@@ -172,58 +183,74 @@ BPF.MOV_IMM = function (dst, imm)
   return emit(BPF.ALU | BPF.MOV | BPF.K, dst, 0, 0, imm)
 end
 
+-- BPF_LD_IMM64 macro encodes single 'load 64-bit immediate' insn
+
 BPF.LD_IMM64 = function (dst, imm)
   return emit(BPF.LD | BPF.DW | BPF.IMM, dst, 0, 0, imm & 0x00000000ffffffff)..
          emit(0, 0, 0, 0, imm >> 32)
 end
 
+-- Memory load, dst_reg = *(uint *) (src_reg + off16)
+
 BPF.LDX_MEM = function (size, dst, src, off)
   return emit(BPF.LDX | BPF.SIZE(size) | BPF.MEM, dst, src, off, 0)
 end
+
+-- Memory store, *(uint *) (dst_reg + off16) = src_reg
 
 BPF.STX_MEM = function (size, dst, src, off)
   return emit(BPF.STX | BPF.SIZE(size) | BPF.MEM, dst, src, off, 0)
 end
 
+-- Atomic memory add, *(uint *)(dst_reg + off16) += src_reg
+
 BPF.STX_XADD = function (size, dst, src, off)
   return emit(BPF.STX | BPF.SIZE(size) | BPF.XADD, dst, src, off, 0)
 end
+
+-- Memory store, *(uint *) (dst_reg + off16) = imm32
 
 BPF.ST_MEM = function (size, dst, off, imm)
   return emit(BPF.ST | BPF.SIZE(size) | BPF.MEM, dst, 0, off, imm)
 end
 
+-- Conditional jumps against registers, if (dst_reg 'op' src_reg) goto pc + off16
+
 BPF.JMP_REG = function (op, dst, src, off)
   return emit(BPF.JMP | BPF.OP(op) | BPF.X, dst, src, off, 0)
 end
+
+-- Conditional jumps against immediates, if (dst_reg 'op' imm32) goto pc + off16
 
 BPF.JMP_IMM = function (op, dst, imm, off)
   return emit(BPF.JMP | BPF.OP(op) | BPF.K, dst, 0, off, imm)
 end
 
-BPF.JMP32_REG = function (op, dst, src, off)
-  return emit(BPF.JMP32 | BPF.OP(op) | BPF.X, dst, src, off, 0)
-end
-
-BPF.JMP32_IMM = function (op, dst, imm, off)
-  return emit(BPF.JMP32 | BPF.OP(op) | BPF.K, dst, 0, off, imm)
-end
+-- Unconditional jump goto pc + off16
 
 BPF.JMP_A = function (off)
   return emit(BPF.JMP | BPF.JA, 0, 0, off, 0)
 end
 
+-- Call
+
 BPF.CALL_INSN = function (helper_id)
   return emit(BPF.JMP | BPF.CALL, 0, 0, 0, helper_id)
 end
+
+-- Exit
 
 BPF.EXIT_INSN = function ()
   return emit(BPF.JMP | BPF.EXIT, 0, 0, 0, 0)
 end
 
+-- Raw instruction
+
 BPF.RAW_INSN = function (code, dst, src, off, imm)
   return emit(code, dst, src, off, imm)
 end
+
+-- Concatenate the instructions into one binary string
 
 BPF.emit = function (insns)
   ret = ""
