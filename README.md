@@ -59,18 +59,14 @@ $ ping -c 1 1.1.1.1
 
 ## Build from source
 
-1. Install dependencies
-- `ipftrace2` uses `cmake` as a build system
-- `cmake` will find the missing dependencies, please follow to it
-
-2. Build
-
 ```
 $ mkdir build
 $ cd build
 $ cmake ../
 $ make
 ```
+
+`cmake` will find the missing dependencies, please install it if your build failed.
 
 ## Usage
 
@@ -103,7 +99,7 @@ tracing eBPF program to **thousands** of kernel functions which takes `struct sk
 argument by default. The overhead made by it shouldn't be acceptable.
 
 ```
-$ ipft -m 0xdeadbeef
+$ sudo ipft -m 0xdeadbeef
 ```
 
 ### Step2-2: Trace the subset of possible functions
@@ -113,7 +109,7 @@ the functions to trace by name. You can reduce the overhead of the tracing and t
 the programs by this feature.
 
 ```
-$ ipft -m 0xdeadbeef -r "ip_.*"
+$ sudo ipft -m 0xdeadbeef -r "ip_.*"
 ```
 
 ### Step2-3: Use custom script
@@ -123,7 +119,7 @@ trace more than just functions the packets have gone through, but the content of
 other data associate with it. You can find the example in `scripts` directory.
 
 ```
-$ ipft -m 0xdeadbeef -s scripts/gso.lua
+$ sudo ipft -m 0xdeadbeef -s scripts/gso.lua
 ```
 
 ## Further reading
