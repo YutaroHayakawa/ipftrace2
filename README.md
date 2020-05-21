@@ -129,4 +129,3 @@ $ ipft -m 0xdeadbeef -s scripts/gso.lua
 ## Further reading
 
 - [Scripting manual](docs/scripting.md)
-- [Design document](docs/design.md)
