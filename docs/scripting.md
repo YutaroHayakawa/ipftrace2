@@ -43,11 +43,11 @@ Custom module cannot use the entire stack area. It is limited to the area **from
 
 To make your custom program work with different kernel versions, you may want to know the version specific data like offset of the struct memebers or size of the typedef-ed types. To get such information, you can use following Lua helper functions to access to the kernel C debug information.
 
-`ipft.offsetof(type_name, member_name)` 
+##### `ipft.offsetof(type_name, member_name)` 
 
 Gets the offset of the C `struct` or `union` member. You don't have to put `struct` or `union` keyword to `type_name`  parameter. For example, you can get the offset of the `skb->head` with  `ipft.offsetof("sk_buff", "head")`.
 
-`ipft.sizeof(type_name)`
+##### `ipft.sizeof(type_name)`
 
 Returns the size of the C types. For example, you can get the size of the `sk_buff_data_t` by  `ipft.sizeof("sk_buff_data_t")`.
 
