@@ -176,7 +176,9 @@ script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
   /*
    * Load BPF library
    */
-  (void)luaL_dostring(L, bpf_lua);
+  char bpf_lua_str[sizeof(bpf_lua) + 1] = {};
+  memcpy(bpf_lua_str, bpf_lua, bpf_lua_len);
+  (void)luaL_dostring(L, bpf_lua_str);
 
   /*
    * Register debuginfo functions
