@@ -54,16 +54,16 @@ function size2code(size)
 end
 
 function emit()
-  uint_size       = ipft_sizeof("unsigned int")
-  ushort_size     = ipft_sizeof("short unsigned int")
-  ptr_size        = ipft_sizeof("uintptr_t")
-  skb_data_size   = ipft_sizeof("sk_buff_data_t")
-  len_offset      = ipft_offsetof("sk_buff", "len")
-  head_offset     = ipft_offsetof("sk_buff", "head")
-  end_offset      = ipft_offsetof("sk_buff", "end")
-  gso_size_offset = ipft_offsetof("skb_shared_info", "gso_size")
-  gso_segs_offset = ipft_offsetof("skb_shared_info", "gso_segs")
-  gso_type_offset = ipft_offsetof("skb_shared_info", "gso_type")
+  uint_size       = ipft.sizeof("unsigned int")
+  ushort_size     = ipft.sizeof("short unsigned int")
+  ptr_size        = ipft.sizeof("uintptr_t")
+  skb_data_size   = ipft.sizeof("sk_buff_data_t")
+  len_offset      = ipft.offsetof("sk_buff", "len")
+  head_offset     = ipft.offsetof("sk_buff", "head")
+  end_offset      = ipft.offsetof("sk_buff", "end")
+  gso_size_offset = ipft.offsetof("skb_shared_info", "gso_size")
+  gso_segs_offset = ipft.offsetof("skb_shared_info", "gso_segs")
+  gso_type_offset = ipft.offsetof("skb_shared_info", "gso_type")
 
   if skb_data_size == uint_size then
     return BPF.emit({

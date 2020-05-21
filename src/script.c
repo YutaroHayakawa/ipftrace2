@@ -181,8 +181,12 @@ script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
   /*
    * Register debuginfo functions
    */
-  lua_register(L, "ipft_offsetof", script_ipft_offsetof);
-  lua_register(L, "ipft_sizeof", script_ipft_sizeof);
+  lua_newtable(L);
+  lua_pushcfunction(L, script_ipft_offsetof);
+  lua_setfield(L, -2, "offsetof");
+  lua_pushcfunction(L, script_ipft_sizeof);
+  lua_setfield(L, -2, "sizeof");
+  lua_setglobal(L, "ipft");
 
   /*
    * Bind debuginfo to Lua state
