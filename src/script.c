@@ -90,6 +90,40 @@ script_ipft_sizeof(lua_State *L)
   return 1;
 }
 
+/*
+ * ipft.typeof("type", "member")
+ */
+static int
+script_ipft_typeof(lua_State *L)
+{
+  char *name;
+  int error, n;
+  const char *type, *member;
+  struct ipft_debuginfo **dinfop;
+
+  n = lua_gettop(L);
+  if (n != 2) {
+    lua_pushliteral(L, "Incorrect number of argument. Expect 2.");
+    lua_error(L);
+  }
+
+  type = lua_tostring(L, -2);
+  member = lua_tostring(L, -1);
+
+  dinfop = (struct ipft_debuginfo **)lua_getextraspace(L);
+
+  error = debuginfo_typeof(*dinfop, type, member, &name);
+  if (error == -1) {
+    lua_pushliteral(L, "Couldn't get member type");
+    lua_error(L);
+  }
+
+  lua_pushstring(L, name);
+  free(name);
+
+  return 1;
+}
+
 static bool
 script_is_function(lua_State *L, char *name)
 {
@@ -188,6 +222,8 @@ script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
   lua_setfield(L, -2, "offsetof");
   lua_pushcfunction(L, script_ipft_sizeof);
   lua_setfield(L, -2, "sizeof");
+  lua_pushcfunction(L, script_ipft_typeof);
+  lua_setfield(L, -2, "typeof");
   lua_setglobal(L, "ipft");
 
   /*

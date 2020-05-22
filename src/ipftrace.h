@@ -50,6 +50,8 @@ struct ipft_debuginfo {
   int (*sizeof_fn)(struct ipft_debuginfo *, const char *, size_t *);
   int (*offsetof_fn)(struct ipft_debuginfo *, const char *, const char *,
                      size_t *);
+  int (*typeof_fn)(struct ipft_debuginfo *, const char *, const char *,
+                   char **);
   void (*destroy)(struct ipft_debuginfo *);
 };
 
@@ -83,6 +85,8 @@ int debuginfo_sizeof(struct ipft_debuginfo *dinfo, const char *type,
                      size_t *sizep);
 int debuginfo_offsetof(struct ipft_debuginfo *dinfo, const char *type,
                        const char *member, size_t *offsetp);
+int debuginfo_typeof(struct ipft_debuginfo *dinfo, const char *type,
+                     const char *member, char **namep);
 
 int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 

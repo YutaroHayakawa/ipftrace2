@@ -28,6 +28,13 @@ debuginfo_offsetof(struct ipft_debuginfo *dinfo, const char *type,
   return dinfo->offsetof_fn(dinfo, type, member, offsetp);
 }
 
+int
+debuginfo_typeof(struct ipft_debuginfo *dinfo, const char *type,
+                 const char *member, char **namep)
+{
+  return dinfo->typeof_fn(dinfo, type, member, namep);
+}
+
 void
 debuginfo_destroy(struct ipft_debuginfo *dinfo)
 {
