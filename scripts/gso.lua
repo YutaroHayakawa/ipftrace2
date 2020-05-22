@@ -54,86 +54,131 @@ function size2code(size)
 end
 
 function emit()
-  uint_size       = ipft.sizeof("unsigned int")
-  ushort_size     = ipft.sizeof("short unsigned int")
-  ptr_size        = ipft.sizeof("uintptr_t")
-  skb_data_size   = ipft.sizeof("sk_buff_data_t")
-  len_offset      = ipft.offsetof("sk_buff", "len")
-  head_offset     = ipft.offsetof("sk_buff", "head")
-  end_offset      = ipft.offsetof("sk_buff", "end")
-  gso_size_offset = ipft.offsetof("skb_shared_info", "gso_size")
-  gso_segs_offset = ipft.offsetof("skb_shared_info", "gso_segs")
-  gso_type_offset = ipft.offsetof("skb_shared_info", "gso_type")
+  sp = 0  -- stack pointer, grows to negative direction
+  dp = 0  -- data pointer, grows to positive direction
 
+  ptr_size        = ipft.sizeof("uintptr_t")
+  uint_size       = ipft.sizeof("unsigned int")
+  skb_data_size   = ipft.sizeof("sk_buff_data_t")
+
+  function push(size)
+    sp = sp - size
+    if sp < -256 then
+      error("Stack overflow")
+    end
+    return sp
+  end
+
+  function pop(size)
+    sp_orig = sp
+    sp = sp + size
+    if sp > 0 then
+      error("Stack underflow")
+    end
+    return sp_orig
+  end
+
+  function push_data(size)
+    dp_orig = dp
+    dp = dp + size
+    if dp > 64 then
+      error("You cannot get more than 64bytes of data")
+    end
+    return dp_orig
+  end
+
+  --
+  -- Emit the BPF code to read struct->member to memory
+  --
+  -- Parameters
+  -- struct  : Name of the struct (string)
+  -- member  : Name of the member (string)
+  -- reg     : Register that holds the pointer to the struct (BPF.R0 - BPF.R9)
+  -- push_fn : Function to allocate memory (function)
+  --
+  -- Returns: eBPF binary string to read struct->member to memory (string)
+  --
+  function emit_member_read(struct, member, dst_reg, src_reg, push_fn)
+    member_offset = ipft.offsetof(struct, member)
+    member_size = ipft.sizeof(ipft.typeof(struct, member))
+    return BPF.emit({
+      BPF.MOV64_REG(BPF.R1, dst_reg),
+      BPF.ALU64_IMM(BPF.ADD, BPF.R1, push_fn(member_size)),
+      BPF.MOV64_IMM(BPF.R2, member_size),
+      BPF.MOV64_REG(BPF.R3, src_reg),
+      BPF.ALU64_IMM(BPF.ADD, BPF.R3, member_offset),
+      BPF.CALL_INSN(BPF.FUNC.probe_read),
+    })
+  end
+
+  function emit_save_callee_saved_registers()
+    return BPF.emit({
+      BPF.STX_MEM(BPF.DW, BPF.R10, BPF.R6, push(8)),
+      BPF.STX_MEM(BPF.DW, BPF.R10, BPF.R7, push(8)),
+      BPF.STX_MEM(BPF.DW, BPF.R10, BPF.R8, push(8)),
+      BPF.STX_MEM(BPF.DW, BPF.R10, BPF.R9, push(8)),
+    })
+  end
+
+  function emit_restore_callee_saved_registers()
+    return BPF.emit({
+      BPF.LDX_MEM(BPF.DW, BPF.R9, BPF.R10, pop(8)),
+      BPF.LDX_MEM(BPF.DW, BPF.R8, BPF.R10, pop(8)),
+      BPF.LDX_MEM(BPF.DW, BPF.R7, BPF.R10, pop(8)),
+      BPF.LDX_MEM(BPF.DW, BPF.R6, BPF.R10, pop(8)),
+    })
+  end
+
+  function emit_save_args()
+    return BPF.emit({
+      BPF.MOV64_REG(BPF.R6, BPF.R1), -- data
+      BPF.MOV64_REG(BPF.R7, BPF.R2), -- ctx
+      BPF.MOV64_REG(BPF.R8, BPF.R3), -- skb
+    })
+  end
+
+  -- NET_SKBUFF_DATA_USES_OFFSET=y
   if skb_data_size == uint_size then
     return BPF.emit({
       -- Save callee saved registers
-      BPF.STX_MEM(BPF.DW, BPF.R10, BPF.R6, -8),
-      BPF.STX_MEM(BPF.DW, BPF.R10, BPF.R7, -16),
-      BPF.STX_MEM(BPF.DW, BPF.R10, BPF.R8, -24),
-      BPF.STX_MEM(BPF.DW, BPF.R10, BPF.R9, -32),
+      emit_save_callee_saved_registers(),
       -- Keep register values for future use
-      BPF.MOV64_REG(BPF.R6, BPF.R1), -- trace->data
-      BPF.MOV64_REG(BPF.R7, BPF.R2), -- ctx
-      BPF.MOV64_REG(BPF.R8, BPF.R3), -- skb
+      emit_save_args(),
       -- Get skb->head
-      BPF.MOV64_REG(BPF.R1, BPF.R10),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R1, -32 - ptr_size),
-      BPF.MOV64_IMM(BPF.R2, ptr_size),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R3, head_offset),
-      BPF.CALL_INSN(BPF.FUNC.probe_read),
+      emit_member_read("sk_buff", "head", BPF.R10, BPF.R8, push),
       -- Get skb->end
-      BPF.MOV64_REG(BPF.R1, BPF.R10),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R1, -32 - ptr_size - skb_data_size),
-      BPF.MOV64_IMM(BPF.R2, skb_data_size),
-      BPF.MOV64_REG(BPF.R3, BPF.R8),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R3, end_offset),
-      BPF.CALL_INSN(BPF.FUNC.probe_read),
+      emit_member_read("sk_buff", "end", BPF.R10, BPF.R8, push),
       -- Get shinfo
-      BPF.LDX_MEM(size2code(ptr_size), BPF.R3, BPF.R10, -32 - ptr_size),
-      BPF.LDX_MEM(size2code(skb_data_size), BPF.R4, BPF.R10, -32 - ptr_size - skb_data_size),
+      BPF.LDX_MEM(size2code(skb_data_size), BPF.R4, BPF.R10, pop(skb_data_size)),
+      BPF.LDX_MEM(size2code(ptr_size), BPF.R3, BPF.R10, pop(ptr_size)),
       BPF.ALU64_REG(BPF.ADD, BPF.R3, BPF.R4),
       -- Save shinfo for future use
       BPF.MOV64_REG(BPF.R9, BPF.R3),
       -- Get skb->len
-      BPF.MOV64_REG(BPF.R1, BPF.R6),
-      BPF.MOV64_IMM(BPF.R2, uint_size),
-      BPF.MOV64_REG(BPF.R3, BPF.R8),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R3, len_offset),
-      BPF.CALL_INSN(BPF.FUNC.probe_read),
+      emit_member_read("sk_buff", "len", BPF.R6, BPF.R8, push_data),
       -- Get shinfo->gso_size
-      BPF.MOV64_REG(BPF.R1, BPF.R6),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R1, uint_size),
-      BPF.MOV64_IMM(BPF.R2, ushort_size),
-      BPF.MOV64_REG(BPF.R3, BPF.R9),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R3, gso_size_offset),
-      BPF.CALL_INSN(BPF.FUNC.probe_read),
+      emit_member_read("skb_shared_info", "gso_size", BPF.R6, BPF.R9, push_data),
       -- Get shinfo->gso_segs
-      BPF.MOV64_REG(BPF.R1, BPF.R6),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R1, uint_size + ushort_size),
-      BPF.MOV64_IMM(BPF.R2, ushort_size),
-      BPF.MOV64_REG(BPF.R3, BPF.R9),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R3, gso_segs_offset),
-      BPF.CALL_INSN(BPF.FUNC.probe_read),
+      emit_member_read("skb_shared_info", "gso_segs", BPF.R6, BPF.R9, push_data),
       -- Get shinfo->gso_type
-      BPF.MOV64_REG(BPF.R1, BPF.R6),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R1, uint_size + ushort_size + ushort_size),
-      BPF.MOV64_IMM(BPF.R2, uint_size),
-      BPF.MOV64_REG(BPF.R3, BPF.R9),
-      BPF.ALU64_IMM(BPF.ADD, BPF.R3, gso_type_offset),
-      BPF.CALL_INSN(BPF.FUNC.probe_read),
+      emit_member_read("skb_shared_info", "gso_segs", BPF.R6, BPF.R9, push_data),
       -- Restore callee saved registers
-      BPF.LDX_MEM(BPF.DW, BPF.R6, BPF.R10, -8),
-      BPF.LDX_MEM(BPF.DW, BPF.R7, BPF.R10, -16),
-      BPF.LDX_MEM(BPF.DW, BPF.R8, BPF.R10, -24),
-      BPF.LDX_MEM(BPF.DW, BPF.R9, BPF.R10, -32),
+      emit_restore_callee_saved_registers(),
     })
+  else
+    error("Unsupported configuration. "..
+          "Maybe your kernel is configured with NET_SKBUFF_DATA_USES_OFFSET=n")
   end
 end
 
 function dump(data)
+  uint_size       = ipft.sizeof("unsigned int")
+  ushort_size     = ipft.sizeof("short unsigned int")
+
   format = string.format("=I%dI%dI%dI%d", uint_size, ushort_size, ushort_size, uint_size)
+
   len, gso_size, gso_segs, gso_type = string.unpack(format, data)
+
   return string.format("(len: %d gso_size: %d gso_segs: %d gso_type: %s)",
                        len, gso_size, gso_segs, flags2str(gso_type))
 end
