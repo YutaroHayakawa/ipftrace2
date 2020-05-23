@@ -45,7 +45,7 @@ Stack layout
 eBPF has 512bytes of stack spaces. However, ipftrace2 only allows you to use the
 subset of it. Following figure shows the stack layout. The areas named `user*`
 are the places you can use. `user trace data` will be copied to the perf buffer
-and passed to the dump() later.
+and passed to the dump() later. Please fill this area to collect custom data.
 
        +--------------------+
        | reserved           | 0   - 63
