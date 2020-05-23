@@ -82,7 +82,7 @@ Gets the type of the struct/union members. For example, you can get the `skb->ma
 
 You can use eBPF macro assemblers which is sililar to the one in the `linux/filter.h` without including any Lua libraries. Please see the examples under the `script` directory and `src/bpf.lua` for more details. Below is the example of how it is look like.
 
-```
+```lua
   --
   -- Emit the BPF code to read struct->member to memory
   --
