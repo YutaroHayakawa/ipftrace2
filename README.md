@@ -116,12 +116,9 @@ $ sudo ipft -m 0xdeadbeef -r "ip_.*"
 
 `ipftrace2` is capable of customizing the tracing by Lua script. By using this feature, you can
 trace more than just functions the packets have gone through, but the content of `skb` or any
-other data associate with it. You can find the example in `scripts` directory.
+other data associate with it. Please see [Scripting manual](docs/scripting.md) for more details.
+Also, you can find the example in `scripts` directory.
 
 ```
 $ sudo ipft -m 0xdeadbeef -s scripts/gso.lua
 ```
-
-## Further reading
-
-- [Scripting manual](docs/scripting.md)
