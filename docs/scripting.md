@@ -6,7 +6,7 @@
 
 `init()` : Called before tracing . You can do any initialization you want in here. Don't have have to return anything.
 
-`emit()` : Called before loading eBPF programs to the kernel. Must return eBPF byte code to collect custom data with binary string. Please see Programming Environment for emit() for more details
+`emit()` : Called before loading eBPF programs to the kernel. Must return eBPF byte code to collect custom data with binary string. Please see [Programming Environment for emit()](https://github.com/YutaroHayakawa/ipftrace2/blob/master/docs/scripting.md#programming-environment-for-emit) for more details
 
 `dump(data)` : Called after tracing for each traces (can be called multiple times). Must return custom output string. `data` is a data which the eBPF program provided by `emit` collects. It is represented as a Lua binary string.
 
