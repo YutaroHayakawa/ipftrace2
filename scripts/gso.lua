@@ -90,7 +90,9 @@ function emit()
   end
 
   --
-  -- Emit the BPF code to read struct->member to memory
+  -- Emit the BPF code to read struct->member to memory. Since the generated
+  -- code calls bpf_probe_read, caller saved registers (R0 - R5) will be
+  -- invalidated after that.
   --
   -- Parameters
   -- struct  : Name of the struct (string)
