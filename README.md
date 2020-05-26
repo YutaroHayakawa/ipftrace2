@@ -44,17 +44,10 @@ $ sudo apt-get update
 $ sudo apt-get install linux-image-$(uname -r)-dbgsym
 ```
 
-3. Test the simple tracing
+3. List the tracable functions
 
 ```
-# Setup iptables rule
-$ sudo iptables -t raw -A PREROUTING -p icmp -s 1.1.1.1 -j MARK --set-mark 0xdeadbeef
-
-# Start tracing
-$ sudo ipft -m 0xdeadbeef -r "^icmp_rcv$"
-
-# In another shell
-$ ping -c 1 1.1.1.1
+$ sudo ipft -l
 ```
 
 ## Build from source
@@ -122,3 +115,9 @@ Also, you can find the example in `scripts` directory.
 ```
 $ sudo ipft -m 0xdeadbeef -s scripts/gso.lua
 ```
+
+### Step-3: Generate the packet
+
+```
+$ ping -c 1 1.1.1.1
+````
