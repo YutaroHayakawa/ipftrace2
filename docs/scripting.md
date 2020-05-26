@@ -2,8 +2,6 @@
 
 ## Basic usage
 
-
-
 `ipftrace2` provides the [Lua 5.3](https://www.lua.org/manual/5.3/) scripting interface to customize the output with extra data. You can customize your output by providing following Lua global functions.
 
 |Function|Description|
@@ -111,6 +109,6 @@ You can use eBPF macro assemblers which is sililar to the one in the `linux/filt
 
 ## Did you feel like this is too difficult?
 
-We are sure that programming environment for `emit` is too much difficult for eBPF bigginers. This is because the original author was not a good designer of the DSL and he was afraid of losing the flexibility due to his abstraction. That's why `ipftrace2` provides this kind of primitive API.
+We are sure that programming environment for `emit` is too much difficult for eBPF begginers. This is because the original author was not a good designer of the DSL and he was afraid of losing the flexibility due to his abstraction. That's why `ipftrace2` provides this kind of primitive API.
 
 We won't support fancy DSL officially, but it is free to develop the useful DSL, idioms or code generators. If you came up with such useful stuff, let's contribute it to the issue with the link to the snnipet. We will consider to put it on the Wiki page :)
