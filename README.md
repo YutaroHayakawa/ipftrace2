@@ -118,6 +118,8 @@ $ sudo ipft -m 0xdeadbeef -s scripts/gso.lua
 
 ### Step-3: Generate the packet
 
+Now you are ready for trace. Generate the packet from another shell.
+
 ```
 $ ping -c 1 1.1.1.1
 ````
