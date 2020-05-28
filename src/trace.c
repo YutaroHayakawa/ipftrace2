@@ -67,7 +67,8 @@ set_rlimit(struct ipft_symsdb *sdb)
 
   /*
    * Rough estimations for various file descriptors like eBPF
-   * program, maps or perf events and kprobe events.
+   * program, maps or perf events and kprobe events. This is
+   * the "required" number of file descriptors.
    */
   nfiles = 32 + symsdb_get_sym2info_total(sdb);
 
@@ -91,12 +92,12 @@ set_rlimit(struct ipft_symsdb *sdb)
     return -1;
   }
 
-  if (lim.rlim_cur != RLIM_INFINITY) {
-    lim.rlim_cur += nfiles;
+  if (lim.rlim_cur < nfiles && lim.rlim_cur != RLIM_INFINITY) {
+    lim.rlim_cur = nfiles;
   }
 
-  if (lim.rlim_max != RLIM_INFINITY) {
-    lim.rlim_max += nfiles;
+  if (lim.rlim_max != RLIM_INFINITY && lim.rlim_max < lim.rlim_cur) {
+    lim.rlim_max = lim.rlim_cur;
   }
 
   error = setrlimit(RLIMIT_NOFILE, &lim);
