@@ -95,8 +95,8 @@ set_rlimit(struct ipft_symsdb *sdb)
     lim.rlim_cur += nfiles;
   }
 
-  if (lim.rlim_max != RLIM_INFINITY) {
-    lim.rlim_max += nfiles;
+  if (lim.rlim_cur > lim.rlim_max) {
+    lim.rlim_max = lim.rlim_cur;
   }
 
   error = setrlimit(RLIMIT_NOFILE, &lim);
