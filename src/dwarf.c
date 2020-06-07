@@ -339,8 +339,7 @@ get_ctype_die(struct dwarf_debuginfo *dinfo, const char *name, Dwarf_Die **diep)
 }
 
 static int
-get_member_die(Dwarf_Die *die, int level, const char *name,
-    Dwarf_Die **diep)
+get_member_die(Dwarf_Die *die, int level, const char *name, Dwarf_Die **diep)
 {
   int error, tag;
   Dwarf_Attribute *attr, attr_mem;
@@ -352,8 +351,7 @@ get_member_die(Dwarf_Die *die, int level, const char *name,
   }
 
   tag = dwarf_tag(die);
-  if (tag != DW_TAG_structure_type &&
-      tag != DW_TAG_union_type) {
+  if (tag != DW_TAG_structure_type && tag != DW_TAG_union_type) {
     fprintf(stderr, "The given type is not a structure or union\n");
     return -1;
   }
@@ -510,8 +508,8 @@ dwarf_offsetof(struct ipft_debuginfo *dinfo, const char *type,
 }
 
 static int
-dwarf_typeof(struct ipft_debuginfo *dinfo, const char *type,
-             const char *member, char **namep)
+dwarf_typeof(struct ipft_debuginfo *dinfo, const char *type, const char *member,
+             char **namep)
 {
   int tag, error = -1;
   Dwarf_Die *die, *member_die, *type_die;

@@ -71,10 +71,7 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
   kliter_t(trace_list) * iter;
 
   kh_foreach_value(
-      tdb->trace, l, count++;
-
-      printf("===\n");
-
+      tdb->trace, l, count++; printf("===\n");
       for (iter = kl_begin(l); iter != kl_end(l); iter = kl_next(iter)) {
         t = kl_val(iter);
 

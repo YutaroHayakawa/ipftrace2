@@ -154,8 +154,7 @@ cpu_buffer_create(struct cpu_buffer **cbufp, size_t mmap_size, int cpu)
     goto err0;
   }
 
-  base = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
-              MAP_SHARED, fd, 0);
+  base = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
   if (base == MAP_FAILED) {
     perror("mmap");
     goto err1;

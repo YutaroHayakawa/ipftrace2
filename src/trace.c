@@ -27,7 +27,7 @@ struct trace_data {
   int fd;
   struct trace_ctx *ctx;
   union {
-    int cpu;  /* Specific to EVENT_TYPE_PERF_BUFFER */
+    int cpu; /* Specific to EVENT_TYPE_PERF_BUFFER */
   };
 };
 
@@ -289,7 +289,8 @@ detach_progs(struct kprobe_events *ke)
 }
 
 static int
-register_trace_event(struct trace_data **datap, int epfd, struct trace_ctx *ctx, int cpu)
+register_trace_event(struct trace_data **datap, int epfd, struct trace_ctx *ctx,
+                     int cpu)
 {
   int error, pfd;
   struct epoll_event ev;

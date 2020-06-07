@@ -85,8 +85,7 @@
     struct __kl1_##name *next;                                                 \
   };                                                                           \
   typedef struct __kl1_##name kl1_##name;                                      \
-  KMEMPOOL_INIT2(SCOPE, name, kl1_##name, kmpfree_t)                           \
-  typedef struct {                                                             \
+  KMEMPOOL_INIT2(SCOPE, name, kl1_##name, kmpfree_t) typedef struct {          \
     kl1_##name *head, *tail;                                                   \
     kmp_##name##_t *mp;                                                        \
     size_t size;                                                               \
