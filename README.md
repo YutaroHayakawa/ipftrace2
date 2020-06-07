@@ -14,7 +14,7 @@ people than **which functions are called** information provided by `ftrace`.
 
 ## Install pre-compiled binary
 
-1. Install `ipft` command
+### Step1: Install `ipft` command
 
 ```
 $ curl -OL https://github.com/YutaroHayakawa/ipftrace2/releases/download/v0.0.4/ipftrace2_amd64.tar.gz
@@ -22,7 +22,11 @@ $ tar xvf ipftrace2_amd64.tar.gz
 $ sudo cp ipft /usr/local/bin/ipft
 ```
 
-2. Install Linux kernel debug symbols (please take care of the disk usage)
+### Step2: Prepare Linux kernel debug symbols
+
+#### Step2-1: Install DWARF debug information (please take care of the disk usage)
+
+This is the default and recommended debug format.
 
 ```
 # CentOS 8
@@ -43,7 +47,15 @@ $ sudo apt-get update
 $ sudo apt-get install linux-image-$(uname -r)-dbgsym
 ```
 
-3. List the tracable functions
+#### Step2-2: Using BTF (BPF Type Format) debug info 
+
+If your kernel is compiled with `CONFIG_DEBUG_INFO_BTF=y`, you can use BTF
+debug information instead of DWARF debug information by adding `-f btf` to your
+command line option. However, notice that currently (as of 2020/06/08) Linux
+doesn't support getting kernel module's BTF from sysfs. That means `ipftrace2`
+cannot track the functions of kernel modules.
+
+### Step3: List the tracable functions
 
 ```
 $ sudo ipft -l
