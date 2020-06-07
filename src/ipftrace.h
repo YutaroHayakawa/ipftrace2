@@ -14,6 +14,11 @@
  */
 #define MAX_SKB_POS 5
 
+/*
+ * Max recursion level
+ */
+#define MAX_RECURSE_LEVEL 8
+
 struct ipft_symsdb;
 struct ipft_tracedb;
 struct ipft_script;
@@ -99,17 +104,17 @@ char *script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len);
 
 int perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt);
 void perf_buffer_destroy(struct ipft_perf_buffer *pb);
-int perf_buffer_get_fd(struct ipft_perf_buffer *pb);
+int perf_buffer_get_fd(struct ipft_perf_buffer *pb, int cpu);
 void *perf_buffer_get_base(struct ipft_perf_buffer *pb);
 int perf_event_attach_kprobe(const char *name, int prog_fd);
 int perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
                                  int (*cb)(struct perf_event_header *, void *),
-                                 void *data);
+                                 int cpu, void *data);
 
 int bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark,
                   size_t mark_offset, struct bpf_insn *mod, uint32_t mod_cnt);
 int bpf_prog_get(struct ipft_bpf_prog *prog, int skb_pos);
-int bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int fd);
+int bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int fd, int cpu);
 void bpf_prog_unload(struct ipft_bpf_prog *prog);
 
 int regex_create(struct ipft_regex **rep, const char *regex);

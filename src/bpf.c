@@ -13,6 +13,7 @@
 #include <errno.h>
 #include <sys/utsname.h>
 #include <sys/syscall.h>
+#include <sys/sysinfo.h>
 #include <linux/version.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
@@ -84,7 +85,7 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
       BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, TRACE_OFFSET),
       BPF_MOV64_REG(BPF_REG_1, BPF_REG_6),
       BPF_LD_MAP_FD(BPF_REG_2, perf_map_fd),
-      BPF_MOV64_IMM(BPF_REG_3, 0),
+      BPF_MOV64_REG(BPF_REG_3, BPF_REG_9),
       BPF_MOV64_IMM(BPF_REG_5, (uint32_t)sizeof(struct ipft_trace)),
       BPF_CALL_INSN(BPF_FUNC_perf_event_output),
       BPF_EXIT_INSN(),
@@ -125,6 +126,7 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
       /* trace->processor_id = bpf_get_smp_processor_id(); */
       BPF_CALL_INSN(BPF_FUNC_get_smp_processor_id),
       BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_0, TRACE_OFFSET + 24),
+      BPF_MOV64_REG(BPF_REG_9, BPF_REG_0),
       /* zero clear the trace->_pad to satisfy the verifier */
       BPF_ST_MEM(BPF_W, BPF_REG_10, TRACE_OFFSET + 28, 0),
       BPF_ST_MEM(BPF_DW, BPF_REG_10, TRACE_OFFSET + 32, 0),
@@ -148,7 +150,7 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
        * Otherwise, users may use the uninitialized
        * registers which verifier doesn't allow.
        */
-      BPF_MOV64_IMM(BPF_REG_4, 0), BPF_MOV64_IMM(BPF_REG_9, 0),
+      BPF_MOV64_IMM(BPF_REG_4, 0),
       /*
        * Module code comes to here
        * REG1 = trace->data
@@ -198,7 +200,7 @@ create_perf_map(void)
   attr.map_type = BPF_MAP_TYPE_PERF_EVENT_ARRAY;
   attr.key_size = sizeof(uint32_t);
   attr.value_size = sizeof(uint32_t);
-  attr.max_entries = 1;
+  attr.max_entries = get_nprocs_conf();
 
   fd = bpf(BPF_MAP_CREATE, &attr, sizeof(attr));
   if (fd == -1) {
@@ -306,13 +308,13 @@ unload_program(struct ipft_bpf_prog *prog)
 }
 
 static void
-detach_perf_buffer(struct ipft_bpf_prog *prog)
+detach_perf_buffer(struct ipft_bpf_prog *prog, int cpu)
 {
   int error;
   union bpf_attr attr = {};
 
   attr.map_fd = prog->perf_map_fd;
-  attr.key = (__u64) & (int){0};
+  attr.key = (__u64) & (int){cpu};
   attr.flags = 0;
 
   error = bpf(BPF_MAP_DELETE_ELEM, &attr, sizeof(attr));
@@ -373,13 +375,13 @@ err0:
 }
 
 int
-bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int perf_fd)
+bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int perf_fd, int cpu)
 {
   int error;
   union bpf_attr attr = {};
 
   attr.map_fd = prog->perf_map_fd;
-  attr.key = (uint64_t) & (int){0};
+  attr.key = (uint64_t) & (int){cpu};
   attr.value = (uint64_t) & (int){perf_fd};
 
   error = bpf(BPF_MAP_UPDATE_ELEM, &attr, sizeof(attr));
@@ -395,7 +397,9 @@ void
 bpf_prog_unload(struct ipft_bpf_prog *prog)
 {
   unload_program(prog);
-  detach_perf_buffer(prog);
+  for (int i = 0; i < get_nprocs_conf(); i++) {
+    detach_perf_buffer(prog, i);
+  }
   close(prog->perf_map_fd);
   free(prog);
 }

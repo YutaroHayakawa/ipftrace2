@@ -14,6 +14,7 @@
 #include <sys/epoll.h>
 #include <linux/bpf.h>
 #include <sys/signalfd.h>
+#include <sys/sysinfo.h>
 #include <sys/resource.h>
 #include <linux/perf_event.h>
 
@@ -25,6 +26,9 @@ struct trace_data {
   enum event_types type;
   int fd;
   struct trace_ctx *ctx;
+  union {
+    int cpu;  /* Specific to EVENT_TYPE_PERF_BUFFER */
+  };
 };
 
 struct perf_sample_data {
@@ -155,10 +159,12 @@ load_progs(struct ipft_bpf_prog **progp, struct ipft_script *script,
     goto err0;
   }
 
-  error = bpf_prog_set_perf_fd(*progp, perf_buffer_get_fd(pb));
-  if (error == -1) {
-    fprintf(stderr, "bpf_prog_set_perf_fd failed\n");
-    goto err0;
+  for (int i = 0; i < get_nprocs_conf(); i++) {
+    error = bpf_prog_set_perf_fd(*progp, perf_buffer_get_fd(pb, i), i);
+    if (error == -1) {
+      fprintf(stderr, "bpf_prog_set_perf_fd failed\n");
+      goto err0;
+    }
   }
 
 err0:
@@ -253,7 +259,7 @@ attach_progs(struct kprobe_events *ke, struct ipft_symsdb *sdb,
              struct ipft_bpf_prog *prog, struct ipft_regex *re)
 {
   int error;
-  struct attach_ctx ctx = {};
+  struct attach_ctx ctx = {0};
 
   ctx.total = symsdb_get_sym2info_total(sdb);
   ctx.prog = prog;
@@ -283,7 +289,7 @@ detach_progs(struct kprobe_events *ke)
 }
 
 static int
-register_trace_event(struct trace_data **datap, int epfd, struct trace_ctx *ctx)
+register_trace_event(struct trace_data **datap, int epfd, struct trace_ctx *ctx, int cpu)
 {
   int error, pfd;
   struct epoll_event ev;
@@ -295,11 +301,12 @@ register_trace_event(struct trace_data **datap, int epfd, struct trace_ctx *ctx)
     return -1;
   }
 
-  pfd = perf_buffer_get_fd(ctx->pb);
+  pfd = perf_buffer_get_fd(ctx->pb, cpu);
 
   data->type = EVENT_TYPE_PERF_BUFFER;
   data->fd = pfd;
   data->ctx = ctx;
+  data->cpu = cpu;
 
   ev.events = EPOLLIN;
   ev.data.ptr = data;
@@ -448,9 +455,11 @@ handle_perf_buffer_event(struct perf_event_header *ehdr, void *data)
 static void
 do_trace(struct trace_ctx *ctx)
 {
-  int error, nfds, epfd;
-  struct epoll_event events[2];
-  struct trace_data *data, *trace_data, *sig_data;
+  int error, ncpus, nfds, epfd;
+  struct epoll_event *events;
+  struct trace_data *data, **trace_data, *sig_data;
+
+  ncpus = get_nprocs_conf();
 
   epfd = epoll_create(1);
   if (epfd == -1) {
@@ -458,25 +467,39 @@ do_trace(struct trace_ctx *ctx)
     return;
   }
 
-  error = register_trace_event(&trace_data, epfd, ctx);
-  if (error == -1) {
-    fprintf(stderr, "register_trace_event failed\n");
+  events = calloc(ncpus + 1, sizeof(*events));
+  if (events == NULL) {
+    perror("calloc");
     goto err0;
+  }
+
+  trace_data = calloc(ncpus, sizeof(*trace_data));
+  if (trace_data == NULL) {
+    perror("calloc");
+    goto err1;
+  }
+
+  for (int i = 0; i < ncpus; i++) {
+    error = register_trace_event(trace_data + i, epfd, ctx, i);
+    if (error == -1) {
+      fprintf(stderr, "register_trace_event failed\n");
+      goto err2;
+    }
   }
 
   error = register_signal_event(&sig_data, epfd, ctx);
   if (error == -1) {
     fprintf(stderr, "register_signal_event failed\n");
-    goto err1;
+    goto err3;
   }
 
   fprintf(stderr, "Trace ready!\n");
 
   while (true) {
-    nfds = epoll_wait(epfd, events, 2, -1);
+    nfds = epoll_wait(epfd, events, ncpus + 1, -1);
     if (nfds == -1) {
       perror("epoll_wait");
-      goto err2;
+      goto err3;
     }
 
     for (int i = 0; i < nfds; i++) {
@@ -484,10 +507,10 @@ do_trace(struct trace_ctx *ctx)
       switch (data->type) {
       case EVENT_TYPE_PERF_BUFFER:
         error = perf_event_process_mmap_page(ctx->pb, handle_perf_buffer_event,
-                                             ctx);
+                                             data->cpu, ctx);
         if (error == -1) {
           fprintf(stderr, "handle_perf_buffer_event failed\n");
-          goto err2;
+          goto err3;
         }
         break;
       case EVENT_TYPE_SIGNAL:
@@ -503,10 +526,14 @@ do_trace(struct trace_ctx *ctx)
 
 end:
   tracedb_dump(ctx->tdb, ctx->sdb, dump_trace, ctx);
-err2:
+err3:
   unregister_event(sig_data, epfd);
+err2:
+  for (int i = 0; i < ncpus && trace_data[i] != NULL; i++) {
+    unregister_event(trace_data[i], epfd);
+  }
 err1:
-  unregister_event(trace_data, epfd);
+  free(events);
 err0:
   close(epfd);
   return;

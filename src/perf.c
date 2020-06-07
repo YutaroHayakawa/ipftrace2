@@ -12,16 +12,21 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
+#include <sys/sysinfo.h>
 #include <linux/perf_event.h>
 
 #include "ipftrace.h"
+
+struct cpu_buffer {
+  int fd;
+  uint8_t *base;
+};
 
 struct ipft_perf_buffer {
   size_t page_cnt;
   size_t page_size;
   size_t mmap_size;
-  int fd;
-  uint8_t *base;
+  struct cpu_buffer **cbufs;
 };
 
 static int
@@ -47,26 +52,28 @@ ring_buffer_write_tail(struct perf_event_mmap_page *base, uint64_t tail)
 }
 
 int
-perf_buffer_get_fd(struct ipft_perf_buffer *pb)
+perf_buffer_get_fd(struct ipft_perf_buffer *pb, int cpu)
 {
-  return pb->fd;
+  return pb->cbufs[cpu]->fd;
 }
 
 int
 perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
                              int (*cb)(struct perf_event_header *, void *),
-                             void *data)
+                             int cpu, void *data)
 {
   int error;
   void *base;
   bool needs_free;
   size_t ehdr_size;
+  struct cpu_buffer *cbuf;
   uint64_t data_head, data_tail;
   struct perf_event_mmap_page *header;
   struct perf_event_header *ehdr, *copy;
 
-  header = (struct perf_event_mmap_page *)pb->base;
-  base = pb->base + pb->page_size;
+  cbuf = pb->cbufs[cpu];
+  header = (struct perf_event_mmap_page *)cbuf->base;
+  base = cbuf->base + pb->page_size;
   data_head = ring_buffer_read_head(header);
   data_tail = header->data_tail;
 
@@ -113,29 +120,21 @@ perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
   return 0;
 }
 
-void
-perf_buffer_destroy(struct ipft_perf_buffer *pb)
+static void
+cpu_buffer_destroy(struct cpu_buffer *cbuf, size_t mmap_size)
 {
-  munmap(pb->base, pb->page_cnt * pb->page_size);
-  close(pb->fd);
-  free(pb);
+  munmap(cbuf->base, mmap_size);
+  close(cbuf->fd);
+  free(cbuf);
 }
 
-int
-perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt)
+static int
+cpu_buffer_create(struct cpu_buffer **cbufp, size_t mmap_size, int cpu)
 {
   int error, fd;
   uint8_t *base;
-  long page_size;
-  struct ipft_perf_buffer *pb;
-  struct perf_event_attr attr = {};
-
-  if (page_cnt & (page_cnt - 1)) {
-    fprintf(stderr, "Page count should be power of 2\n");
-    return -1;
-  }
-
-  page_size = sysconf(_SC_PAGESIZE);
+  struct cpu_buffer *cbuf;
+  struct perf_event_attr attr = {0};
 
   attr.type = PERF_TYPE_SOFTWARE;
   attr.config = PERF_COUNT_SW_BPF_OUTPUT;
@@ -143,19 +142,19 @@ perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt)
   attr.sample_type = PERF_SAMPLE_RAW;
   attr.wakeup_events = 1;
 
-  pb = calloc(1, sizeof(*pb));
-  if (pb == NULL) {
+  cbuf = calloc(1, sizeof(*cbuf));
+  if (cbuf == NULL) {
     perror("calloc");
     return -1;
   }
 
-  fd = perf_event_open(&attr, -1, 0, -1, PERF_FLAG_FD_CLOEXEC);
+  fd = perf_event_open(&attr, -1, cpu, -1, PERF_FLAG_FD_CLOEXEC);
   if (fd < 0) {
     perror("perf_event_open");
     goto err0;
   }
 
-  base = mmap(NULL, page_size * (page_cnt + 1), PROT_READ | PROT_WRITE,
+  base = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE,
               MAP_SHARED, fd, 0);
   if (base == MAP_FAILED) {
     perror("mmap");
@@ -168,23 +167,81 @@ perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt)
     goto err2;
   }
 
+  cbuf->fd = fd;
+  cbuf->base = base;
+
+  *cbufp = cbuf;
+
+  return 0;
+
+err2:
+  munmap(base, mmap_size);
+err1:
+  close(fd);
+err0:
+  free(cbuf);
+  return -1;
+}
+
+int
+perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt)
+{
+  long page_size;
+  int error, ncpus;
+  struct ipft_perf_buffer *pb;
+
+  if (page_cnt & (page_cnt - 1)) {
+    fprintf(stderr, "Page count should be power of 2\n");
+    return -1;
+  }
+
+  ncpus = get_nprocs_conf();
+  page_size = sysconf(_SC_PAGESIZE);
+
+  pb = calloc(1, sizeof(*pb));
+  if (pb == NULL) {
+    perror("calloc");
+    return -1;
+  }
+
   pb->page_cnt = page_cnt;
   pb->page_size = page_size;
   pb->mmap_size = page_size * page_cnt;
-  pb->fd = fd;
-  pb->base = base;
+
+  pb->cbufs = calloc(ncpus, sizeof(*pb->cbufs));
+  if (pb->cbufs == NULL) {
+    perror("calloc");
+    goto err0;
+  }
+
+  for (int i = 0; i < ncpus; i++) {
+    error = cpu_buffer_create(pb->cbufs + i, page_size * (page_cnt + 1), i);
+    if (error == -1) {
+      fprintf(stderr, "cpu_buffer_create failed\n");
+      goto err1;
+    }
+  }
 
   *pbp = pb;
 
   return 0;
 
-err2:
-  munmap(base, page_size * (page_cnt + 1));
 err1:
-  close(fd);
+  for (int i = 0; i < ncpus && pb->cbufs[i] != NULL; i++) {
+    cpu_buffer_destroy(pb->cbufs[i], page_size * (page_cnt + 1));
+  }
 err0:
   free(pb);
   return -1;
+}
+
+void
+perf_buffer_destroy(struct ipft_perf_buffer *pb)
+{
+  for (int i = 0; i < get_nprocs_conf(); i++) {
+    cpu_buffer_destroy(pb->cbufs[i], pb->page_size * (pb->page_cnt + 1));
+  }
+  free(pb);
 }
 
 static int
@@ -217,7 +274,7 @@ static int
 perf_event_open_kprobe(const char *name)
 {
   int pfd, type;
-  struct perf_event_attr attr = {};
+  struct perf_event_attr attr = {0};
 
   type = get_kprobe_perf_type();
   if (type == -1) {
