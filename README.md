@@ -95,7 +95,9 @@ You can use other ways like below
 - nftables (https://wiki.nftables.org/wiki-nftables/index.php/Setting_packet_metainformation)
 - SO_MARK (http://man7.org/linux/man-pages/man7/socket.7.html)
 
-### Step2-1: Trace as much functions as we can
+### Step2: Start tracing
+
+#### Step2-1: Trace as much functions as we can
 
 Here is the simplest example of tracing which is useful for debugging or learning purpose.
 But **don't do this on your production environment**. Because, `ipftrace2` may attach the
@@ -106,7 +108,7 @@ argument by default. The overhead made by it shouldn't be acceptable.
 $ sudo ipft -m 0xdeadbeef
 ```
 
-### Step2-2: Trace the subset of possible functions
+#### Step2-2: Trace the subset of possible functions
 
 If you don't want to trace all possible functions, you can specify Perl-style regex to filter
 the functions to trace by name. You can reduce the overhead of the tracing and time to attach
@@ -116,7 +118,7 @@ the programs by this feature.
 $ sudo ipft -m 0xdeadbeef -r "ip_.*"
 ```
 
-### Step2-3: Use custom script
+#### Step2-3: Use custom script
 
 `ipftrace2` is capable of customizing the tracing by Lua script. By using this feature, you can
 trace more than just functions the packets have gone through, but the content of `skb` or any
