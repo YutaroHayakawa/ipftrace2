@@ -61,8 +61,8 @@ btf_type_size(struct btf_type *t)
 }
 
 static int
-resolve_type(struct btf_debuginfo *dinfo, struct btf_type *t,
-                int level, struct btf_type **tp)
+resolve_type(struct btf_debuginfo *dinfo, struct btf_type *t, int level,
+             struct btf_type **tp)
 {
   struct btf_type *orig_type;
 
@@ -150,8 +150,7 @@ fill_sym2info(struct btf_debuginfo *dinfo, struct ipft_symsdb *sdb)
       func_proto = types[func->type];
       param_base = (struct btf_param *)(func_proto + 1);
       for (uint16_t i = 0;
-           i < BTF_INFO_VLEN(func_proto->info) && i < MAX_SKB_POS - 1;
-           i++) {
+           i < BTF_INFO_VLEN(func_proto->info) && i < MAX_SKB_POS - 1; i++) {
         param = param_base + i;
 
         /*
@@ -227,7 +226,7 @@ get_member_offset(struct btf_debuginfo *dinfo, int level, struct btf_type *t,
       BTF_INFO_KIND(t->info) != BTF_KIND_UNION) {
     name = str_sec + t->name_off;
     fprintf(stderr, "Type %s is not struct or union\n",
-        name[0] == '\0' ? "(noname)" : name);
+            name[0] == '\0' ? "(noname)" : name);
     return -1;
   }
 
@@ -280,7 +279,7 @@ get_member_offset(struct btf_debuginfo *dinfo, int level, struct btf_type *t,
     case BTF_KIND_VAR:
     case BTF_KIND_DATASEC:
       fprintf(stderr, "Unexpected BTF kind inside the struct/union %d",
-          BTF_INFO_KIND(t->info));
+              BTF_INFO_KIND(t->info));
       return -1;
     default:
       fprintf(stderr, "Unsupported BTF kind\n");
@@ -311,7 +310,7 @@ get_member_type(struct btf_debuginfo *dinfo, int level, struct btf_type *t,
       BTF_INFO_KIND(t->info) != BTF_KIND_UNION) {
     name = str_sec + t->name_off;
     fprintf(stderr, "Type %s is not struct or union\n",
-        name[0] == '\0' ? "(noname)" : name);
+            name[0] == '\0' ? "(noname)" : name);
     return -1;
   }
 
@@ -360,7 +359,7 @@ get_member_type(struct btf_debuginfo *dinfo, int level, struct btf_type *t,
     case BTF_KIND_VAR:
     case BTF_KIND_DATASEC:
       fprintf(stderr, "Unexpected BTF kind inside the struct/union %d",
-          BTF_INFO_KIND(t->info));
+              BTF_INFO_KIND(t->info));
       return -1;
     default:
       fprintf(stderr, "Unsupported BTF kind\n");
@@ -438,8 +437,7 @@ get_size(struct btf_debuginfo *dinfo, struct btf_type *t, size_t *sizep)
 }
 
 static int
-btf_sizeof(struct ipft_debuginfo *_dinfo, const char *type,
-           size_t *sizep)
+btf_sizeof(struct ipft_debuginfo *_dinfo, const char *type, size_t *sizep)
 {
   int error;
   size_t size;
@@ -492,8 +490,8 @@ btf_offsetof(struct ipft_debuginfo *_dinfo, const char *type,
 }
 
 static int
-btf_typeof(struct ipft_debuginfo *_dinfo, const char *type,
-           const char *member, char **namep)
+btf_typeof(struct ipft_debuginfo *_dinfo, const char *type, const char *member,
+           char **namep)
 {
   int error;
   struct btf_type *t;

@@ -101,8 +101,7 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
                   pt_regs_param_offset[skb_pos - 1]),
       /* bpf_probe_read(&mark, 4, skb + mark_offset) */
       BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
-      BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -4),
-      BPF_MOV64_IMM(BPF_REG_2, 4),
+      BPF_ALU64_IMM(BPF_ADD, BPF_REG_1, -4), BPF_MOV64_IMM(BPF_REG_2, 4),
       BPF_MOV64_REG(BPF_REG_3, BPF_REG_7),
       BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, mark_offset),
       BPF_CALL_INSN(BPF_FUNC_probe_read),
@@ -110,8 +109,7 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
        * Don't use JMP32 to support older kernels.
        * Need explicit zero extension.
        */
-      BPF_MOV64_IMM(BPF_REG_9, mark),
-      BPF_ALU64_IMM(BPF_LSH, BPF_REG_9, 32),
+      BPF_MOV64_IMM(BPF_REG_9, mark), BPF_ALU64_IMM(BPF_LSH, BPF_REG_9, 32),
       BPF_ALU64_IMM(BPF_RSH, BPF_REG_9, 32),
       /* if (mark != target_mark) goto end; */
       BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_10, -4),
@@ -139,15 +137,13 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
       BPF_MOV64_REG(BPF_REG_1, BPF_REG_10),
       BPF_ALU64_IMM(BPF_ADD, BPF_REG_1,
                     TRACE_OFFSET + (int32_t)offsetof(struct ipft_trace, data)),
-      BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 0),
-      BPF_ST_MEM(BPF_DW, BPF_REG_1, 8, 0),
+      BPF_ST_MEM(BPF_DW, BPF_REG_1, 0, 0), BPF_ST_MEM(BPF_DW, BPF_REG_1, 8, 0),
       BPF_ST_MEM(BPF_DW, BPF_REG_1, 16, 0),
       BPF_ST_MEM(BPF_DW, BPF_REG_1, 24, 0),
       BPF_ST_MEM(BPF_DW, BPF_REG_1, 32, 0),
       BPF_ST_MEM(BPF_DW, BPF_REG_1, 40, 0),
       BPF_ST_MEM(BPF_DW, BPF_REG_1, 48, 0),
-      BPF_ST_MEM(BPF_DW, BPF_REG_1, 56, 0),
-      BPF_MOV64_REG(BPF_REG_2, BPF_REG_6),
+      BPF_ST_MEM(BPF_DW, BPF_REG_1, 56, 0), BPF_MOV64_REG(BPF_REG_2, BPF_REG_6),
       BPF_MOV64_REG(BPF_REG_3, BPF_REG_7),
       /*
        * Initialize the unused registers in here.

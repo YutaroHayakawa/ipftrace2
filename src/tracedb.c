@@ -81,8 +81,8 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
   kliter_t(trace_list) * iter;
   struct ipft_trace *t, **tarray;
 
-  kh_foreach_value(tdb->trace, l,
-      printf("===\n");
+  kh_foreach_value(
+      tdb->trace, l, printf("===\n");
 
       /*
        * We need to put trace data to array just to use qsort(3)
@@ -127,8 +127,7 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
         }
       }
 
-      free(tarray);
-    )
+      free(tarray);)
 }
 
 int
