@@ -119,9 +119,9 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
         }
 
         if (dump == NULL) {
-          printf("%zu %04u %32.32s\n", t->tstamp, t->processor_id, name);
+          printf("%zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
         } else {
-          printf("%zu %04u %32.32s %s\n", t->tstamp, t->processor_id, name,
+          printf("%zu %03u %32.32s %s\n", t->tstamp, t->processor_id, name,
                  dump);
           free(dump);
         }
