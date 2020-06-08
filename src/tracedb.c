@@ -59,25 +59,56 @@ tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t)
   return 0;
 }
 
+static int
+compare_tstamp(const void *_t1, const void *_t2)
+{
+  const struct ipft_trace *t1 = *(struct ipft_trace **)_t1;
+  const struct ipft_trace *t2 = *(struct ipft_trace **)_t2;
+  if (t1->tstamp < t2->tstamp) {
+    return -1;
+  } else {
+    return 1;
+  }
+}
+
 void
 tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
              char *(*cb)(uint8_t *, size_t, void *), void *arg)
 {
   int error;
   char *name, *dump;
-  uint32_t count = 0;
-  struct ipft_trace *t;
   klist_t(trace_list) * l;
   kliter_t(trace_list) * iter;
+  struct ipft_trace *t, **tarray;
 
-  kh_foreach_value(
-      tdb->trace, l, count++; printf("===\n");
+  kh_foreach_value(tdb->trace, l,
+      printf("===\n");
+
+      /*
+       * We need to put trace data to array just to use qsort(3)
+       * this is not so efficient way, but works well.
+       */
+      tarray = calloc(l->size, sizeof(*tarray));
+      if (tarray == NULL) {
+        perror("calloc");
+        return;
+      }
+
+      uint32_t count = 0;
       for (iter = kl_begin(l); iter != kl_end(l); iter = kl_next(iter)) {
-        t = kl_val(iter);
+        tarray[count] = kl_val(iter);
+        count++;
+      }
+
+      qsort(tarray, count, sizeof(*tarray), compare_tstamp);
+
+      for (uint32_t i = 0; i < count; i++) {
+        t = tarray[i];
 
         error = symsdb_get_addr2sym(sdb, t->faddr, &name);
         if (error == -1) {
           fprintf(stderr, "Failed to resolve the symbol from address\n");
+          free(tarray);
           return;
         }
 
@@ -94,7 +125,10 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
                  dump);
           free(dump);
         }
-      })
+      }
+
+      free(tarray);
+    )
 }
 
 int
