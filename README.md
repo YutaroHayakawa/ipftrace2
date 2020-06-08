@@ -17,7 +17,7 @@ people than **which functions are called** information provided by `ftrace`.
 ### Step1: Install `ipft` command
 
 ```
-$ curl -OL https://github.com/YutaroHayakawa/ipftrace2/releases/download/v0.0.5/ipftrace2_amd64.tar.gz
+$ curl -OL https://github.com/YutaroHayakawa/ipftrace2/releases/download/v0.0.6/ipftrace2_amd64.tar.gz
 $ tar xvf ipftrace2_amd64.tar.gz
 $ sudo cp ipft /usr/local/bin/ipft
 ```
