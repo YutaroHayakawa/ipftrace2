@@ -129,7 +129,7 @@ debuginfo_create(const char *type, struct ipft_debuginfo **dinfop)
 static int
 load_progs(struct ipft_bpf_prog **progp, struct ipft_script *script,
            struct ipft_debuginfo *dinfo, struct ipft_perf_buffer *pb,
-           uint32_t mark)
+           uint32_t mark, uint32_t mask)
 {
   int error = 0;
   size_t offset;
@@ -153,7 +153,7 @@ load_progs(struct ipft_bpf_prog **progp, struct ipft_script *script,
     goto err0;
   }
 
-  error = bpf_prog_load(progp, mark, (uint32_t)offset, mod, mod_cnt);
+  error = bpf_prog_load(progp, mark, (uint32_t)offset, mask, mod, mod_cnt);
   if (error == -1) {
     fprintf(stderr, "bpf_prog_load failed\n");
     goto err0;
@@ -610,7 +610,7 @@ tracer_run(struct ipft_tracer_opt *opt)
     }
   }
 
-  error = load_progs(&prog, script, dinfo, pb, opt->mark);
+  error = load_progs(&prog, script, dinfo, pb, opt->mark, opt->mask);
   if (error == -1) {
     fprintf(stderr, "load_progs failed\n");
     goto err5;

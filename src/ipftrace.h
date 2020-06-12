@@ -39,6 +39,7 @@ struct ipft_trace {
 
 struct ipft_tracer_opt {
   uint32_t mark;
+  uint32_t mask;
   char *regex;
   char *script_path;
   char *debug_info_type;
@@ -111,8 +112,8 @@ int perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
                                  int (*cb)(struct perf_event_header *, void *),
                                  int cpu, void *data);
 
-int bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark,
-                  size_t mark_offset, struct bpf_insn *mod, uint32_t mod_cnt);
+int bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark, size_t mark_offset,
+                  uint32_t mask, struct bpf_insn *mod, uint32_t mod_cnt);
 int bpf_prog_get(struct ipft_bpf_prog *prog, int skb_pos);
 int bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int fd, int cpu);
 void bpf_prog_unload(struct ipft_bpf_prog *prog);

@@ -16,13 +16,15 @@
 
 static struct option options[] = {
     {"debug-format", required_argument, 0, 'f'},
-    {"list", optional_argument, 0, 'l'},
+    {"help", no_argument, 0, 'h'},
+    {"list", no_argument, 0, 'l'},
     {"mark", required_argument, 0, 'm'},
-    {"regex", optional_argument, 0, 'r'},
-    {"script", optional_argument, 0, 's'},
-    {"perf-page-count", optional_argument, 0, '0'},
-    {"test", optional_argument, 0, '0'},
-    {"no-set-rlimit", optional_argument, 0, '0'},
+    {"regex", required_argument, 0, 'r'},
+    {"script", required_argument, 0, 's'},
+    {"mask", required_argument, 0, '0'},
+    {"perf-page-count", required_argument, 0, '0'},
+    {"test", no_argument, 0, '0'},
+    {"no-set-rlimit", no_argument, 0, '0'},
     {NULL, 0, 0, 0},
 };
 
@@ -35,9 +37,12 @@ usage(void)
           "Options:\n"
           " -f, --debug-format    [DEBUG-FORMAT]  Read the debug "
           "information with specified format\n"
+          " -h, --help                            Show this text\n"
           " -l, --list                            List functions\n"
-          " -m, --mark            [MARK]          Trace the packet "
+          " -m, --mark            [HEX]           Trace the packet "
           "marked with <mark> [required]\n"
+          "   , --mask            [HEX]           Only match to the bits masked "
+          "with given bitmask\n"
           " -r, --regex           [REGEX]         Filter the function to trace"
           "with regex\n"
           " -s, --script-path     [PATH]          Path to the Lua script file\n"
@@ -46,9 +51,7 @@ usage(void)
           "   , --test                            Run in eBPF test mode\n"
           "   , --no-set-rlimit                   Don't set rlimit\n"
           "\n"
-          "MARK         := hex number\n"
           "DEBUG-FORMAT := { dwarf, btf }\n"
-          "PATH         := path\n"
           "\n");
 }
 
@@ -56,6 +59,7 @@ static void
 opt_init(struct ipft_tracer_opt *opt)
 {
   opt->mark = 0;
+  opt->mask = 0xffffffff;
   opt->script_path = NULL;
   opt->debug_info_type = "dwarf";
   opt->perf_page_cnt = 8;
@@ -88,6 +92,11 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
     return false;
   }
 
+  if (!list && opt->mask == 0) {
+    fprintf(stderr, "Masking by 0 is not allowed\n");
+    return false;
+  }
+
   if (strcmp(opt->debug_info_type, "dwarf") != 0 &&
       strcmp(opt->debug_info_type, "btf") != 0) {
     fprintf(stderr, "Invalid debug info format %s\n", opt->debug_info_type);
@@ -113,7 +122,7 @@ main(int argc, char **argv)
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "f:lm:r:s:0", options, &optind)) != -1) {
+  while ((c = getopt_long(argc, argv, "f:hlm:r:s:", options, &optind)) != -1) {
     switch (c) {
     case 'f':
       opt.debug_info_type = strdup(optarg);
@@ -133,7 +142,14 @@ main(int argc, char **argv)
     case '0':
       optname = options[optind].name;
 
+      if (strcmp(optname, "mask") == 0) {
+        printf("maskarg %s\n", optarg);
+        opt.mask = strtoul(optarg, NULL, 16);
+        break;
+      }
+
       if (strcmp(optname, "perf-page-count") == 0) {
+        printf("pagecntarg %s\n", optarg);
         opt.perf_page_cnt = atoi(optarg);
         break;
       }

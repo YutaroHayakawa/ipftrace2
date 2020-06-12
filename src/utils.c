@@ -108,7 +108,7 @@ test_bpf_prog(struct ipft_tracer_opt *opt)
     goto err2;
   }
 
-  error = bpf_prog_load(&prog, 0xdeadbeef, offset, mod, mod_cnt);
+  error = bpf_prog_load(&prog, 0xdeadbeef, offset, 0xffffffff, mod, mod_cnt);
   if (error == -1) {
     fprintf(stderr, "Failed to load prog\n");
     goto err2;

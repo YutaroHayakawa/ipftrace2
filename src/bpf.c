@@ -72,7 +72,7 @@ bpf(enum bpf_cmd cmd, union bpf_attr *attr, size_t size)
 }
 
 static int
-gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
+gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset, uint32_t mask,
             struct bpf_insn *mod, uint32_t mod_cnt, int perf_map_fd,
             struct bpf_insn **insnp, uint32_t *insn_cnt)
 {
@@ -105,16 +105,13 @@ gen_program(int skb_pos, uint32_t mark, ptrdiff_t mark_offset,
       BPF_MOV64_REG(BPF_REG_3, BPF_REG_7),
       BPF_ALU64_IMM(BPF_ADD, BPF_REG_3, mark_offset),
       BPF_CALL_INSN(BPF_FUNC_probe_read),
-      /*
-       * Don't use JMP32 to support older kernels.
-       * Need explicit zero extension.
-       */
-      BPF_MOV64_IMM(BPF_REG_9, mark), BPF_ALU64_IMM(BPF_LSH, BPF_REG_9, 32),
-      BPF_ALU64_IMM(BPF_RSH, BPF_REG_9, 32),
-      /* if (mark != target_mark) goto end; */
+      /* if ((mark & mask) != (target_mark & mask)) goto end; */
       BPF_LDX_MEM(BPF_W, BPF_REG_8, BPF_REG_10, -4),
-      BPF_JMP_REG(BPF_JNE, BPF_REG_8, BPF_REG_9,
-                  26 + mod_cnt + bottom_half_cnt - 1),
+      BPF_ALU32_IMM(BPF_AND, BPF_REG_8, mask),
+      BPF_MOV32_IMM(BPF_REG_9, mark),
+      BPF_ALU32_IMM(BPF_AND, BPF_REG_9, mask),
+      BPF_JMP_REG(BPF_JEQ, BPF_REG_8, BPF_REG_9, 1),
+      BPF_EXIT_INSN(),
       /* trace->skb_addr = skb */
       BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_7, TRACE_OFFSET),
       /* trace->tstamp = bpf_ktime_get_ns(); */
@@ -221,7 +218,7 @@ create_perf_map(void)
 #define LOGBUF_SIZE 0xffff
 
 static int
-load_program(uint32_t mark, ptrdiff_t mark_offset, struct bpf_insn *mod,
+load_program(uint32_t mark, ptrdiff_t mark_offset, uint32_t mask, struct bpf_insn *mod,
              uint32_t mod_cnt, int perf_map_fd, struct ipft_bpf_prog *prog)
 {
   char *log_buf;
@@ -247,7 +244,7 @@ load_program(uint32_t mark, ptrdiff_t mark_offset, struct bpf_insn *mod,
   attr.kern_version = get_kernel_version();
 
   for (int i = 0; i < MAX_SKB_POS; i++) {
-    error = gen_program(i + 1, mark, mark_offset, mod, mod_cnt, perf_map_fd,
+    error = gen_program(i + 1, mark, mark_offset, mask, mod, mod_cnt, perf_map_fd,
                         &insns, &insns_cnt);
     if (error == -1) {
       goto err0;
@@ -339,7 +336,7 @@ bpf_prog_get(struct ipft_bpf_prog *prog, int skb_pos)
 
 int
 bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark, size_t mark_offset,
-              struct bpf_insn *mod, uint32_t mod_cnt)
+              uint32_t mask, struct bpf_insn *mod, uint32_t mod_cnt)
 {
   int error, perf_map_fd;
   struct ipft_bpf_prog *prog;
@@ -358,7 +355,7 @@ bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark, size_t mark_offset,
 
   prog->perf_map_fd = perf_map_fd;
 
-  error = load_program(mark, mark_offset, mod, mod_cnt, perf_map_fd, prog);
+  error = load_program(mark, mark_offset, mask, mod, mod_cnt, perf_map_fd, prog);
   if (error == -1) {
     goto err1;
   }
