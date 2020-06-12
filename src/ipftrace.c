@@ -143,13 +143,11 @@ main(int argc, char **argv)
       optname = options[optind].name;
 
       if (strcmp(optname, "mask") == 0) {
-        printf("maskarg %s\n", optarg);
         opt.mask = strtoul(optarg, NULL, 16);
         break;
       }
 
       if (strcmp(optname, "perf-page-count") == 0) {
-        printf("pagecntarg %s\n", optarg);
         opt.perf_page_cnt = atoi(optarg);
         break;
       }
