@@ -8,8 +8,6 @@
 
 #include "ipftrace.h"
 
-#define __unused __attribute__((unused))
-
 static int
 debuginfo_create(struct ipft_debuginfo **dinfop, const char *type)
 {

@@ -15,8 +15,6 @@
 
 #include "ipftrace.h"
 
-#define __unused __attribute__((unused))
-
 struct btf_debuginfo {
   struct ipft_debuginfo base;
   struct btf_header *btf;

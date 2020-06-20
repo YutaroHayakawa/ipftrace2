@@ -9,6 +9,8 @@
 #include <linux/bpf.h>
 #include <linux/perf_event.h>
 
+#define __unused __attribute__((unused))
+
 /*
  * Max skb position in the function parameters
  */
