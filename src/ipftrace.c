@@ -14,11 +14,14 @@
 
 #include "ipftrace.h"
 
+static char *default_output_type = "aggregate";
+
 static struct option options[] = {
     {"debug-format", required_argument, 0, 'f'},
     {"help", no_argument, 0, 'h'},
     {"list", no_argument, 0, 'l'},
     {"mark", required_argument, 0, 'm'},
+    {"output", required_argument, 0, 'o'},
     {"regex", required_argument, 0, 'r'},
     {"script", required_argument, 0, 's'},
     {"mask", required_argument, 0, '0'},
@@ -43,6 +46,7 @@ usage(void)
           "marked with <mark> [required]\n"
           "   , --mask            [HEX]           Only match to the bits masked "
           "with given bitmask\n"
+          " -o, --output          [OUTPUT-FORMAT] Specify output format\n"
           " -r, --regex           [REGEX]         Filter the function to trace"
           "with regex\n"
           " -s, --script-path     [PATH]          Path to the Lua script file\n"
@@ -52,6 +56,7 @@ usage(void)
           "   , --no-set-rlimit                   Don't set rlimit\n"
           "\n"
           "DEBUG-FORMAT := { dwarf, btf }\n"
+          "OUTPUT-FORMAT := { aggregate, stream }\n"
           "\n");
 }
 
@@ -62,6 +67,7 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->mask = 0xffffffff;
   opt->script_path = NULL;
   opt->debug_info_type = "dwarf";
+  opt->output_type = default_output_type;
   opt->perf_page_cnt = 8;
   opt->regex = NULL;
   opt->set_rlimit = true;
@@ -73,6 +79,10 @@ opt_deinit(struct ipft_tracer_opt *opt)
   /* Compare address */
   if (opt->debug_info_type != (char *)"dwarf") {
     free(opt->debug_info_type);
+  }
+
+  if (opt->output_type != default_output_type) {
+    free(opt->output_type);
   }
 
   if (opt->script_path != NULL) {
@@ -103,6 +113,12 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
     return false;
   }
 
+  if (strcmp(opt->output_type, "aggregate") != 0 &&
+      strcmp(opt->output_type, "stream") != 0) {
+    fprintf(stderr, "Invalid output format %s\n", opt->output_type);
+    return false;
+  }
+
   if (!list && opt->perf_page_cnt == 0) {
     fprintf(stderr, "Perf page count should be at least 1\n");
     return false;
@@ -122,7 +138,7 @@ main(int argc, char **argv)
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "f:hlm:r:s:", options, &optind)) != -1) {
+  while ((c = getopt_long(argc, argv, "f:hlm:o:r:s:", options, &optind)) != -1) {
     switch (c) {
     case 'f':
       opt.debug_info_type = strdup(optarg);
@@ -132,6 +148,9 @@ main(int argc, char **argv)
       break;
     case 'm':
       opt.mark = strtoul(optarg, NULL, 16);
+      break;
+    case 'o':
+      opt.output_type = strdup(optarg);
       break;
     case 'r':
       opt.regex = strdup(optarg);

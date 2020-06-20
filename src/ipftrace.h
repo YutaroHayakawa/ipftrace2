@@ -43,6 +43,7 @@ struct ipft_tracer_opt {
   uint32_t mark;
   uint32_t mask;
   char *regex;
+  char *output_type;
   char *script_path;
   char *debug_info_type;
   size_t perf_page_cnt;
@@ -61,6 +62,14 @@ struct ipft_debuginfo {
   int (*typeof_fn)(struct ipft_debuginfo *, const char *, const char *,
                    char **);
   void (*destroy)(struct ipft_debuginfo *);
+};
+
+struct ipft_output {
+  struct ipft_symsdb *sdb;
+  struct ipft_script *script;
+  int (*on_trace)(struct ipft_output *, struct ipft_trace *);
+  int (*post_trace)(struct ipft_output *);
+  void (*destroy)(struct ipft_output *);
 };
 
 int symsdb_create(struct ipft_symsdb **sdbp);
@@ -123,6 +132,14 @@ void bpf_prog_unload(struct ipft_bpf_prog *prog);
 int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);
 void regex_destroy(struct ipft_regex *re);
+
+int output_create(struct ipft_output **outp, const char *type,
+    struct ipft_symsdb *sdb, struct ipft_script *script);
+int aggregate_output_create(struct ipft_output **outp);
+int stream_output_create(struct ipft_output **outp);
+int output_on_trace(struct ipft_output *out, struct ipft_trace *t);
+int output_post_trace(struct ipft_output *out);
+void output_destroy(struct ipft_output *out);
 
 int tracer_run(struct ipft_tracer_opt *opt);
 int list_functions(struct ipft_tracer_opt *opt);

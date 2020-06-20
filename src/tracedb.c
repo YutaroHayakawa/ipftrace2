@@ -33,11 +33,20 @@ tracedb_get_total(struct ipft_tracedb *tdb)
 }
 
 int
-tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t)
+tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *_t)
 {
   int ret;
   khint_t iter;
+  struct ipft_trace *t;
   klist_t(trace_list) * l;
+
+  t = malloc(sizeof(*t));
+  if (t == NULL) {
+    perror("malloc");
+    return -1;
+  }
+
+  memcpy(t, _t, sizeof(*t));
 
   iter = kh_put(trace, tdb->trace, t->skb_addr, &ret);
   if (ret == -1) {

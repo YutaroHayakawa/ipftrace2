@@ -53,8 +53,7 @@ struct attach_ctx {
 };
 
 struct trace_ctx {
-  size_t nsamples;
-  size_t nlost;
+  struct ipft_output *out;
   struct ipft_symsdb *sdb;
   struct ipft_tracedb *tdb;
   struct ipft_script *script;
@@ -390,41 +389,6 @@ unregister_event(struct trace_data *data, int epfd)
   free(data);
 }
 
-static char *
-dump_trace(uint8_t *data, size_t size, void *arg)
-{
-  struct trace_ctx *ctx;
-  ctx = (struct trace_ctx *)arg;
-  return script_exec_dump(ctx->script, data, size);
-}
-
-static int
-store_trace(struct ipft_tracedb *tdb, uint8_t *data, uint32_t size)
-{
-  int error;
-  struct ipft_trace *t;
-
-  t = calloc(1, size);
-  if (t == NULL) {
-    perror("calloc");
-    return -1;
-  }
-
-  memcpy(t, data, size);
-
-  error = tracedb_put_trace(tdb, t);
-  if (error == -1) {
-    fprintf(stderr, "tracedb_put_trace failed\n");
-    goto err0;
-  }
-
-  return 0;
-
-err0:
-  free(t);
-  return -1;
-}
-
 static int
 handle_perf_buffer_event(struct perf_event_header *ehdr, void *data)
 {
@@ -434,21 +398,16 @@ handle_perf_buffer_event(struct perf_event_header *ehdr, void *data)
 
   switch (ehdr->type) {
   case PERF_RECORD_SAMPLE:
-    ctx->nsamples++;
     s = (struct perf_sample_data *)ehdr;
-    error = store_trace(ctx->tdb, s->data, s->size);
+    error = output_on_trace(ctx->out, (struct ipft_trace *)s->data);
     break;
   case PERF_RECORD_LOST:
-    ctx->nlost++;
     error = 0;
     break;
   default:
     fprintf(stderr, "Unknown event type %d\n", ehdr->type);
     return -1;
   }
-
-  fprintf(stderr, "\rSamples: %zu Lost: %zu", ctx->nsamples, ctx->nlost);
-  fflush(stderr);
 
   return error;
 }
@@ -526,7 +485,7 @@ do_trace(struct trace_ctx *ctx)
   }
 
 end:
-  tracedb_dump(ctx->tdb, ctx->sdb, dump_trace, ctx);
+  output_post_trace(ctx->out);
 err3:
   unregister_event(sig_data, epfd);
 err2:
@@ -546,6 +505,7 @@ tracer_run(struct ipft_tracer_opt *opt)
   int error;
   struct trace_ctx ctx;
   struct ipft_regex *re;
+  struct ipft_output *out;
   struct ipft_symsdb *sdb;
   struct ipft_tracedb *tdb;
   struct kprobe_events *ke;
@@ -596,56 +556,63 @@ tracer_run(struct ipft_tracer_opt *opt)
     goto err3;
   }
 
+  error = output_create(&out, opt->output_type, sdb, script);
+  if (error == -1) {
+    fprintf(stderr, "output_create failed\n");
+    goto err4;
+  }
+
   error = perf_buffer_create(&pb, opt->perf_page_cnt);
   if (error == -1) {
     fprintf(stderr, "perf_buffer_create failed\n");
-    goto err4;
+    goto err5;
   }
 
   if (opt->set_rlimit) {
     error = set_rlimit(sdb);
     if (error == -1) {
       fprintf(stderr, "set_rlimit failed\n");
-      goto err5;
+      goto err6;
     }
   }
 
   error = load_progs(&prog, script, dinfo, pb, opt->mark, opt->mask);
   if (error == -1) {
     fprintf(stderr, "load_progs failed\n");
-    goto err5;
+    goto err6;
   }
 
   error = kprobe_events_create(&ke, symsdb_get_sym2info_total(sdb));
   if (error == -1) {
     fprintf(stderr, "kprobe_events_create failed\n");
-    goto err6;
+    goto err7;
   }
 
   error = attach_progs(ke, sdb, prog, re);
   if (error == -1) {
     fprintf(stderr, "attach_progs failed\n");
-    goto err7;
+    goto err8;
   }
 
-  ctx.nsamples = 0;
-  ctx.nlost = 0;
   ctx.sdb = sdb;
   ctx.tdb = tdb;
   ctx.script = script;
   ctx.pb = pb;
   ctx.sdb = sdb;
   ctx.prog = prog;
+  ctx.out = out;
 
   do_trace(&ctx);
 
   detach_progs(ke);
-err7:
+err8:
   kprobe_events_destroy(ke);
-err6:
+err7:
   unload_progs(prog);
-err5:
+err6:
   perf_buffer_destroy(pb);
+err5:
+  output_destroy(out);
 err4:
   script_destroy(script);
 err3:

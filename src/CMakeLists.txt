@@ -5,6 +5,9 @@ add_executable(ipft
   dwarf.c
   ipftrace.c
   kallsyms.c
+  output.c
+  output_aggregate.c
+  output_stream.c
   perf.c
   regex.c
   script.c
