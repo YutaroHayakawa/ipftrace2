@@ -14,6 +14,7 @@
 
 #include "ipftrace.h"
 
+static char *default_debuginfo_type = "dwarf";
 static char *default_output_type = "aggregate";
 
 static struct option options[] = {
@@ -66,7 +67,7 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->mark = 0;
   opt->mask = 0xffffffff;
   opt->script_path = NULL;
-  opt->debug_info_type = "dwarf";
+  opt->debug_info_type = default_debuginfo_type;
   opt->output_type = default_output_type;
   opt->perf_page_cnt = 8;
   opt->regex = NULL;
@@ -77,7 +78,7 @@ static void
 opt_deinit(struct ipft_tracer_opt *opt)
 {
   /* Compare address */
-  if (opt->debug_info_type != (char *)"dwarf") {
+  if (opt->debug_info_type != default_debuginfo_type) {
     free(opt->debug_info_type);
   }
 
@@ -107,7 +108,7 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
     return false;
   }
 
-  if (strcmp(opt->debug_info_type, "dwarf") != 0 &&
+  if (strcmp(opt->debug_info_type, default_debuginfo_type) != 0 &&
       strcmp(opt->debug_info_type, "btf") != 0) {
     fprintf(stderr, "Invalid debug info format %s\n", opt->debug_info_type);
     return false;
