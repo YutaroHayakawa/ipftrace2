@@ -93,6 +93,7 @@ int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t);
 void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
                   char *(*cb)(uint8_t *, size_t, void *), void *data);
 
+int debuginfo_create(struct ipft_debuginfo **dinfop, const char *type);
 int btf_debuginfo_create(struct ipft_debuginfo **dinfop);
 int dwarf_debuginfo_create(struct ipft_debuginfo **dinfop);
 void debuginfo_destroy(struct ipft_debuginfo *dinfo);

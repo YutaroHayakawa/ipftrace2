@@ -9,23 +9,6 @@
 #include "ipftrace.h"
 
 static int
-debuginfo_create(struct ipft_debuginfo **dinfop, const char *type)
-{
-  int error;
-
-  if (strcmp(type, "dwarf") == 0) {
-    error = dwarf_debuginfo_create(dinfop);
-  } else if (strcmp(type, "btf") == 0) {
-    error = btf_debuginfo_create(dinfop);
-  } else {
-    /* Impossible. Already checked. */
-    assert(false);
-  }
-
-  return error;
-}
-
-static int
 print_sym(const char *name, __unused struct ipft_syminfo *sinfo,
           __unused void *data)
 {

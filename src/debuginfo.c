@@ -6,8 +6,22 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "ipftrace.h"
+
+int
+debuginfo_create(struct ipft_debuginfo **dinfop, const char *type)
+{
+  if (strcmp(type, "dwarf") == 0) {
+    return dwarf_debuginfo_create(dinfop);
+  } else if (strcmp(type, "btf") == 0) {
+    return btf_debuginfo_create(dinfop);
+  } else {
+    fprintf(stderr, "Unsupported debug info type %s\n", type);
+    return -1;
+  }
+}
 
 int
 debuginfo_fill_sym2info(struct ipft_debuginfo *dinfo, struct ipft_symsdb *sdb)

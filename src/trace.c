@@ -113,19 +113,6 @@ set_rlimit(struct ipft_symsdb *sdb)
 }
 
 static int
-debuginfo_create(const char *type, struct ipft_debuginfo **dinfop)
-{
-  if (strcmp(type, "dwarf") == 0) {
-    return dwarf_debuginfo_create(dinfop);
-  } else if (strcmp(type, "btf") == 0) {
-    return btf_debuginfo_create(dinfop);
-  } else {
-    fprintf(stderr, "Unsupported debug info type %s\n", type);
-    return -1;
-  }
-}
-
-static int
 load_progs(struct ipft_bpf_prog **progp, struct ipft_script *script,
            struct ipft_debuginfo *dinfo, struct ipft_perf_buffer *pb,
            uint32_t mark, uint32_t mask)
@@ -532,7 +519,7 @@ tracer_run(struct ipft_tracer_opt *opt)
     goto err1;
   }
 
-  error = debuginfo_create(opt->debug_info_type, &dinfo);
+  error = debuginfo_create(&dinfo, opt->debug_info_type);
   if (error == -1) {
     fprintf(stderr, "debuginfo_create failed\n");
     goto err2;
