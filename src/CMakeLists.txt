@@ -13,6 +13,7 @@ add_executable(ipft
   script.c
   symsdb.c
   trace.c
+  traceable_set.c
   tracedb.c
   utils.c
 )

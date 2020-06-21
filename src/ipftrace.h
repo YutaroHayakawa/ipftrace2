@@ -28,6 +28,7 @@ struct ipft_bpf_prog;
 struct ipft_perf_buffer;
 struct ipft_debuginfo;
 struct ipft_regex;
+struct ipft_traceable_set;
 
 struct ipft_trace {
   uint64_t skb_addr;
@@ -141,6 +142,10 @@ int stream_output_create(struct ipft_output **outp);
 int output_on_trace(struct ipft_output *out, struct ipft_trace *t);
 int output_post_trace(struct ipft_output *out);
 void output_destroy(struct ipft_output *out);
+
+int traceable_set_create(struct ipft_traceable_set **tsetp);
+bool traceable_set_is_traceable(struct ipft_traceable_set *tset, const char *sym);
+void traceable_set_destroy(struct ipft_traceable_set *tset);
 
 int tracer_run(struct ipft_tracer_opt *opt);
 int list_functions(struct ipft_tracer_opt *opt);

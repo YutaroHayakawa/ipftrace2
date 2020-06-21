@@ -47,9 +47,11 @@ struct attach_ctx {
   size_t succeeded;
   size_t failed;
   size_t filtered;
+  size_t untraceable;
   struct kprobe_events *ke;
   struct ipft_bpf_prog *prog;
   struct ipft_regex *re;
+  struct ipft_traceable_set *tset;
 };
 
 struct trace_ctx {
@@ -211,30 +213,35 @@ attach_prog(const char *name, struct ipft_syminfo *si, void *args)
 
   ctx = (struct attach_ctx *)args;
 
-  if (regex_match(ctx->re, name)) {
-    prog_fd = bpf_prog_get(ctx->prog, si->skb_pos);
+  if (traceable_set_is_traceable(ctx->tset, name)) {
+    if (regex_match(ctx->re, name)) {
+      prog_fd = bpf_prog_get(ctx->prog, si->skb_pos);
 
-    pfd = perf_event_attach_kprobe(name, prog_fd);
-    if (pfd > 0) {
-      ctx->succeeded++;
-    } else {
-      if (errno == EMFILE) {
-        fprintf(stderr, "Hint: Your resource limit may be too small, try "
-                        "ulimit -n <some large number>\n");
-        return -1;
+      pfd = perf_event_attach_kprobe(name, prog_fd);
+      if (pfd > 0) {
+        ctx->succeeded++;
+      } else {
+        if (errno == EMFILE) {
+          fprintf(stderr, "Hint: Your resource limit may be too small, try "
+                          "ulimit -n <some large number>\n");
+          return -1;
+        }
+        ctx->failed++;
       }
-      ctx->failed++;
-    }
 
-    ctx->ke->fds[ctx->succeeded + ctx->failed + ctx->filtered - 1] = pfd;
+      ctx->ke->fds[ctx->succeeded + ctx->failed + ctx->filtered + ctx->untraceable - 1] = pfd;
+    } else {
+      ctx->filtered++;
+    }
   } else {
-    ctx->filtered++;
+    ctx->untraceable++;
   }
 
   fprintf(stderr,
           "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
-          "%zu)",
-          ctx->total, ctx->succeeded, ctx->failed, ctx->filtered);
+          "%zu untraceable: %zu)",
+          ctx->total, ctx->succeeded, ctx->failed, ctx->filtered,
+          ctx->untraceable);
   fflush(stderr);
 
   return 0;
@@ -246,20 +253,30 @@ attach_progs(struct kprobe_events *ke, struct ipft_symsdb *sdb,
 {
   int error;
   struct attach_ctx ctx = {0};
+  struct ipft_traceable_set *tset;
+
+  error = traceable_set_create(&tset);
+  if (error == -1) {
+    fprintf(stderr, "traceable_set_create failed\n");
+    return -1;
+  }
 
   ctx.total = symsdb_get_sym2info_total(sdb);
   ctx.prog = prog;
+  ctx.tset = tset;
   ctx.ke = ke;
   ctx.re = re;
 
   error = symsdb_sym2info_foreach(sdb, attach_prog, &ctx);
   if (error == -1) {
     fprintf(stderr, "symsdb_sym2info_foreach faild\n");
-    return -1;
+    goto end;
   }
 
   fprintf(stderr, "\n");
 
+end:
+  traceable_set_destroy(tset);
   return 0;
 }
 
