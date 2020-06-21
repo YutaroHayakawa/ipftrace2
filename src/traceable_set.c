@@ -46,9 +46,9 @@ read_available_filter_functions(khash_t(traceable_set) *set)
 {
   FILE *f;
   int error;
-  char *line;
   ssize_t nread;
   size_t len = 0;
+  char *line = NULL;
 
   f = fopen("/sys/kernel/debug/tracing/available_filter_functions", "r");
   if (f == NULL) {
