@@ -35,13 +35,13 @@ kallsyms_fill_addr2sym(struct ipft_symsdb *db)
 
   f = fopen("/proc/kallsyms", "r");
   if (f == NULL) {
-    error = errno;
-    fprintf(stderr, "Failed to open /proc/kallsyms: %s\n", strerror(error));
-    return error;
+    perror("fopen");
+    return -1;
   }
 
   if (geteuid() != 0) {
-    return EPERM;
+    fprintf(stderr, "Non-root users cannot read address info. Please execute with root.\n");
+    return -1;
   }
 
   while (fgets(line, sizeof(line), f)) {
@@ -88,6 +88,7 @@ kallsyms_fill_addr2sym(struct ipft_symsdb *db)
      */
     error = symsdb_put_addr2sym(db, addr, symname);
     if (error == -1) {
+      fprintf(stderr, "symsdb_put_addr2sym failed\n");
       return -1;
     }
   }
