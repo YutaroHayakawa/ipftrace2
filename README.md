@@ -10,7 +10,7 @@ people than **which functions are called** information provided by `ftrace`.
 ## Supported environments
 
 - Architecture: (Currently) x86_64 only
-- Linux version: v4.4 or above
+- Linux version: v4.17 or above
 
 ## Install pre-compiled binary
 
