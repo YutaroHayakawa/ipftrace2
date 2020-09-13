@@ -165,7 +165,7 @@ function emit()
       -- Get shinfo->gso_segs
       emit_member_read("skb_shared_info", "gso_segs", BPF.R6, BPF.R9, push_data),
       -- Get shinfo->gso_type
-      emit_member_read("skb_shared_info", "gso_segs", BPF.R6, BPF.R9, push_data),
+      emit_member_read("skb_shared_info", "gso_type", BPF.R6, BPF.R9, push_data),
       -- Restore callee saved registers
       emit_restore_callee_saved_registers(),
     })
