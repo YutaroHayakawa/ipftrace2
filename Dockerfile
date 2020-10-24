@@ -1,6 +1,6 @@
 # Build static binary with alpine. Use edge since the libelf-static only exists on edge.
 
-FROM alpine:edge
+FROM alpine:3.12.1
 
 RUN apk add \
   cmake \
