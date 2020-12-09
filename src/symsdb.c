@@ -31,7 +31,7 @@ symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
   char *k;
   khint_t iter;
   khash_t(sym2info) * db;
-  int error = 0, missing;
+  int missing;
   struct ipft_syminfo *v;
 
   k = strdup(name);

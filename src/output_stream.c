@@ -19,7 +19,7 @@ static int
 stream_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
 {
   int error;
-  char *name, *dump;
+  char *name;
   struct stream_output *out = (struct stream_output *)_out;
 
   error = symsdb_get_addr2sym(out->base.sdb, t->faddr, &name);

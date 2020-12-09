@@ -24,7 +24,6 @@ static struct option options[] = {
     {"regex", required_argument, 0, 'r'},
     {"mask", required_argument, 0, '0'},
     {"perf-page-count", required_argument, 0, '0'},
-    {"test", no_argument, 0, '0'},
     {"no-set-rlimit", no_argument, 0, '0'},
     {NULL, 0, 0, 0},
 };
@@ -47,7 +46,6 @@ usage(void)
           "with regex\n"
           "   , --perf-page-count [NUMBER]        Number of pages to use with"
           "perf\n"
-          "   , --test                            Run in eBPF test mode\n"
           "   , --no-set-rlimit                   Don't set rlimit\n"
           "\n"
           "DEBUG-FORMAT := { dwarf, btf }\n"
@@ -100,15 +98,12 @@ main(int argc, char **argv)
   int error = -1;
   const char *optname;
   struct ipft_tracer_opt opt;
-  bool list = false, test = false;
+  bool list = false;
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "f:hlm:o:r:s:", options, &optind)) != -1) {
+  while ((c = getopt_long(argc, argv, "hlm:o:r:", options, &optind)) != -1) {
     switch (c) {
-    case 'f':
-      opt.debug_info_type = strdup(optarg);
-      break;
     case 'l':
       list = true;
       break;
@@ -134,11 +129,6 @@ main(int argc, char **argv)
         break;
       }
 
-      if (strcmp(optname, "test") == 0) {
-        test = true;
-        break;
-      }
-
       if (strcmp(optname, "no-set-rlimit") == 0) {
         opt.set_rlimit = false;
         break;
@@ -157,12 +147,7 @@ main(int argc, char **argv)
   }
 
   if (list) {
-    error = list_functions(&opt);
-    goto end;
-  }
-
-  if (test) {
-    error = test_bpf_prog(&opt);
+    error = list_functions();
     goto end;
   }
 

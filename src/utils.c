@@ -17,7 +17,7 @@ print_sym(const char *name, __unused struct ipft_syminfo *sinfo,
 }
 
 int
-list_functions(struct ipft_tracer_opt *opt)
+list_functions(void)
 {
   int error;
   struct ipft_symsdb *sdb;
@@ -44,30 +44,6 @@ list_functions(struct ipft_tracer_opt *opt)
   error = symsdb_sym2info_foreach(sdb, print_sym, NULL);
   if (error == -1) {
     fprintf(stderr, "Failed to traverse sym2info\n");
-    goto err1;
-  }
-
-err1:
-  debuginfo_destroy(dinfo);
-err0:
-  symsdb_destroy(sdb);
-  return error;
-}
-
-int
-test_bpf_prog(struct ipft_tracer_opt *opt)
-{
-  int error;
-  size_t offset;
-  uint32_t mod_cnt;
-  struct bpf_insn *mod;
-  struct ipft_script *script;
-  struct ipft_bpf_prog *prog;
-  struct ipft_debuginfo *dinfo;
-
-  error = debuginfo_create(&dinfo, opt->debug_info_type);
-  if (error == -1) {
-    fprintf(stderr, "Failed to create debug info\n");
     return -1;
   }
 

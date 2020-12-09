@@ -38,9 +38,8 @@ regex_create(struct ipft_regex **rep, const char *regex)
   if (re->compiled == NULL) {
     PCRE2_UCHAR buffer[256];
     pcre2_get_error_message(error, buffer, sizeof(buffer));
-    printf("PCRE2 compilation failed at offset %ld: %s\n", error_offset,
-           buffer);
-    free(re);
+    fprintf(stderr, "PCRE2 compilation failed at offset %ld: %s\n",
+        error_offset, buffer);
     return -1;
   }
 

@@ -23,8 +23,6 @@
 
 struct ipft_symsdb;
 struct ipft_tracedb;
-struct ipft_bpf_prog;
-struct ipft_perf_buffer;
 struct ipft_debuginfo;
 struct ipft_regex;
 struct ipft_traceable_set;
@@ -55,11 +53,6 @@ struct ipft_syminfo {
 
 struct ipft_debuginfo {
   int (*fill_sym2info)(struct ipft_debuginfo *, struct ipft_symsdb *);
-  int (*sizeof_fn)(struct ipft_debuginfo *, const char *, size_t *);
-  int (*offsetof_fn)(struct ipft_debuginfo *, const char *, const char *,
-                     size_t *);
-  int (*typeof_fn)(struct ipft_debuginfo *, const char *, const char *,
-                   char **);
 };
 
 struct ipft_output {
@@ -88,15 +81,8 @@ void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb);
 
 int debuginfo_create(struct ipft_debuginfo **dinfop);
 int btf_debuginfo_create(struct ipft_debuginfo **dinfop);
-int dwarf_debuginfo_create(struct ipft_debuginfo **dinfop);
 int debuginfo_fill_sym2info(struct ipft_debuginfo *dinfo,
                             struct ipft_symsdb *sdb);
-int debuginfo_sizeof(struct ipft_debuginfo *dinfo, const char *type,
-                     size_t *sizep);
-int debuginfo_offsetof(struct ipft_debuginfo *dinfo, const char *type,
-                       const char *member, size_t *offsetp);
-int debuginfo_typeof(struct ipft_debuginfo *dinfo, const char *type,
-                     const char *member, char **namep);
 
 int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 

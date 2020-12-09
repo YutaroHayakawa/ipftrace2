@@ -26,19 +26,12 @@ aggregate_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
   return tracedb_put_trace(out->tdb, t);
 }
 
-static char *
-dump_trace(uint8_t *data, size_t size, void *arg)
-{
-  struct ipft_script *script = (struct ipft_script *)arg;
-  return script_exec_dump(script, data, size);
-}
-
 static int
 aggregate_output_post_trace(struct ipft_output *_out)
 {
   struct aggregate_output *out = (struct aggregate_output *)_out;
   printf("\n");
-  tracedb_dump(out->tdb, out->base.sdb, dump_trace, out->base.script);
+  tracedb_dump(out->tdb, out->base.sdb);
   return 0;
 }
 

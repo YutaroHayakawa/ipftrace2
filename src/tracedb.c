@@ -108,6 +108,10 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb)
         count++;
       }
 
+      /*
+       * Order trace by timestamp. They are not always orderd since they
+       * can be collected with different perf ring.
+       */
       qsort(tarray, count, sizeof(*tarray), compare_tstamp);
 
       for (uint32_t i = 0; i < count; i++) {
