@@ -68,13 +68,3 @@ regex_match(struct ipft_regex *re, const char *s)
 
   return error < 0 ? false : true;
 }
-
-void
-regex_destroy(struct ipft_regex *re)
-{
-  if (re == NULL) {
-    return;
-  }
-  pcre2_code_free(re->compiled);
-  free(re);
-}

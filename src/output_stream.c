@@ -42,12 +42,6 @@ stream_output_post_trace(__unused struct ipft_output *_out)
   return 0;
 }
 
-static void
-stream_output_destroy(__unused struct ipft_output *_out)
-{
-  return;
-}
-
 int
 stream_output_create(struct ipft_output **outp)
 {
@@ -61,7 +55,6 @@ stream_output_create(struct ipft_output **outp)
 
   out->base.on_trace = stream_output_on_trace;
   out->base.post_trace = stream_output_post_trace;
-  out->base.destroy = stream_output_destroy;
 
   *outp = (struct ipft_output *)out;
 

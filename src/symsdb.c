@@ -41,8 +41,7 @@ symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
 
   v = (struct ipft_syminfo *)malloc(sizeof(*v));
   if (v == NULL) {
-    error = -1;
-    goto err0;
+    return -1;
   }
 
   memcpy(v, sinfo, sizeof(*v));
@@ -50,19 +49,13 @@ symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
   db = ((struct ipft_symsdb *)sdb)->sym2info;
 
   iter = kh_put(sym2info, db, k, &missing);
-  if (missing) {
-    kh_value(db, iter) = v;
-  } else {
-    goto err1;
+  if (!missing) {
+    return -1;
   }
 
-  return 0;
+  kh_value(db, iter) = v;
 
-err1:
-  free(v);
-err0:
-  free(k);
-  return error;
+  return 0;
 }
 
 int
@@ -82,14 +75,6 @@ symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
   *sinfop = kh_value(db, iter);
 
   return 0;
-}
-
-void
-symsdb_release_all_sym2info(struct ipft_symsdb *sdb)
-{
-  const char *k;
-  struct ipft_syminfo *v;
-  kh_foreach(sdb->sym2info, k, v, free((char *)k); free(v););
 }
 
 int
@@ -124,17 +109,13 @@ symsdb_put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *sym)
   db = ((struct ipft_symsdb *)sdb)->addr2sym;
 
   iter = kh_put(addr2sym, db, addr, &missing);
-  if (missing) {
-    kh_value(db, iter) = v;
-  } else {
-    goto err0;
+  if (!missing) {
+    return -1;
   }
 
-  return 0;
+  kh_value(db, iter) = v;
 
-err0:
-  free(v);
-  return -1;
+  return 0;
 }
 
 int
@@ -156,13 +137,6 @@ symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp)
   return 0;
 }
 
-static void
-symsdb_release_all_addr2sym(struct ipft_symsdb *sdb)
-{
-  char *v;
-  kh_foreach_value(sdb->addr2sym, v, free(v);)
-}
-
 int
 symsdb_create(struct ipft_symsdb **sdbp)
 {
@@ -177,32 +151,16 @@ symsdb_create(struct ipft_symsdb **sdbp)
   sdb->sym2info = kh_init(sym2info);
   if (sdb->sym2info == NULL) {
     perror("kh_init");
-    goto err0;
+    return -1;
   }
 
   sdb->addr2sym = kh_init(addr2sym);
   if (sdb->addr2sym == NULL) {
     perror("kh_init");
-    goto err1;
+    return -1;
   }
 
   *sdbp = (struct ipft_symsdb *)sdb;
 
   return 0;
-
-err1:
-  kh_destroy(sym2info, sdb->sym2info);
-err0:
-  free(sdb);
-  return -1;
-}
-
-void
-symsdb_destroy(struct ipft_symsdb *sdb)
-{
-  symsdb_release_all_sym2info(sdb);
-  kh_destroy(sym2info, sdb->sym2info);
-  symsdb_release_all_addr2sym(sdb);
-  kh_destroy(addr2sym, sdb->addr2sym);
-  free(sdb);
 }

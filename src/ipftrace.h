@@ -60,18 +60,15 @@ struct ipft_debuginfo {
                      size_t *);
   int (*typeof_fn)(struct ipft_debuginfo *, const char *, const char *,
                    char **);
-  void (*destroy)(struct ipft_debuginfo *);
 };
 
 struct ipft_output {
   struct ipft_symsdb *sdb;
   int (*on_trace)(struct ipft_output *, struct ipft_trace *);
   int (*post_trace)(struct ipft_output *);
-  void (*destroy)(struct ipft_output *);
 };
 
 int symsdb_create(struct ipft_symsdb **sdbp);
-void symsdb_destroy(struct ipft_symsdb *sdb);
 size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
 int symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
                         struct ipft_syminfo *sinfo);
@@ -85,16 +82,13 @@ int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
                             void *arg);
 
 int tracedb_create(struct ipft_tracedb **tdbp);
-void tracedb_destroy(struct ipft_tracedb *tdb);
 size_t tracedb_get_total(struct ipft_tracedb *tdb);
 int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t);
-void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
-                  char *(*cb)(uint8_t *, size_t, void *), void *data);
+void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb);
 
-int debuginfo_create(struct ipft_debuginfo **dinfop, const char *type);
+int debuginfo_create(struct ipft_debuginfo **dinfop);
 int btf_debuginfo_create(struct ipft_debuginfo **dinfop);
 int dwarf_debuginfo_create(struct ipft_debuginfo **dinfop);
-void debuginfo_destroy(struct ipft_debuginfo *dinfo);
 int debuginfo_fill_sym2info(struct ipft_debuginfo *dinfo,
                             struct ipft_symsdb *sdb);
 int debuginfo_sizeof(struct ipft_debuginfo *dinfo, const char *type,
@@ -110,17 +104,14 @@ int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);
 
 int output_create(struct ipft_output **outp, const char *type,
-    struct ipft_symsdb *sdb, struct ipft_script *script);
+    struct ipft_symsdb *sdb);
 int aggregate_output_create(struct ipft_output **outp);
 int stream_output_create(struct ipft_output **outp);
 int output_on_trace(struct ipft_output *out, struct ipft_trace *t);
 int output_post_trace(struct ipft_output *out);
-void output_destroy(struct ipft_output *out);
 
 int traceable_set_create(struct ipft_traceable_set **tsetp);
 bool traceable_set_is_traceable(struct ipft_traceable_set *tset, const char *sym);
-void traceable_set_destroy(struct ipft_traceable_set *tset);
 
 int tracer_run(struct ipft_tracer_opt *opt);
-int list_functions(struct ipft_tracer_opt *opt);
-int test_bpf_prog(struct ipft_tracer_opt *opt);
+int list_functions(void);

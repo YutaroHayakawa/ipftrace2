@@ -32,13 +32,13 @@ list_functions(struct ipft_tracer_opt *opt)
   error = debuginfo_create(&dinfo);
   if (error == -1) {
     fprintf(stderr, "Error in initializing debuginfo\n");
-    goto err0;
+    return -1;
   }
 
   error = debuginfo_fill_sym2info(dinfo, sdb);
   if (error == -1) {
     fprintf(stderr, "Failed to fill sym2info\n");
-    goto err1;
+    return -1;
   }
 
   error = symsdb_sym2info_foreach(sdb, print_sym, NULL);

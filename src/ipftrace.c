@@ -66,27 +66,6 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->set_rlimit = true;
 }
 
-static void
-opt_deinit(struct ipft_tracer_opt *opt)
-{
-  /* Compare address */
-  if (opt->debug_info_type != default_debuginfo_type) {
-    free(opt->debug_info_type);
-  }
-
-  if (opt->output_type != default_output_type) {
-    free(opt->output_type);
-  }
-
-  if (opt->script_path != NULL) {
-    free(opt->script_path);
-  }
-
-  if (opt->regex != NULL) {
-    free(opt->regex);
-  }
-}
-
 static bool
 opt_validate(struct ipft_tracer_opt *opt, bool list)
 {
@@ -193,6 +172,5 @@ main(int argc, char **argv)
   }
 
 end:
-  opt_deinit(&opt);
   return error == 0 ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -5,7 +5,6 @@ project(ipftrace2 C)
 # Taken from bpftrace (https://github.com/iovisor/bpftrace)
 set(STATIC_LINKING OFF CACHE BOOL "Build ipftrace2 as a statically linked executable")
 set(STATIC_LIBC OFF CACHE BOOL "Attempt to embed libc, only known to work with musl. Has issues with dlopen.")
-set(BUILD_ASAN OFF CACHE BOOL "Build ipftrace with -fsanitize=address")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 

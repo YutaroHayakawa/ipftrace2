@@ -32,7 +32,6 @@ put(khash_t(traceable_set) *set, char *sym)
   iter = kh_put(traceable_set, set, k, &missing);
   if (missing == -1) {
     fprintf(stderr, "kh_put failed\n");
-    free(k);
     return -1;
   } else if (!missing) {
     free(k);
@@ -107,7 +106,7 @@ traceable_set_create(struct ipft_traceable_set **tsetp)
   tset->set = kh_init(traceable_set);
   if (tset->set == NULL) {
     perror("kh_init");
-    goto err0;
+    return -1;
   }
 
   error = read_available_filter_functions(tset->set);
@@ -119,17 +118,4 @@ traceable_set_create(struct ipft_traceable_set **tsetp)
   *tsetp = tset;
 
   return 0;
-
-err0:
-  free(tset);
-  return -1;
-}
-
-void
-traceable_set_destroy(struct ipft_traceable_set *tset)
-{
-  const char *k;
-  __unused int v;
-  kh_foreach(tset->set, k, v, free((char *)k););
-  free(tset);
 }

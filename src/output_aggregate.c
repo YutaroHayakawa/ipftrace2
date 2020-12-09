@@ -42,13 +42,6 @@ aggregate_output_post_trace(struct ipft_output *_out)
   return 0;
 }
 
-static void
-aggregate_output_destroy(struct ipft_output *_out)
-{
-  struct aggregate_output *out = (struct aggregate_output *)_out;
-  tracedb_destroy(out->tdb);
-}
-
 int
 aggregate_output_create(struct ipft_output **outp)
 {
@@ -64,19 +57,14 @@ aggregate_output_create(struct ipft_output **outp)
   error = tracedb_create(&out->tdb);
   if (error == -1) {
     fprintf(stderr, "tracedb_create failed\n");
-    goto err0;
+    return -1;
   }
 
   out->ntraces = 0;
   out->base.on_trace = aggregate_output_on_trace;
   out->base.post_trace = aggregate_output_post_trace;
-  out->base.destroy = aggregate_output_destroy;
 
   *outp = (struct ipft_output *)out;
 
   return 0;
-
-err0:
-  free(out);
-  return -1;
 }

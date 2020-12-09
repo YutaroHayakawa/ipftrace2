@@ -567,14 +567,6 @@ btf_debuginfo_fill_sym2info(struct ipft_debuginfo *_dinfo,
   return fill_sym2info((struct btf_debuginfo *)_dinfo, sdb);
 }
 
-static void
-btf_debuginfo_destroy(struct ipft_debuginfo *_dinfo)
-{
-  struct btf_debuginfo *dinfo = (struct btf_debuginfo *)_dinfo;
-  free(dinfo->btf);
-  free(dinfo->types);
-}
-
 int
 btf_debuginfo_create(struct ipft_debuginfo **dinfop)
 {
@@ -596,22 +588,15 @@ btf_debuginfo_create(struct ipft_debuginfo **dinfop)
   error = parse_types(dinfo);
   if (error == -1) {
     fprintf(stderr, "parse_types\n");
-    goto err1;
+    return -1;
   }
 
   dinfo->base.fill_sym2info = btf_debuginfo_fill_sym2info;
   dinfo->base.sizeof_fn = btf_sizeof;
   dinfo->base.offsetof_fn = btf_offsetof;
   dinfo->base.typeof_fn = btf_typeof;
-  dinfo->base.destroy = btf_debuginfo_destroy;
 
   *dinfop = (struct ipft_debuginfo *)dinfo;
 
   return 0;
-
-err1:
-  free(dinfo->btf);
-err0:
-  free(dinfo);
-  return -1;
 }

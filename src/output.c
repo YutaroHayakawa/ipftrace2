@@ -43,10 +43,3 @@ output_post_trace(struct ipft_output *out)
 {
   return out->post_trace(out);
 }
-
-void
-output_destroy(struct ipft_output *out)
-{
-  out->destroy(out);
-  free(out);
-}

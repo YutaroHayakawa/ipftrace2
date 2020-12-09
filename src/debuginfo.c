@@ -41,10 +41,3 @@ debuginfo_typeof(struct ipft_debuginfo *dinfo, const char *type,
 {
   return dinfo->typeof_fn(dinfo, type, member, namep);
 }
-
-void
-debuginfo_destroy(struct ipft_debuginfo *dinfo)
-{
-  dinfo->destroy(dinfo);
-  free(dinfo);
-}

@@ -51,7 +51,7 @@ tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *_t)
   iter = kh_put(trace, tdb->trace, t->skb_addr, &ret);
   if (ret == -1) {
     fprintf(stderr, "Cannot allocate tracedb element\n");
-    exit(EXIT_FAILURE);
+    return -1;
   } else if (ret == 0) {
     l = kh_value(tdb->trace, iter);
     *kl_pushp(trace_list, l) = t;
@@ -140,23 +140,10 @@ tracedb_create(struct ipft_tracedb **tdbp)
   tdb->trace = kh_init(trace);
   if (tdb == NULL) {
     perror("kh_init");
-    goto err0;
+    return -1;
   }
 
   *tdbp = tdb;
 
   return 0;
-
-err0:
-  free(tdb);
-  return -1;
-}
-
-void
-tracedb_destroy(struct ipft_tracedb *tdb)
-{
-  klist_t(trace_list) * v;
-  kh_foreach_value(tdb->trace, v, kl_destroy(trace_list, v);)
-      kh_destroy(trace, tdb->trace);
-  free(tdb);
 }
