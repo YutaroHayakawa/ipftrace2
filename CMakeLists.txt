@@ -30,6 +30,7 @@ find_package(ZLIB REQUIRED)
 find_package(LibElf REQUIRED)
 find_package(LibPcre REQUIRED)
 find_package(LibReadline REQUIRED)
+find_package(LibBpf REQUIRED)
 
 include_directories(SYSTEM ${LIBDW_INCLUDE_DIRS})
 

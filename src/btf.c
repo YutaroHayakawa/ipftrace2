@@ -7,20 +7,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <linux/btf.h>
 
+#include <bpf/btf.h>
+
 #include "ipftrace.h"
 
 struct btf_debuginfo {
   struct ipft_debuginfo base;
-  struct btf_header *btf;
+  struct btf *btf;
   struct btf_type **types;
   size_t ntypes;
 };
+
+static struct btf_header *
+get_btf_hdr(struct btf *btf)
+{
+  __unused uint32_t size;
+  return (struct btf_header *)btf__get_raw_data(btf, &size);
+}
 
 static ssize_t
 btf_type_size(struct btf_type *t)
@@ -92,12 +102,12 @@ parse_types(struct btf_debuginfo *dinfo)
   ssize_t tsize;
   uint8_t *cur, *end;
   size_t idx, ntypes;
-  struct btf_header *btf;
+  struct btf_header *hdr;
   struct btf_type *type, **types;
 
-  btf = dinfo->btf;
+  hdr = get_btf_hdr(dinfo->btf);
 
-  ntypes = btf->type_len / sizeof(**types) + 2;
+  ntypes = hdr->type_len / sizeof(**types) + 2;
 
   types = calloc(sizeof(*types), ntypes);
   if (types == NULL) {
@@ -106,8 +116,8 @@ parse_types(struct btf_debuginfo *dinfo)
   }
 
   idx = 1;
-  cur = (uint8_t *)(btf + 1) + btf->type_off;
-  end = (uint8_t *)(btf + 1) + btf->str_off;
+  cur = (uint8_t *)(hdr + 1) + hdr->type_off;
+  end = (uint8_t *)(hdr + 1) + hdr->str_off;
   while (cur < end) {
     type = (struct btf_type *)cur;
     tsize = btf_type_size(type);
@@ -130,14 +140,14 @@ static int
 fill_sym2info(struct btf_debuginfo *dinfo, struct ipft_symsdb *sdb)
 {
   int error;
-  struct btf_header *btf;
+  struct btf_header *hdr;
   struct ipft_syminfo sinfo;
   char *str_sec, *st_name, *func_name;
   struct btf_param *param_base, *param;
   struct btf_type **types, *ptr, *st, *func, *func_proto;
 
-  btf = dinfo->btf;
-  str_sec = (char *)(btf + 1) + btf->str_off;
+  hdr = get_btf_hdr(dinfo->btf);
+  str_sec = (char *)(hdr + 1) + hdr->str_off;
 
   types = dinfo->types;
 
@@ -190,8 +200,11 @@ get_type_from_name(struct btf_debuginfo *dinfo, const char *name,
 {
   char *str_sec;
   struct btf_type *t;
+  struct btf_header *hdr;
 
-  str_sec = (char *)(dinfo->btf + 1) + dinfo->btf->str_off;
+  hdr = get_btf_hdr(dinfo->btf);
+
+  str_sec = (char *)(hdr + 1) + hdr->str_off;
 
   for (size_t i = 1; i < dinfo->ntypes; i++) {
     t = dinfo->types[i];
@@ -212,8 +225,11 @@ get_member_offset(struct btf_debuginfo *dinfo, int level, struct btf_type *t,
   struct btf_type *mt;
   char *name, *str_sec;
   struct btf_member *m, *base;
+  struct btf_header *hdr;
 
-  str_sec = (char *)(dinfo->btf + 1) + dinfo->btf->str_off;
+  hdr = get_btf_hdr(dinfo->btf);
+
+  str_sec = (char *)(hdr + 1) + hdr->str_off;
 
   if (level == MAX_RECURSE_LEVEL) {
     fprintf(stderr, "Max recurse level reached\n");
@@ -296,8 +312,11 @@ get_member_type(struct btf_debuginfo *dinfo, int level, struct btf_type *t,
   struct btf_type *mt;
   char *name, *str_sec;
   struct btf_member *m, *base;
+  struct btf_header *hdr;
 
-  str_sec = (char *)(dinfo->btf + 1) + dinfo->btf->str_off;
+  hdr = get_btf_hdr(dinfo->btf);
+
+  str_sec = (char *)(hdr + 1) + hdr->str_off;
 
   if (level == MAX_RECURSE_LEVEL) {
     fprintf(stderr, "Max recurse level reached\n");
@@ -516,51 +535,6 @@ btf_typeof(struct ipft_debuginfo *_dinfo, const char *type, const char *member,
 }
 
 static int
-read_btf_file(const char *path, struct btf_header **btfp)
-{
-  FILE *f;
-  size_t rsize;
-  int error = 0;
-  uint8_t *data;
-  struct stat st;
-
-  error = stat(path, &st);
-  if (error == -1) {
-    perror("fstat");
-    return -1;
-  }
-
-  data = malloc(st.st_size);
-  if (data == NULL) {
-    perror("malloc");
-    return -1;
-  }
-
-  f = fopen(path, "r");
-  if (f == NULL) {
-    perror("fopen");
-    goto err0;
-  }
-
-  rsize = fread(data, 1, st.st_size, f);
-  fclose(f);
-  if (rsize < (size_t)st.st_size) {
-    fprintf(stderr, "Failed to read entire BTF\n");
-    goto err1;
-  }
-
-  *btfp = (struct btf_header *)data;
-
-  return 0;
-
-err1:
-  fclose(f);
-err0:
-  free(data);
-  return -1;
-}
-
-static int
 btf_debuginfo_fill_sym2info(struct ipft_debuginfo *_dinfo,
                             struct ipft_symsdb *sdb)
 {
@@ -579,10 +553,10 @@ btf_debuginfo_create(struct ipft_debuginfo **dinfop)
     return -1;
   }
 
-  error = read_btf_file("/sys/kernel/btf/vmlinux", &dinfo->btf);
-  if (error == -1) {
-    fprintf(stderr, "read_btf_file failed\n");
-    goto err0;
+  dinfo->btf = libbpf_find_kernel_btf();
+  if (dinfo->btf == NULL) {
+    fprintf(stderr, "libbpf_find_kernel_btf failed\n");
+    return -1;
   }
 
   error = parse_types(dinfo);

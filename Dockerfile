@@ -3,6 +3,7 @@
 FROM alpine:3.12.1
 
 RUN apk add \
+  curl \
   cmake \
   xz-dev \
   fts-dev \
@@ -18,6 +19,10 @@ RUN apk add \
   readline-dev \
   readline-static \
   linux-headers
+
+RUN curl -OL https://github.com/libbpf/libbpf/archive/v0.2.tar.gz
+RUN tar xvf v0.2.tar.gz
+RUN cd libbpf-0.2/src && make install BUILD_STATIC_ONLY=1
 
 ADD . /ipftrace2
 WORKDIR /ipftrace2
