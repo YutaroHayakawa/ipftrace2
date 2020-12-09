@@ -23,7 +23,6 @@
 
 struct ipft_symsdb;
 struct ipft_tracedb;
-struct ipft_script;
 struct ipft_bpf_prog;
 struct ipft_perf_buffer;
 struct ipft_debuginfo;
@@ -45,7 +44,6 @@ struct ipft_tracer_opt {
   uint32_t mask;
   char *regex;
   char *output_type;
-  char *script_path;
   char *debug_info_type;
   size_t perf_page_cnt;
   bool set_rlimit;
@@ -67,7 +65,6 @@ struct ipft_debuginfo {
 
 struct ipft_output {
   struct ipft_symsdb *sdb;
-  struct ipft_script *script;
   int (*on_trace)(struct ipft_output *, struct ipft_trace *);
   int (*post_trace)(struct ipft_output *);
   void (*destroy)(struct ipft_output *);
@@ -109,31 +106,8 @@ int debuginfo_typeof(struct ipft_debuginfo *dinfo, const char *type,
 
 int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 
-int script_create(struct ipft_script **scriptp, struct ipft_debuginfo *dinfo,
-                  const char *path);
-void script_destroy(struct ipft_script *script);
-int script_exec_emit(struct ipft_script *script, struct bpf_insn **modp,
-                     uint32_t *mod_cnt);
-char *script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len);
-
-int perf_buffer_create(struct ipft_perf_buffer **pbp, size_t page_cnt);
-void perf_buffer_destroy(struct ipft_perf_buffer *pb);
-int perf_buffer_get_fd(struct ipft_perf_buffer *pb, int cpu);
-void *perf_buffer_get_base(struct ipft_perf_buffer *pb);
-int perf_event_attach_kprobe(const char *name, int prog_fd);
-int perf_event_process_mmap_page(struct ipft_perf_buffer *pb,
-                                 int (*cb)(struct perf_event_header *, void *),
-                                 int cpu, void *data);
-
-int bpf_prog_load(struct ipft_bpf_prog **progp, uint32_t mark, size_t mark_offset,
-                  uint32_t mask, struct bpf_insn *mod, uint32_t mod_cnt);
-int bpf_prog_get(struct ipft_bpf_prog *prog, int skb_pos);
-int bpf_prog_set_perf_fd(struct ipft_bpf_prog *prog, int fd, int cpu);
-void bpf_prog_unload(struct ipft_bpf_prog *prog);
-
 int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);
-void regex_destroy(struct ipft_regex *re);
 
 int output_create(struct ipft_output **outp, const char *type,
     struct ipft_symsdb *sdb, struct ipft_script *script);

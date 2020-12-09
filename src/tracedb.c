@@ -81,11 +81,10 @@ compare_tstamp(const void *_t1, const void *_t2)
 }
 
 void
-tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
-             char *(*cb)(uint8_t *, size_t, void *), void *arg)
+tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb)
 {
   int error;
-  char *name, *dump;
+  char *name;
   klist_t(trace_list) * l;
   kliter_t(trace_list) * iter;
   struct ipft_trace *t, **tarray;
@@ -121,19 +120,7 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
           return;
         }
 
-        if (cb != NULL) {
-          dump = cb(t->data, sizeof(t->data), arg);
-        } else {
-          dump = NULL;
-        }
-
-        if (dump == NULL) {
-          printf("%zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
-        } else {
-          printf("%zu %03u %32.32s %s\n", t->tstamp, t->processor_id, name,
-                 dump);
-          free(dump);
-        }
+        printf("%zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
       }
 
       free(tarray);)

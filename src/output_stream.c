@@ -28,14 +28,8 @@ stream_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
     return -1;
   }
 
-  dump = script_exec_dump(out->base.script, t->data, sizeof(t->data));
-  if (dump == NULL) {
-    printf("%p %zu %03u %s\n", (void *)t->skb_addr, t->tstamp,
-        t->processor_id, name);
-  } else {
-    printf("%p %zu %03u %s %s\n", (void *)t->skb_addr, t->tstamp,
-        t->processor_id, name, dump);
-  }
+  printf("%p %zu %03u %s\n", (void *)t->skb_addr, t->tstamp,
+      t->processor_id, name);
 
   fflush(stdout);
 

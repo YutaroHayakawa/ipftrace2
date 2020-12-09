@@ -29,7 +29,7 @@ list_functions(struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = debuginfo_create(&dinfo, opt->debug_info_type);
+  error = debuginfo_create(&dinfo);
   if (error == -1) {
     fprintf(stderr, "Error in initializing debuginfo\n");
     goto err0;
@@ -71,37 +71,5 @@ test_bpf_prog(struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = script_create(&script, dinfo, opt->script_path);
-  if (error == -1) {
-    fprintf(stderr, "Failed to create script\n");
-    goto err0;
-  }
-
-  error = script_exec_emit(script, &mod, &mod_cnt);
-  if (error == -1) {
-    fprintf(stderr, "Execution of emit function failed\n");
-    goto err1;
-  }
-
-  error = debuginfo_offsetof(dinfo, "sk_buff", "mark", &offset);
-  if (error == -1) {
-    fprintf(stderr, "Cannot get offset of the mark\n");
-    goto err2;
-  }
-
-  error = bpf_prog_load(&prog, 0xdeadbeef, offset, 0xffffffff, mod, mod_cnt);
-  if (error == -1) {
-    fprintf(stderr, "Failed to load prog\n");
-    goto err2;
-  }
-
-  bpf_prog_unload(prog);
-
-err2:
-  free(mod);
-err1:
-  script_destroy(script);
-err0:
-  debuginfo_destroy(dinfo);
-  return error;
+  return 0;
 }

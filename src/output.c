@@ -26,7 +26,6 @@ output_create(struct ipft_output **outp, const char *type,
   }
 
   out->sdb = sdb;
-  out->script = script;
 
   *outp = out;
 

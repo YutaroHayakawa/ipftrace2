@@ -14,17 +14,14 @@
 
 #include "ipftrace.h"
 
-static char *default_debuginfo_type = "dwarf";
 static char *default_output_type = "aggregate";
 
 static struct option options[] = {
-    {"debug-format", required_argument, 0, 'f'},
     {"help", no_argument, 0, 'h'},
     {"list", no_argument, 0, 'l'},
     {"mark", required_argument, 0, 'm'},
     {"output", required_argument, 0, 'o'},
     {"regex", required_argument, 0, 'r'},
-    {"script", required_argument, 0, 's'},
     {"mask", required_argument, 0, '0'},
     {"perf-page-count", required_argument, 0, '0'},
     {"test", no_argument, 0, '0'},
@@ -39,8 +36,6 @@ usage(void)
           "Usage: ipft [OPTIONS]\n"
           "\n"
           "Options:\n"
-          " -f, --debug-format    [DEBUG-FORMAT]  Read the debug "
-          "information with specified format\n"
           " -h, --help                            Show this text\n"
           " -l, --list                            List functions\n"
           " -m, --mark            [HEX]           Trace the packet "
@@ -50,7 +45,6 @@ usage(void)
           " -o, --output          [OUTPUT-FORMAT] Specify output format\n"
           " -r, --regex           [REGEX]         Filter the function to trace"
           "with regex\n"
-          " -s, --script-path     [PATH]          Path to the Lua script file\n"
           "   , --perf-page-count [NUMBER]        Number of pages to use with"
           "perf\n"
           "   , --test                            Run in eBPF test mode\n"
@@ -66,8 +60,6 @@ opt_init(struct ipft_tracer_opt *opt)
 {
   opt->mark = 0;
   opt->mask = 0xffffffff;
-  opt->script_path = NULL;
-  opt->debug_info_type = default_debuginfo_type;
   opt->output_type = default_output_type;
   opt->perf_page_cnt = 8;
   opt->regex = NULL;
@@ -105,12 +97,6 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
 
   if (!list && opt->mask == 0) {
     fprintf(stderr, "Masking by 0 is not allowed\n");
-    return false;
-  }
-
-  if (strcmp(opt->debug_info_type, default_debuginfo_type) != 0 &&
-      strcmp(opt->debug_info_type, "btf") != 0) {
-    fprintf(stderr, "Invalid debug info format %s\n", opt->debug_info_type);
     return false;
   }
 
@@ -155,9 +141,6 @@ main(int argc, char **argv)
       break;
     case 'r':
       opt.regex = strdup(optarg);
-      break;
-    case 's':
-      opt.script_path = strdup(optarg);
       break;
     case '0':
       optname = options[optind].name;

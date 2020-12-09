@@ -11,16 +11,9 @@
 #include "ipftrace.h"
 
 int
-debuginfo_create(struct ipft_debuginfo **dinfop, const char *type)
+debuginfo_create(struct ipft_debuginfo **dinfop)
 {
-  if (strcmp(type, "dwarf") == 0) {
-    return dwarf_debuginfo_create(dinfop);
-  } else if (strcmp(type, "btf") == 0) {
-    return btf_debuginfo_create(dinfop);
-  } else {
-    fprintf(stderr, "Unsupported debug info type %s\n", type);
-    return -1;
-  }
+  return btf_debuginfo_create(dinfop);
 }
 
 int

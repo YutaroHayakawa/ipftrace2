@@ -27,10 +27,7 @@ endif(STATIC_LINKING)
 
 set(FIND_LIBRARY_USE_LIB64_PATHS TRUE)
 
-find_package(LibDw REQUIRED)
 find_package(ZLIB REQUIRED)
-find_package(BZip2 REQUIRED)
-find_package(LibLZMA REQUIRED)
 find_package(LibElf REQUIRED)
 find_package(LibPcre REQUIRED)
 find_package(LibReadline REQUIRED)
@@ -42,23 +39,6 @@ set(CMAKE_REQUIRED_LINK_OPTIONS)
 
 include(ExternalProject)
 include(CheckCSourceCompiles)
-
-# Need Lua 5.3
-ExternalProject_Add(
-  LibLua
-  URL https://www.lua.org/ftp/lua-5.3.5.tar.gz
-  PREFIX ${CMAKE_CURRENT_BINARY_DIR}/lua-5.3.5
-  CONFIGURE_COMMAND ""
-  BUILD_COMMAND  make linux
-  BUILD_IN_SOURCE TRUE
-  INSTALL_COMMAND make local && cp -r install/include install/lib ${CMAKE_CURRENT_BINARY_DIR}/lua-5.3.5
-)
-
-ExternalProject_Get_Property(LibLua INSTALL_DIR)
-set(LIBLUA_INCLUDE_DIRS ${INSTALL_DIR}/include)
-include_directories(SYSTEM ${LIBLUA_INCLUDE_DIRS})
-# Lua doesn't support dynamic linking
-set(LIBLUA_LIBRARIES ${INSTALL_DIR}/lib/liblua.a)
 
 # Some libc like musl-libc doesn't have built-in fts. Test it.
 CHECK_C_SOURCE_COMPILES("
