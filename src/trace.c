@@ -3,6 +3,8 @@
 #include <signal.h>
 #include <sys/resource.h>
 
+#include <bpf/bpf.h>
+
 #include "ipftrace.h"
 #include "ipft.bpf.skel.h"
 
@@ -208,19 +210,21 @@ bpf_create(struct ipft_bpf **bpfp, uint32_t mark, uint32_t mask)
 {
   int error;
   struct ipft_bpf *bpf;
+  struct ipft_trace_config conf;
 
-  bpf = ipft_bpf__open();
+  bpf = ipft_bpf__open_and_load();
   if (bpf == NULL) {
-    fprintf(stderr, "ipft_bpf__open failed\n");
+    fprintf(stderr, "ipft_bpf__open_and_load failed\n");
     return -1;
   }
 
-  bpf->rodata->target_mark = mark;
-  bpf->rodata->target_mask = mask;
+  conf.mark = mark;
+  conf.mask = mask;
 
-  error = ipft_bpf__load(bpf);
+  error = bpf_map_update_elem(bpf_map__fd(bpf->maps.config),
+      &(int){0}, &conf, 0);
   if (error == -1) {
-    fprintf(stderr, "ipft_bpf__load failed\n");
+    fprintf(stderr, "Cannot update config map\n");
     return -1;
   }
 

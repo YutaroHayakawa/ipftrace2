@@ -37,6 +37,11 @@ struct ipft_trace {
   /* 128Bytes */
 } __attribute__((aligned(8)));
 
+struct ipft_trace_config {
+  uint32_t mark;
+  uint32_t mask;
+};
+
 struct ipft_tracer_opt {
   uint32_t mark;
   uint32_t mask;

@@ -19,8 +19,12 @@ struct {
 	__uint(value_size, sizeof(uint32_t));
 } events SEC(".maps");
 
-const volatile uint32_t target_mark = 0;
-const volatile uint32_t target_mask = 0;
+struct {
+  __uint(type, BPF_MAP_TYPE_ARRAY);
+  __uint(max_entries, 1);
+  __type(key, uint32_t);
+  __type(value, struct ipft_trace_config);
+} config SEC(".maps");
 
 static __inline void
 ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
@@ -29,6 +33,12 @@ ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
   uint32_t mark;
   uint32_t idx = 0;
   struct ipft_trace trace = {0};
+  struct ipft_trace_config *conf;
+
+  conf = bpf_map_lookup_elem(&config, &idx);
+  if (conf == NULL) {
+    return;
+  }
 
   mark = BPF_CORE_READ(skb, mark);
   if (mark == 0 || mark != target_mark) {
