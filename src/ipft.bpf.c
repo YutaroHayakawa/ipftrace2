@@ -41,7 +41,7 @@ ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
   }
 
   mark = BPF_CORE_READ(skb, mark);
-  if (mark == 0 || mark != target_mark) {
+  if ((mark & conf->mask) != (conf->mark & conf->mask)) {
     return;
   }
 
