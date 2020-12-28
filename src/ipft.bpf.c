@@ -9,6 +9,8 @@
 
 #include "ipftrace.h"
 
+#define __noinline __attribute__((noinline))
+
 struct sk_buff {
   uint32_t mark;
 };
@@ -25,6 +27,14 @@ struct {
   __type(key, uint32_t);
   __type(value, struct ipft_trace_config);
 } config SEC(".maps");
+
+static __noinline int
+module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
+{
+  data[0] = (uint8_t)ctx;
+  data[1] = (uint8_t)skb;
+  return (int)data;
+}
 
 static __inline void
 ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
@@ -49,6 +59,11 @@ ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
   trace.tstamp = bpf_ktime_get_ns();
   trace.faddr = PT_REGS_IP(ctx);
   trace.processor_id = bpf_get_smp_processor_id();
+
+  error = module(ctx, skb, trace.data);
+  if (error != 0) {
+    return;
+  }
 
   bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
       &trace, sizeof(trace));

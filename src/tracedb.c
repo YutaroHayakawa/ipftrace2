@@ -81,7 +81,8 @@ compare_tstamp(const void *_t1, const void *_t2)
 }
 
 void
-tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb)
+tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
+    struct ipft_script *script)
 {
   int error;
   char *name;
@@ -124,7 +125,12 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb)
           return;
         }
 
-        printf("%zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
+        if (script != NULL) {
+          printf("%zu %03u %32.32s %s\n", t->tstamp, t->processor_id, name,
+              script_exec_dump(script, t->data, sizeof(t->data)));
+        } else {
+          printf("%zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
+        }
       }
 
       free(tarray);)

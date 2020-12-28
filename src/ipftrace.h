@@ -25,6 +25,7 @@ struct ipft_symsdb;
 struct ipft_tracedb;
 struct ipft_debuginfo;
 struct ipft_regex;
+struct ipft_script;
 struct ipft_traceable_set;
 
 struct ipft_trace {
@@ -46,6 +47,7 @@ struct ipft_tracer_opt {
   uint32_t mark;
   uint32_t mask;
   char *regex;
+  char *script;
   char *output_type;
   char *debug_info_type;
   size_t perf_page_cnt;
@@ -62,6 +64,7 @@ struct ipft_debuginfo {
 
 struct ipft_output {
   struct ipft_symsdb *sdb;
+  struct ipft_script *script;
   int (*on_trace)(struct ipft_output *, struct ipft_trace *);
   int (*post_trace)(struct ipft_output *);
 };
@@ -82,7 +85,8 @@ int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
 int tracedb_create(struct ipft_tracedb **tdbp);
 size_t tracedb_get_total(struct ipft_tracedb *tdb);
 int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t);
-void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb);
+void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
+    struct ipft_script *script);
 
 int debuginfo_create(struct ipft_debuginfo **dinfop);
 int btf_debuginfo_create(struct ipft_debuginfo **dinfop);
@@ -94,8 +98,14 @@ int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);
 
+int script_create(struct ipft_script **scriptp, const char *path);
+int script_exec_emit(struct ipft_script *script,
+    uint8_t **imagep, size_t *image_sizep);
+char *script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len);
+void script_exec_fini(struct ipft_script *script);
+
 int output_create(struct ipft_output **outp, const char *type,
-    struct ipft_symsdb *sdb);
+    struct ipft_symsdb *sdb, struct ipft_script *script);
 int aggregate_output_create(struct ipft_output **outp);
 int stream_output_create(struct ipft_output **outp);
 int output_on_trace(struct ipft_output *out, struct ipft_trace *t);

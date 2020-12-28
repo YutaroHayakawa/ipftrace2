@@ -22,6 +22,7 @@ static struct option options[] = {
     {"mark", required_argument, 0, 'm'},
     {"output", required_argument, 0, 'o'},
     {"regex", required_argument, 0, 'r'},
+    {"script", required_argument, 0, 's'},
     {"mask", required_argument, 0, '0'},
     {"perf-page-count", required_argument, 0, '0'},
     {"no-set-rlimit", no_argument, 0, '0'},
@@ -44,6 +45,7 @@ usage(void)
           " -o, --output          [OUTPUT-FORMAT] Specify output format\n"
           " -r, --regex           [REGEX]         Filter the function to trace"
           "with regex\n"
+          " -s, --script          [PATH]          Path to extension script\n"
           "   , --perf-page-count [NUMBER]        Number of pages to use with"
           "perf\n"
           "   , --no-set-rlimit                   Don't set rlimit\n"
@@ -61,6 +63,7 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->output_type = default_output_type;
   opt->perf_page_cnt = 8;
   opt->regex = NULL;
+  opt->script = NULL;
   opt->set_rlimit = true;
 }
 
@@ -102,7 +105,7 @@ main(int argc, char **argv)
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "hlm:o:r:", options, &optind)) != -1) {
+  while ((c = getopt_long(argc, argv, "hlm:o:r:s:", options, &optind)) != -1) {
     switch (c) {
     case 'l':
       list = true;
@@ -115,6 +118,9 @@ main(int argc, char **argv)
       break;
     case 'r':
       opt.regex = strdup(optarg);
+      break;
+    case 's':
+      opt.script = strdup(optarg);
       break;
     case '0':
       optname = options[optind].name;

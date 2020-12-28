@@ -31,6 +31,7 @@ find_package(LibElf REQUIRED)
 find_package(LibPcre REQUIRED)
 find_package(LibReadline REQUIRED)
 find_package(LibBpf REQUIRED)
+find_package(LibLua REQUIRED)
 
 include_directories(SYSTEM ${LIBDW_INCLUDE_DIRS})
 

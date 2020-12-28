@@ -19,6 +19,7 @@ struct ipft_tracer {
   struct ipft_symsdb *sdb;
   struct ipft_output *out;
   struct ipft_tracedb *tdb;
+  struct ipft_script *script;
   struct ipft_debuginfo *dinfo;
   struct ipft_traceable_set *tset;
   struct perf_buffer *pb;
@@ -696,7 +697,13 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     }
   }
 
-  error = bpf_create(&t->bpf, opt->mark, opt->mask);
+  error = script_create(&t->script, opt->script);
+  if (error == -1) {
+    fprintf(stderr, "script_create failed\n");
+    return -1;
+  }
+
+  error = bpf_create(&t->bpf, opt->mark, opt->mask, t->script);
   if (error == -1) {
     fprintf(stderr, "bpf_create failed\n");
     return -1;
@@ -720,7 +727,7 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = output_create(&t->out, opt->output_type, t->sdb);
+  error = output_create(&t->out, opt->output_type, t->sdb, t->script);
   if (error != 0) {
     fprintf(stderr, "output_create failed\n");
     return -1;

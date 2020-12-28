@@ -31,7 +31,7 @@ aggregate_output_post_trace(struct ipft_output *_out)
 {
   struct aggregate_output *out = (struct aggregate_output *)_out;
   printf("\n");
-  tracedb_dump(out->tdb, out->base.sdb);
+  tracedb_dump(out->tdb, out->base.sdb, out->base.script);
   return 0;
 }
 
