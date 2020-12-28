@@ -9,8 +9,10 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+#include <luaconf.h>
 
 struct ipft_script {
+  lua_Integer api_version;
   lua_State *L;
 };
 
@@ -48,6 +50,18 @@ script_has_emit(lua_State *L)
   return script_is_function(L, "emit");
 }
 
+static lua_Integer
+script_get_api_version(lua_State *L)
+{
+  lua_getglobal(L, "api_version");
+  if (!lua_isinteger(L, -1)) {
+    fprintf(stderr, "api_version should be an integer value\n");
+    return -1;
+  }
+
+  return lua_tointeger(L, -1);
+}
+
 static void
 script_exec_init(lua_State *L)
 {
@@ -64,6 +78,7 @@ script_create(struct ipft_script **scriptp, const char *path)
 {
   int error;
   lua_State *L;
+  lua_Integer api_version;
   struct ipft_script *script;
 
   if (path == NULL) {
@@ -85,6 +100,21 @@ script_create(struct ipft_script **scriptp, const char *path)
   if (error != 0) {
     const char *cause = lua_tostring(L, -1);
     fprintf(stderr, "Lua error: %s\n", cause);
+    return -1;
+  }
+
+  api_version = script_get_api_version(L);
+  if (api_version == -1) {
+    fprintf(stderr, "Failed to get API version\n");
+    return -1;
+  }
+
+  /*
+   * We currently only support API version 1
+   */
+  if (api_version != 1) {
+    fprintf(stderr, "Unsupported API version \"" LUA_INTEGER_FMT "\"\n",
+        api_version);
     return -1;
   }
 
