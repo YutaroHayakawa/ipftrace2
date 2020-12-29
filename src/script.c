@@ -114,7 +114,7 @@ script_create(struct ipft_script **scriptp, const char *path)
    */
   if (api_version != 1) {
     fprintf(stderr, "Unsupported API version \"" LUA_INTEGER_FMT "\"\n",
-        api_version);
+            api_version);
     return -1;
   }
 
@@ -138,8 +138,8 @@ script_exec_fini(struct ipft_script *script)
 }
 
 int
-script_exec_emit(struct ipft_script *script,
-    uint8_t **imagep, size_t *image_sizep)
+script_exec_emit(struct ipft_script *script, uint8_t **imagep,
+                 size_t *image_sizep)
 {
   uint8_t *image;
   const char *tmp;
@@ -174,7 +174,7 @@ script_exec_emit(struct ipft_script *script,
   return 0;
 }
 
-char*
+char *
 script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len)
 {
   const char *dump;

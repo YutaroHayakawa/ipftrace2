@@ -16,9 +16,9 @@ struct sk_buff {
 };
 
 struct {
-	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-	__uint(key_size, sizeof(uint32_t));
-	__uint(value_size, sizeof(uint32_t));
+  __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+  __uint(key_size, sizeof(uint32_t));
+  __uint(value_size, sizeof(uint32_t));
 } events SEC(".maps");
 
 struct {
@@ -65,40 +65,34 @@ ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
     return;
   }
 
-  bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU,
-      &trace, sizeof(trace));
+  bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &trace, sizeof(trace));
 }
 
-SEC("kprobe/ipft_main1") void
-ipft_main1(struct pt_regs *ctx)
+SEC("kprobe/ipft_main1") void ipft_main1(struct pt_regs *ctx)
 {
   struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM1(ctx);
   ipft_body(ctx, skb);
 }
 
-SEC("kprobe/ipft_main2") void
-ipft_main2(struct pt_regs *ctx)
+SEC("kprobe/ipft_main2") void ipft_main2(struct pt_regs *ctx)
 {
   struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM2(ctx);
   ipft_body(ctx, skb);
 }
 
-SEC("kprobe/ipft_main3") void
-ipft_main3(struct pt_regs *ctx)
+SEC("kprobe/ipft_main3") void ipft_main3(struct pt_regs *ctx)
 {
   struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM3(ctx);
   ipft_body(ctx, skb);
 }
 
-SEC("kprobe/ipft_main4") void
-ipft_main4(struct pt_regs *ctx)
+SEC("kprobe/ipft_main4") void ipft_main4(struct pt_regs *ctx)
 {
   struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM4(ctx);
   ipft_body(ctx, skb);
 }
 
-SEC("kprobe/ipft_main5") void
-ipft_main5(struct pt_regs *ctx)
+SEC("kprobe/ipft_main5") void ipft_main5(struct pt_regs *ctx)
 {
   struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM5(ctx);
   ipft_body(ctx, skb);

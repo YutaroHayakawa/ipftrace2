@@ -40,7 +40,9 @@ kallsyms_fill_addr2sym(struct ipft_symsdb *db)
   }
 
   if (geteuid() != 0) {
-    fprintf(stderr, "Non-root users cannot read address info. Please execute with root.\n");
+    fprintf(
+        stderr,
+        "Non-root users cannot read address info. Please execute with root.\n");
     return -1;
   }
 

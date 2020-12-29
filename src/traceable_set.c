@@ -14,11 +14,11 @@
 KHASH_MAP_INIT_STR(traceable_set, int)
 
 struct ipft_traceable_set {
-  khash_t(traceable_set) *set;
+  khash_t(traceable_set) * set;
 };
 
 static int
-put(khash_t(traceable_set) *set, char *sym)
+put(khash_t(traceable_set) * set, char *sym)
 {
   char *k;
   int missing;
@@ -40,8 +40,7 @@ put(khash_t(traceable_set) *set, char *sym)
   return 0;
 }
 
-static int
-read_available_filter_functions(khash_t(traceable_set) *set)
+static int read_available_filter_functions(khash_t(traceable_set) * set)
 {
   FILE *f;
   int error;

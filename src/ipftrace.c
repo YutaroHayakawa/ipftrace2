@@ -32,27 +32,28 @@ static struct option options[] = {
 static void
 usage(void)
 {
-  fprintf(stderr,
-          "Usage: ipft [OPTIONS]\n"
-          "\n"
-          "Options:\n"
-          " -h, --help                            Show this text\n"
-          " -l, --list                            List functions\n"
-          " -m, --mark            [HEX]           Trace the packet "
-          "marked with <mark> [required]\n"
-          "   , --mask            [HEX]           Only match to the bits masked "
-          "with given bitmask\n"
-          " -o, --output          [OUTPUT-FORMAT] Specify output format\n"
-          " -r, --regex           [REGEX]         Filter the function to trace"
-          "with regex\n"
-          " -s, --script          [PATH]          Path to extension script\n"
-          "   , --perf-page-count [NUMBER]        Number of pages to use with"
-          "perf\n"
-          "   , --no-set-rlimit                   Don't set rlimit\n"
-          "\n"
-          "DEBUG-FORMAT := { dwarf, btf }\n"
-          "OUTPUT-FORMAT := { aggregate, stream }\n"
-          "\n");
+  fprintf(
+      stderr,
+      "Usage: ipft [OPTIONS]\n"
+      "\n"
+      "Options:\n"
+      " -h, --help                            Show this text\n"
+      " -l, --list                            List functions\n"
+      " -m, --mark            [HEX]           Trace the packet "
+      "marked with <mark> [required]\n"
+      "   , --mask            [HEX]           Only match to the bits masked "
+      "with given bitmask\n"
+      " -o, --output          [OUTPUT-FORMAT] Specify output format\n"
+      " -r, --regex           [REGEX]         Filter the function to trace"
+      "with regex\n"
+      " -s, --script          [PATH]          Path to extension script\n"
+      "   , --perf-page-count [NUMBER]        Number of pages to use with"
+      "perf\n"
+      "   , --no-set-rlimit                   Don't set rlimit\n"
+      "\n"
+      "DEBUG-FORMAT := { dwarf, btf }\n"
+      "OUTPUT-FORMAT := { aggregate, stream }\n"
+      "\n");
 }
 
 static void

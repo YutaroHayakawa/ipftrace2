@@ -44,8 +44,8 @@ struct module_elf {
 };
 
 static struct bpf_insn default_module[] = {
-  { BPF_ALU64 | BPF_MOV | BPF_K, 0, 0, 0, 0 },
-  { BPF_JMP | BPF_EXIT, 0, 0, 0, 0 },
+    {BPF_ALU64 | BPF_MOV | BPF_K, 0, 0, 0, 0},
+    {BPF_JMP | BPF_EXIT, 0, 0, 0, 0},
 };
 
 static int
@@ -210,7 +210,7 @@ open_module_elf(uint8_t *image, size_t image_size, struct module_elf **objp)
 
   obj->elf = elf_memory((char *)image, image_size);
   if (obj->elf == NULL) {
-    fprintf (stderr, "Couldn't open ELF image: %s\n", elf_errmsg(-1));
+    fprintf(stderr, "Couldn't open ELF image: %s\n", elf_errmsg(-1));
     return -1;
   }
 
@@ -268,8 +268,7 @@ close_module_elf(struct module_elf *module)
 }
 
 static int
-get_module_image(struct module_elf *obj,
-    uint8_t **imagep, size_t *image_sizep)
+get_module_image(struct module_elf *obj, uint8_t **imagep, size_t *image_sizep)
 {
   char *name;
   GElf_Shdr sh;
@@ -319,8 +318,7 @@ get_module_image(struct module_elf *obj,
 }
 
 static int
-do_link(struct target_elf *target,
-    struct module_elf *module)
+do_link(struct target_elf *target, struct module_elf *module)
 {
   int error;
   char *name;
@@ -379,8 +377,8 @@ do_link(struct target_elf *target,
 }
 
 static int
-get_target_image(struct target_elf *target,
-    uint8_t **imagep, size_t *image_sizep)
+get_target_image(struct target_elf *target, uint8_t **imagep,
+                 size_t *image_sizep)
 {
   uint8_t *image;
   size_t image_size;
@@ -411,7 +409,7 @@ get_target_image(struct target_elf *target,
  */
 static int
 create_elf_image(uint8_t **target_imagep, size_t *target_image_sizep,
-    uint8_t *module_image, size_t module_image_size)
+                 uint8_t *module_image, size_t module_image_size)
 {
   int error;
   struct target_elf *target;
@@ -560,7 +558,7 @@ trace_cb(void *ctx, __unused int cpu, struct perf_event_header *ehdr)
 
 static int
 perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
-    size_t perf_page_cnt)
+                   size_t perf_page_cnt)
 {
   struct perf_buffer *pb;
   struct perf_event_attr pe_attr = {0};
@@ -577,10 +575,8 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
   pb_opts.ctx = t;
   pb_opts.cpu_cnt = 0;
 
-  pb = perf_buffer__new_raw(
-      bpf_object__find_map_fd_by_name(t->bpf, "events"),
-      perf_page_cnt, &pb_opts
-  );
+  pb = perf_buffer__new_raw(bpf_object__find_map_fd_by_name(t->bpf, "events"),
+                            perf_page_cnt, &pb_opts);
   if (pb == NULL) {
     fprintf(stderr, "perf_buffer__new_raw failed\n");
     return -1;
@@ -592,8 +588,8 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
 }
 
 static int
-bpf_create(struct bpf_object **bpfp, uint32_t mark,
-    uint32_t mask, struct ipft_script *script)
+bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
+           struct ipft_script *script)
 {
   int error;
   struct bpf_object *bpf;
@@ -602,8 +598,8 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark,
   size_t target_image_size, module_image_size;
 
   struct bpf_object_open_opts opts = {
-    .sz = sizeof(opts),
-    .object_name = "ipft",
+      .sz = sizeof(opts),
+      .object_name = "ipft",
   };
 
   if (script != NULL) {
@@ -617,8 +613,8 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark,
     module_image_size = 0;
   }
 
-  error = create_elf_image(&target_image, &target_image_size,
-      module_image, module_image_size);
+  error = create_elf_image(&target_image, &target_image_size, module_image,
+                           module_image_size);
   if (error != 0) {
     fprintf(stderr, "create_elf_image failed\n");
     return -1;
@@ -639,10 +635,8 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark,
   conf.mark = mark;
   conf.mask = mask;
 
-  error = bpf_map_update_elem(
-      bpf_object__find_map_fd_by_name(bpf, "config"),
-      &(int){0}, &conf, 0
-  );
+  error = bpf_map_update_elem(bpf_object__find_map_fd_by_name(bpf, "config"),
+                              &(int){0}, &conf, 0);
   if (error == -1) {
     fprintf(stderr, "Cannot update config map\n");
     return -1;
