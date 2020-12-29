@@ -10,18 +10,30 @@
 
 static int
 print_sym(const char *name, __unused struct ipft_syminfo *sinfo,
-          __unused void *data)
+          void *data)
 {
-  printf("%s\n", name);
+  struct ipft_regex *re = (struct ipft_regex *)data;
+
+  if (regex_match(re, name)) {
+    printf("%s\n", name);
+  }
+
   return 0;
 }
 
 int
-list_functions(void)
+list_functions(struct ipft_tracer_opt *opt)
 {
   int error;
+  struct ipft_regex *re;
   struct ipft_symsdb *sdb;
   struct ipft_debuginfo *dinfo;
+
+  error = regex_create(&re, opt->regex);
+  if (error == -1) {
+    fprintf(stderr, "regex_create failed\n");
+    return -1;
+  }
 
   error = symsdb_create(&sdb);
   if (error == -1) {
@@ -41,7 +53,7 @@ list_functions(void)
     return -1;
   }
 
-  error = symsdb_sym2info_foreach(sdb, print_sym, NULL);
+  error = symsdb_sym2info_foreach(sdb, print_sym, re);
   if (error == -1) {
     fprintf(stderr, "Failed to traverse sym2info\n");
     return -1;

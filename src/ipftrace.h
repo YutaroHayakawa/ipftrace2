@@ -116,4 +116,4 @@ bool traceable_set_is_traceable(struct ipft_traceable_set *tset,
                                 const char *sym);
 
 int tracer_run(struct ipft_tracer_opt *opt);
-int list_functions(void);
+int list_functions(struct ipft_tracer_opt *opt);

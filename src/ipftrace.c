@@ -154,7 +154,7 @@ main(int argc, char **argv)
   }
 
   if (list) {
-    error = list_functions();
+    error = list_functions(&opt);
     goto end;
   }
 
