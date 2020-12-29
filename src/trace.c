@@ -548,8 +548,10 @@ trace_cb(void *ctx, __unused int cpu, struct perf_event_header *ehdr)
     }
     break;
   case PERF_RECORD_LOST:
+    error = 0;
     break;
   default:
+    fprintf(stderr, "BUG: Unknown event type %d\n", ehdr->type);
     return LIBBPF_PERF_EVENT_ERROR;
   }
 
