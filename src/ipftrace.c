@@ -51,7 +51,6 @@ usage(void)
       "perf\n"
       "   , --no-set-rlimit                   Don't set rlimit\n"
       "\n"
-      "DEBUG-FORMAT := { dwarf, btf }\n"
       "OUTPUT-FORMAT := { aggregate, stream }\n"
       "\n");
 }
