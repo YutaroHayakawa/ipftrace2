@@ -48,7 +48,7 @@ usage(void)
       "with regex\n"
       " -s, --script          [PATH]          Path to extension script\n"
       "   , --perf-page-count [NUMBER]        Number of pages to use with"
-      "perf\n"
+      " perf\n"
       "   , --no-set-rlimit                   Don't set rlimit\n"
       "\n"
       "OUTPUT-FORMAT := { aggregate, stream }\n"
