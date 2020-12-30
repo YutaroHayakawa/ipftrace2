@@ -36,11 +36,8 @@ struct target_elf {
 };
 
 struct module_elf {
-  Elf *elf;
-  Elf64_Ehdr ehdr;
-  Elf_Scn *text_scn;
-  Elf_Scn *symtab_scn;
-  int strtab_shidx;
+  uint8_t *image;
+  size_t image_size;
 };
 
 static struct bpf_insn default_module[] = {
@@ -192,69 +189,80 @@ close_target_elf(struct target_elf *target)
 }
 
 static int
+get_relocated_image(struct bpf_program *prog, __unused int n,
+    struct bpf_insn *insns, int insns_cnt,
+    struct bpf_prog_prep_result *res)
+{
+  struct module_elf *obj =
+    (struct module_elf *)bpf_program__priv(prog);
+
+  obj->image = malloc(insns_cnt * sizeof(*insns));
+  if (obj->image == NULL) {
+    fprintf(stderr, "Couldn't allocate memory\n");
+    return -1;
+  }
+
+  memcpy(obj->image, (uint8_t *)insns, insns_cnt * sizeof(*insns));
+  obj->image_size = insns_cnt * sizeof(*insns);
+
+  /* Don't load program. Just copy binary. */
+  res->new_insn_ptr = NULL;
+  res->new_insn_cnt = 0;
+  res->pfd = NULL;
+
+  return 0;
+}
+
+static int
 open_module_elf(uint8_t *image, size_t image_size, struct module_elf **objp)
 {
-  char *name;
-  Elf_Scn *scn;
-  GElf_Shdr sh;
-  Elf_Data *data;
+  int error;
   struct module_elf *obj;
+  struct bpf_object *bpf;
+  struct bpf_program *prog;
+  struct bpf_object_open_opts opts = { .sz = sizeof(opts) };
 
-  elf_version(EV_CURRENT);
-
-  obj = calloc(1, sizeof(*obj));
+  obj = malloc(sizeof(*obj));
   if (obj == NULL) {
-    fprintf(stderr, "Failed to allocate memory\n");
+    fprintf(stderr, "Couldn't allocate memory\n");
     return -1;
   }
 
-  obj->elf = elf_memory((char *)image, image_size);
-  if (obj->elf == NULL) {
-    fprintf(stderr, "Couldn't open ELF image: %s\n", elf_errmsg(-1));
+  /*
+   * Intercept load by preprocessor and get relocated bpf image.
+   * Once libbpf supports kind of the "static linker", we don't need this.
+   */
+  bpf = bpf_object__open_mem(image, image_size, &opts);
+  if (bpf == NULL) {
+    fprintf(stderr, "bpf_object__open_mem failed\n");
     return -1;
   }
 
-  // First find symtab section
-  scn = NULL;
-  while ((scn = elf_nextscn(obj->elf, scn)) != NULL) {
-    if (gelf_getshdr(scn, &sh) != &sh) {
-      return -1;
-    }
-
-    if (sh.sh_type == SHT_SYMTAB) {
-      obj->symtab_scn = scn;
-      obj->strtab_shidx = sh.sh_link;
-      break;
-    }
-  }
-
-  if (obj->symtab_scn == NULL) {
-    fprintf(stderr, "Cannot find symtab section\n");
+  prog = bpf_object__find_program_by_name(bpf, "module");
+  if (prog == NULL) {
+    fprintf(stderr, "bpf_object__find_program_by_title failed\n");
     return -1;
   }
 
-  /* Next find .text section */
-  scn = NULL;
-  while ((scn = elf_nextscn(obj->elf, scn)) != NULL) {
-    if (gelf_getshdr(scn, &sh) != &sh) {
-      return -1;
-    }
-
-    data = elf_getdata(scn, NULL);
-    name = elf_strptr(obj->elf, obj->strtab_shidx, sh.sh_name);
-
-    if (sh.sh_type == SHT_PROGBITS && sh.sh_flags & SHF_EXECINSTR) {
-      if (strcmp(".text", name) == 0) {
-        if (data->d_size > 0) {
-          obj->text_scn = scn;
-          break;
-        } else {
-          fprintf(stderr, ".text section is empty\n");
-          return -1;
-        }
-      }
-    }
+  error = bpf_program__set_priv(prog, obj, NULL);
+  if (error == -1) {
+    fprintf(stderr, "bpf_program__set_priv failed\n");
+    return -1;
   }
+
+  error = bpf_program__set_prep(prog, 1, get_relocated_image);
+  if (error == -1) {
+    fprintf(stderr, "bpf_program__set_prep failed\n");
+    return -1;
+  }
+
+  error = bpf_object__load(bpf);
+  if (error == -1) {
+    fprintf(stderr, "bpf_object__load failed\n");
+    return -1;
+  }
+
+  bpf_object__close(bpf);
 
   *objp = obj;
 
@@ -264,63 +272,12 @@ open_module_elf(uint8_t *image, size_t image_size, struct module_elf **objp)
 static void
 close_module_elf(struct module_elf *module)
 {
-  elf_end(module->elf);
-}
-
-static int
-get_module_image(struct module_elf *obj, uint8_t **imagep, size_t *image_sizep)
-{
-  char *name;
-  GElf_Shdr sh;
-  GElf_Sym *sym;
-  Elf_Scn *scn, *target_scn;
-  Elf_Data *data, *target_data;
-
-  scn = obj->symtab_scn;
-  if (gelf_getshdr(scn, &sh) != &sh) {
-    fprintf(stderr, "Couldn't get shdr of module prog sec\n");
-    return -1;
-  }
-
-  data = elf_getdata(scn, NULL);
-  if (data == NULL) {
-    fprintf(stderr, "Faield to get data\n");
-    return -1;
-  }
-
-  /* Find the function named "module" and get its content */
-  for (size_t i = 0; i < data->d_size / sizeof(*sym); i++) {
-    sym = data->d_buf + sizeof(*sym) * i;
-
-    name = elf_strptr(obj->elf, obj->strtab_shidx, sym->st_name);
-    if (strcmp(name, "module") != 0) {
-      continue;
-    }
-
-    // Check the symbol type and make sure it is a function STT_FUNC
-    if (ELF64_ST_TYPE(sym->st_info) != STT_FUNC) {
-      fprintf(stderr, "Symbol module is not a function\n");
-      return -1;
-    }
-
-    target_scn = elf_getscn(obj->elf, sym->st_shndx);
-    target_data = elf_getdata(target_scn, NULL);
-
-    *imagep = target_data->d_buf + sym->st_value;
-    *image_sizep = target_data->d_size;
-
-    return 0;
-  }
-
-  fprintf(stderr, "Cannot find module function\n");
-
-  return -1;
+  free(module->image);
 }
 
 static int
 do_link(struct target_elf *target, struct module_elf *module)
 {
-  int error;
   char *name;
   GElf_Sym *sym;
   uint8_t *image;
@@ -329,11 +286,8 @@ do_link(struct target_elf *target, struct module_elf *module)
 
   /* Copy module binary from module ELF */
   if (module != NULL) {
-    error = get_module_image(module, &image, &image_size);
-    if (error != 0) {
-      fprintf(stderr, "get_module_image failed\n");
-      return -1;
-    }
+    image = module->image;
+    image_size = module->image_size;
   } else {
     image = (uint8_t *)default_module;
     image_size = sizeof(default_module);
