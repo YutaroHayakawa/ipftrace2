@@ -1,6 +1,6 @@
 add_executable(ipft
   btf.c
-  ipftrace.c
+  ipft.c
   kallsyms.c
   output.c
   output_aggregate.c

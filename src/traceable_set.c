@@ -9,7 +9,7 @@
 #include <stdbool.h>
 
 #include "khash.h"
-#include "ipftrace.h"
+#include "ipft.h"
 
 KHASH_MAP_INIT_STR(traceable_set, int)
 

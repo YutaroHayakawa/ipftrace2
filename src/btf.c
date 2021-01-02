@@ -16,7 +16,7 @@
 
 #include <bpf/btf.h>
 
-#include "ipftrace.h"
+#include "ipft.h"
 
 int
 kernel_btf_fill_sym2info(struct ipft_symsdb *sdb)

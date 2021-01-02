@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "ipftrace.h"
+#include "ipft.h"
 
 /*
  * Line-oriented text stream output

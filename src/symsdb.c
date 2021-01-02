@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "ipftrace.h"
+#include "ipft.h"
 #include "khash.h"
 
 KHASH_MAP_INIT_STR(sym2info, struct ipft_syminfo *)

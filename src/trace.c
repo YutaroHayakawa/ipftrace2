@@ -10,7 +10,7 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "ipftrace.h"
+#include "ipft.h"
 #include "ipft.bpf.o.h"
 
 struct ipft_tracer {

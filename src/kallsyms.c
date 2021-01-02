@@ -11,7 +11,7 @@
 
 #include "khash.h"
 
-#include "ipftrace.h"
+#include "ipft.h"
 
 /*
  * Took from bcc (https://github.com/iovisor/bcc)

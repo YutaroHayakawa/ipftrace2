@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ipftrace.h"
+#include "ipft.h"
 
 int
 output_create(struct ipft_output **outp, const char *type,

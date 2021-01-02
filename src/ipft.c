@@ -12,7 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ipftrace.h"
+#include "ipft.h"
 
 static char *default_output_type = "aggregate";
 

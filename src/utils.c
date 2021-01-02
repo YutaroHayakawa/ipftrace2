@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <linux/bpf.h>
 
-#include "ipftrace.h"
+#include "ipft.h"
 
 static int
 print_sym(const char *name, __unused struct ipft_syminfo *sinfo, void *data)

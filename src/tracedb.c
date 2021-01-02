@@ -11,7 +11,7 @@
 #include "khash.h"
 #include "klist.h"
 
-#include "ipftrace.h"
+#include "ipft.h"
 
 static void
 dtor(void *p)
