@@ -22,11 +22,36 @@ $ tar xvf ipftrace2_amd64.tar.gz
 $ sudo cp ipft /usr/local/bin/ipft
 ```
 
-### Step2: Prepare Linux kernel debug symbols
+### Step2: Prepare kernel BTF
 
-#### Step2-1: Install DWARF debug information (please take care of the disk usage)
+If your kernel is compiled with `CONFIG_DEBUG_INFO_BTF=y`, you can skip this step.
+You should see `/sys/kernel/btf/vmlinux` file in this case.
 
-This is the default and recommended debug format.
+#### Step2-1: Install pahole
+
+Please install [pahole](https://git.kernel.org/pub/scm/devel/pahole/pahole.git) >= v1.19
+
+```
+$ git clone https://git.kernel.org/pub/scm/devel/pahole/pahole.git
+$ git checkout v1.19
+$ cmake -DCMAKE_INSTALL_PREFIX="/usr/local" -DEXEC_INSTALL_PREFIX="" .
+$ make
+$ sudo make install
+```
+
+#### Step2-2: Install llvm-objcopy
+
+Please install `llvm-objcopy` since `pahole` depends on it
+
+```
+# CentOS 8, Fedora 31, Fedora 32
+$ sudo dnf install llvm
+
+# Ubuntu 19.10, 20.04
+$ sudo apt-get install llvm
+```
+
+#### Step2-3: Install DWARF debug information (please take care of the disk usage)
 
 ```
 # CentOS 8
@@ -47,13 +72,11 @@ $ sudo apt-get update
 $ sudo apt-get install linux-image-$(uname -r)-dbgsym
 ```
 
-#### Step2-2: Using BTF (BPF Type Format) debug info 
+#### Step2-4 Encode BTF to debuginfo
 
-If your kernel is compiled with `CONFIG_DEBUG_INFO_BTF=y`, you can use BTF
-debug information instead of DWARF debug information by adding `-f btf` to your
-command line option. However, notice that currently (as of 2020/06/08) Linux
-doesn't support getting kernel module's BTF from sysfs. That means `ipftrace2`
-cannot track the functions of kernel modules.
+```
+$ sudo LD_LIBRARY_PATH=/usr/local/lib pahole -J
+```
 
 ### Step3: List the tracable functions
 
@@ -101,8 +124,8 @@ You can use other ways like below
 
 Here is the simplest example of tracing which is useful for debugging or learning purpose.
 But **don't do this on your production environment**. Because, `ipftrace2` may attach the
-tracing eBPF program to **thousands** of kernel functions which takes `struct sk_buff *` as
-argument by default. The overhead made by it shouldn't be acceptable.
+tracing eBPF program to **hundreds or thousands** of kernel functions which takes
+`struct sk_buff *` as argument by default. The overhead made by it shouldn't be acceptable.
 
 ```
 $ sudo ipft -m 0xdeadbeef
@@ -120,13 +143,13 @@ $ sudo ipft -m 0xdeadbeef -r "ip_.*"
 
 #### Step2-3: Use custom script
 
-`ipftrace2` is capable of customizing the tracing by Lua script. By using this feature, you can
+`ipftrace2` is capable of customizing the tracing by C and Lua script. By using this feature, you can
 trace more than just functions the packets have gone through, but the content of `skb` or any
 other data associate with it. Please see [Scripting manual](docs/scripting.md) for more details.
 Also, you can find the example in `scripts` directory.
 
 ```
-$ sudo ipft -m 0xdeadbeef -s scripts/gso.lua
+$ sudo ipft -m 0xdeadbeef -s example/gso.lua
 ```
 
 ### Step-3: Generate the packet
@@ -134,5 +157,5 @@ $ sudo ipft -m 0xdeadbeef -s scripts/gso.lua
 Now you are ready to trace. Generate the packet from another shell.
 
 ```
-$ ping -c 1 1.1.1.1
+$ curl https://1.1.1.1
 ````
