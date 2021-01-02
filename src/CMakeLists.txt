@@ -1,6 +1,5 @@
 add_executable(ipft
   btf.c
-  debuginfo.c
   ipftrace.c
   kallsyms.c
   output.c

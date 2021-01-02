@@ -23,7 +23,6 @@
 
 struct ipft_symsdb;
 struct ipft_tracedb;
-struct ipft_debuginfo;
 struct ipft_regex;
 struct ipft_script;
 struct ipft_traceable_set;
@@ -57,10 +56,6 @@ struct ipft_syminfo {
   int skb_pos;
 };
 
-struct ipft_debuginfo {
-  int (*fill_sym2info)(struct ipft_debuginfo *, struct ipft_symsdb *);
-};
-
 struct ipft_output {
   struct ipft_symsdb *sdb;
   struct ipft_script *script;
@@ -70,7 +65,7 @@ struct ipft_output {
 
 int symsdb_create(struct ipft_symsdb **sdbp);
 size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
-int symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
+int symsdb_put_sym2info(struct ipft_symsdb *sdb, const char *name,
                         struct ipft_syminfo *sinfo);
 int symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
                         struct ipft_syminfo **sinfop);
@@ -87,11 +82,7 @@ int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t);
 void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
                   struct ipft_script *script);
 
-int debuginfo_create(struct ipft_debuginfo **dinfop);
-int btf_debuginfo_create(struct ipft_debuginfo **dinfop);
-int debuginfo_fill_sym2info(struct ipft_debuginfo *dinfo,
-                            struct ipft_symsdb *sdb);
-
+int kernel_btf_fill_sym2info(struct ipft_symsdb *sdb);
 int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 
 int regex_create(struct ipft_regex **rep, const char *regex);

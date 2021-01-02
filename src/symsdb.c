@@ -25,7 +25,7 @@ symsdb_get_sym2info_total(struct ipft_symsdb *sdb)
 }
 
 int
-symsdb_put_sym2info(struct ipft_symsdb *sdb, char *name,
+symsdb_put_sym2info(struct ipft_symsdb *sdb, const char *name,
                     struct ipft_syminfo *sinfo)
 {
   char *k;

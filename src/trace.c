@@ -621,13 +621,7 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = debuginfo_create(&t->dinfo);
-  if (error != 0) {
-    fprintf(stderr, "debuginfo_create failed\n");
-    return -1;
-  }
-
-  error = debuginfo_fill_sym2info(t->dinfo, t->sdb);
+  error = kernel_btf_fill_sym2info(t->sdb);
   if (error != 0) {
     fprintf(stderr, "debuginfo_fill_sym2info failed\n");
     return -1;

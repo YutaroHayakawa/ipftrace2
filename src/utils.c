@@ -27,7 +27,6 @@ list_functions(struct ipft_tracer_opt *opt)
   int error;
   struct ipft_regex *re;
   struct ipft_symsdb *sdb;
-  struct ipft_debuginfo *dinfo;
 
   error = regex_create(&re, opt->regex);
   if (error == -1) {
@@ -41,13 +40,7 @@ list_functions(struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = debuginfo_create(&dinfo);
-  if (error == -1) {
-    fprintf(stderr, "Error in initializing debuginfo\n");
-    return -1;
-  }
-
-  error = debuginfo_fill_sym2info(dinfo, sdb);
+  error = kernel_btf_fill_sym2info(sdb);
   if (error == -1) {
     fprintf(stderr, "Failed to fill sym2info\n");
     return -1;
