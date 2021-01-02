@@ -9,8 +9,7 @@
 #include "ipftrace.h"
 
 static int
-print_sym(const char *name, __unused struct ipft_syminfo *sinfo,
-          void *data)
+print_sym(const char *name, __unused struct ipft_syminfo *sinfo, void *data)
 {
   struct ipft_regex *re = (struct ipft_regex *)data;
 

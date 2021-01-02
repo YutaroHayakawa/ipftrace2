@@ -190,11 +190,10 @@ close_target_elf(struct target_elf *target)
 
 static int
 get_relocated_image(struct bpf_program *prog, __unused int n,
-    struct bpf_insn *insns, int insns_cnt,
-    struct bpf_prog_prep_result *res)
+                    struct bpf_insn *insns, int insns_cnt,
+                    struct bpf_prog_prep_result *res)
 {
-  struct module_elf *obj =
-    (struct module_elf *)bpf_program__priv(prog);
+  struct module_elf *obj = (struct module_elf *)bpf_program__priv(prog);
 
   obj->image = malloc(insns_cnt * sizeof(*insns));
   if (obj->image == NULL) {
@@ -220,7 +219,7 @@ open_module_elf(uint8_t *image, size_t image_size, struct module_elf **objp)
   struct module_elf *obj;
   struct bpf_object *bpf;
   struct bpf_program *prog;
-  struct bpf_object_open_opts opts = { .sz = sizeof(opts) };
+  struct bpf_object_open_opts opts = {.sz = sizeof(opts)};
 
   obj = malloc(sizeof(*obj));
   if (obj == NULL) {

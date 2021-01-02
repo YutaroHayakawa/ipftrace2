@@ -39,8 +39,8 @@ kernel_btf_fill_sym2info(struct ipft_symsdb *sdb)
       func_name = btf__str_by_offset(btf, t->name_off);
       func_proto = btf__type_by_id(btf, t->type);
       params = btf_params(func_proto);
-      for (uint16_t i = 0;
-          i < btf_vlen(func_proto) && i < MAX_SKB_POS - 1; i++) {
+      for (uint16_t i = 0; i < btf_vlen(func_proto) && i < MAX_SKB_POS - 1;
+           i++) {
         t = btf__type_by_id(btf, params[i].type);
         if (btf_is_ptr(t)) {
           t = btf__type_by_id(btf, t->type);
