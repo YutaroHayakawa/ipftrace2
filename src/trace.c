@@ -726,6 +726,8 @@ do_trace(struct ipft_tracer *t)
     return -1;
   }
 
+  script_exec_fini(t->script);
+
   return 0;
 }
 
