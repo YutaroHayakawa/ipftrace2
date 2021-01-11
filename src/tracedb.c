@@ -16,10 +16,10 @@
 static void
 dtor(void *p)
 {
-  free(*(struct ipft_trace **)p);
+  free(*(struct ipft_sample **)p);
 }
 
-KLIST_INIT(trace_list, struct ipft_trace *, dtor)
+KLIST_INIT(trace_list, struct ipft_sample *, dtor)
 KHASH_MAP_INIT_INT64(trace, klist_t(trace_list) *)
 
 struct ipft_tracedb {
@@ -33,35 +33,35 @@ tracedb_get_total(struct ipft_tracedb *tdb)
 }
 
 int
-tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *_t)
+tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_sample *_s)
 {
   int ret;
   khint_t iter;
-  struct ipft_trace *t;
+  struct ipft_sample *s;
   klist_t(trace_list) * l;
 
-  t = malloc(sizeof(*t));
-  if (t == NULL) {
+  s = malloc(sizeof(*s));
+  if (s == NULL) {
     perror("malloc");
     return -1;
   }
 
-  memcpy(t, _t, sizeof(*t));
+  memcpy(s, _s, sizeof(*s));
 
-  iter = kh_put(trace, tdb->trace, t->skb_addr, &ret);
+  iter = kh_put(trace, tdb->trace, s->skb_addr, &ret);
   if (ret == -1) {
     fprintf(stderr, "Cannot allocate tracedb element\n");
     return -1;
   } else if (ret == 0) {
     l = kh_value(tdb->trace, iter);
-    *kl_pushp(trace_list, l) = t;
+    *kl_pushp(trace_list, l) = s;
   } else {
     l = kl_init(trace_list);
     if (l == NULL) {
       perror("kl_init");
       return -1;
     }
-    *kl_pushp(trace_list, l) = t;
+    *kl_pushp(trace_list, l) = s;
     kh_value(tdb->trace, iter) = l;
   }
 
@@ -69,11 +69,11 @@ tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *_t)
 }
 
 static int
-compare_tstamp(const void *_t1, const void *_t2)
+compare_tstamp(const void *_s1, const void *_s2)
 {
-  const struct ipft_trace *t1 = *(struct ipft_trace **)_t1;
-  const struct ipft_trace *t2 = *(struct ipft_trace **)_t2;
-  if (t1->tstamp < t2->tstamp) {
+  const struct ipft_sample *s1 = *(struct ipft_sample **)_s1;
+  const struct ipft_sample *s2 = *(struct ipft_sample **)_s2;
+  if (s1->tstamp < s2->tstamp) {
     return -1;
   } else {
     return 1;
@@ -88,7 +88,7 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
   char *name;
   klist_t(trace_list) * l;
   kliter_t(trace_list) * iter;
-  struct ipft_trace *t, **tarray;
+  struct ipft_sample *s, **sarray;
 
   kh_foreach_value(
       tdb->trace, l, printf("===\n");
@@ -97,15 +97,15 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
        * We need to put trace data to array just to use qsort(3)
        * this is not so efficient way, but works well.
        */
-      tarray = calloc(l->size, sizeof(*tarray));
-      if (tarray == NULL) {
+      sarray = calloc(l->size, sizeof(sarray));
+      if (sarray == NULL) {
         perror("calloc");
         return;
       }
 
       uint32_t count = 0;
       for (iter = kl_begin(l); iter != kl_end(l); iter = kl_next(iter)) {
-        tarray[count] = kl_val(iter);
+        sarray[count] = kl_val(iter);
         count++;
       }
 
@@ -113,27 +113,27 @@ tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
        * Order trace by timestamp. They are not always orderd since they
        * can be collected with different perf ring.
        */
-      qsort(tarray, count, sizeof(*tarray), compare_tstamp);
+      qsort(sarray, count, sizeof(*sarray), compare_tstamp);
 
       for (uint32_t i = 0; i < count; i++) {
-        t = tarray[i];
+        s = sarray[i];
 
-        error = symsdb_get_addr2sym(sdb, t->faddr, &name);
+        error = symsdb_get_addr2sym(sdb, s->faddr, &name);
         if (error == -1) {
           fprintf(stderr, "Failed to resolve the symbol from address\n");
-          free(tarray);
+          free(sarray);
           return;
         }
 
         if (script != NULL) {
-          printf("%zu %03u %32.32s %s\n", t->tstamp, t->processor_id, name,
-                 script_exec_dump(script, t->data, sizeof(t->data)));
+          printf("%zu %03u %32.32s %s\n", s->tstamp, s->processor_id, name,
+                 script_exec_dump(script, s->data, sizeof(s->data)));
         } else {
-          printf("%zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
+          printf("%zu %03u %32.32s\n", s->tstamp, s->processor_id, name);
         }
       }
 
-      free(tarray);)
+      free(sarray);)
 }
 
 int

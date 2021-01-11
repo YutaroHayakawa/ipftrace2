@@ -21,6 +21,11 @@
  */
 #define MAX_RECURSE_LEVEL 8
 
+/*
+ * Size of sample data which module can fill up
+ */
+#define MAX_DATA_SIZE 64
+
 struct ipft_symsdb;
 struct ipft_tracedb;
 struct ipft_regex;
@@ -29,13 +34,18 @@ struct ipft_traceable_set;
 
 struct ipft_trace {
   uint64_t skb_addr;
-  uint64_t tstamp;
-  uint64_t faddr;
-  uint32_t processor_id;
-  uint8_t _pad[36]; // for future use
-  uint8_t data[64];
+  uint8_t _pad[56]; // for future use
+  uint8_t data[MAX_DATA_SIZE];
   /* 128Bytes */
 } __attribute__((aligned(8)));
+
+struct ipft_sample {
+  uint64_t skb_addr;
+  uint64_t faddr;
+  uint64_t tstamp;
+  uint32_t processor_id;
+  uint8_t data[MAX_DATA_SIZE];
+};
 
 struct ipft_trace_config {
   uint32_t mark;
@@ -59,7 +69,7 @@ struct ipft_syminfo {
 struct ipft_output {
   struct ipft_symsdb *sdb;
   struct ipft_script *script;
-  int (*on_trace)(struct ipft_output *, struct ipft_trace *);
+  int (*on_trace)(struct ipft_output *, struct ipft_sample *);
   int (*post_trace)(struct ipft_output *);
 };
 
@@ -78,7 +88,7 @@ int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
 
 int tracedb_create(struct ipft_tracedb **tdbp);
 size_t tracedb_get_total(struct ipft_tracedb *tdb);
-int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t);
+int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_sample *s);
 void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
                   struct ipft_script *script);
 
@@ -98,7 +108,7 @@ int output_create(struct ipft_output **outp, const char *type,
                   struct ipft_symsdb *sdb, struct ipft_script *script);
 int aggregate_output_create(struct ipft_output **outp);
 int stream_output_create(struct ipft_output **outp);
-int output_on_trace(struct ipft_output *out, struct ipft_trace *t);
+int output_on_trace(struct ipft_output *out, struct ipft_sample *s);
 int output_post_trace(struct ipft_output *out);
 
 int traceable_set_create(struct ipft_traceable_set **tsetp);

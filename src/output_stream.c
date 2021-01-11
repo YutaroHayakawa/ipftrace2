@@ -16,25 +16,25 @@ struct stream_output {
 };
 
 static int
-stream_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
+stream_output_on_trace(struct ipft_output *_out, struct ipft_sample *s)
 {
   int error;
   char *name;
   struct stream_output *out = (struct stream_output *)_out;
 
-  error = symsdb_get_addr2sym(out->base.sdb, t->faddr, &name);
+  error = symsdb_get_addr2sym(out->base.sdb, s->faddr, &name);
   if (error == -1) {
     fprintf(stderr, "Failed to resolve the symbol from address\n");
     return -1;
   }
 
   if (out->base.script) {
-    printf("%p %zu %03u %s %s\n", (void *)t->skb_addr, t->tstamp,
-        t->processor_id, name, script_exec_dump(out->base.script,
-          t->data, sizeof(t->data)));
+    printf("%p %zu %03u %s %s\n", (void *)s->skb_addr, s->tstamp,
+        s->processor_id, name, script_exec_dump(out->base.script,
+          s->data, sizeof(s->data)));
   } else {
-    printf("%p %zu %03u %s\n", (void *)t->skb_addr, t->tstamp,
-        t->processor_id, name);
+    printf("%p %zu %03u %s\n", (void *)s->skb_addr, s->tstamp,
+        s->processor_id, name);
   }
 
   fflush(stdout);

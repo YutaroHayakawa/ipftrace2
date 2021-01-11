@@ -18,12 +18,13 @@ struct aggregate_output {
 };
 
 static int
-aggregate_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
+aggregate_output_on_trace(struct ipft_output *_out,
+    struct ipft_sample *s)
 {
   struct aggregate_output *out = (struct aggregate_output *)_out;
   fprintf(stderr, "\rGot %zu traces", out->ntraces++);
   fflush(stderr);
-  return tracedb_put_trace(out->tdb, t);
+  return tracedb_put_trace(out->tdb, s);
 }
 
 static int

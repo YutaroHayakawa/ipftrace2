@@ -432,19 +432,19 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
 
   switch (si->skb_pos) {
   case 1:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main1");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main1");
     break;
   case 2:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main2");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main2");
     break;
   case 3:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main3");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main3");
     break;
   case 4:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main4");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main4");
     break;
   case 5:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main5");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main5");
     break;
   default:
     fprintf(stderr, "Unsupported skb_pos %d\n", si->skb_pos);
@@ -480,22 +480,49 @@ attach_all(struct ipft_tracer *t)
   return error;
 }
 
-struct perf_sample_data {
+struct perf_sample {
   struct perf_event_header header;
+  /* PERF_SAMPLE_IP */
+  uint64_t ip;
+  /* PERF_SAMPLE_TIME */
+  uint64_t time;
+  /* PERF_SAMPLE_CPU */
+  uint32_t cpu;
+  uint32_t reserved;
+  /* PERF_SAMPLE_RAW */
   uint32_t size;
   uint8_t data[0];
 };
+
+static int
+prepare_sample(struct ipft_sample *s, struct perf_sample *ps)
+{
+  struct ipft_trace *t = (struct ipft_trace *)ps->data;
+
+  s->skb_addr = t->skb_addr;
+  s->faddr = ps->ip;
+  s->tstamp = ps->time;
+  s->processor_id = ps->cpu;
+  memcpy(s->data, t->data, MAX_DATA_SIZE);
+
+  return 0;
+}
 
 static enum bpf_perf_event_ret
 trace_cb(void *ctx, __unused int cpu, struct perf_event_header *ehdr)
 {
   int error;
+  struct ipft_sample s;
   struct ipft_tracer *t = (struct ipft_tracer *)ctx;
-  struct perf_sample_data *s = (struct perf_sample_data *)ehdr;
+  struct perf_sample *ps = (struct perf_sample *)ehdr;
 
   switch (ehdr->type) {
   case PERF_RECORD_SAMPLE:
-    error = output_on_trace(t->out, (struct ipft_trace *)s->data);
+    error = prepare_sample(&s, ps);
+    if (error == -1) {
+      return LIBBPF_PERF_EVENT_ERROR;
+    }
+    error = output_on_trace(t->out, &s);
     if (error == -1) {
       return LIBBPF_PERF_EVENT_ERROR;
     }
@@ -522,7 +549,8 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
   pe_attr.type = PERF_TYPE_SOFTWARE;
   pe_attr.config = PERF_COUNT_SW_BPF_OUTPUT;
   pe_attr.sample_period = 1;
-  pe_attr.sample_type = PERF_SAMPLE_RAW;
+  pe_attr.sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_TIME |
+    PERF_SAMPLE_CPU | PERF_SAMPLE_RAW;
   pe_attr.wakeup_events = 1;
 
   pb_opts.attr = &pe_attr;
