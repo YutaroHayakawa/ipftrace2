@@ -17,6 +17,7 @@
 static char *default_output_type = "aggregate";
 
 static struct option options[] = {
+    {"backend", no_argument, 0, 'b'},
     {"help", no_argument, 0, 'h'},
     {"list", no_argument, 0, 'l'},
     {"mark", required_argument, 0, 'm'},
@@ -37,6 +38,7 @@ usage(void)
       "Usage: ipft [OPTIONS]\n"
       "\n"
       "Options:\n"
+      " -b, --backend         [BACKEND]       Specify tracer backend\n"
       " -h, --help                            Show this text\n"
       " -l, --list                            List functions\n"
       " -m, --mark            [HEX]           Trace the packet "
@@ -52,6 +54,7 @@ usage(void)
       "   , --no-set-rlimit                   Don't set rlimit\n"
       "\n"
       "OUTPUT-FORMAT := { aggregate, stream }\n"
+      "BACKEND       := { kprobe, ftrace }\n"
       "\n");
 }
 
@@ -65,17 +68,24 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->regex = NULL;
   opt->script = NULL;
   opt->set_rlimit = true;
+  opt->backend = "kprobe";
 }
 
 static bool
-opt_validate(struct ipft_tracer_opt *opt, bool list)
+opt_validate(struct ipft_tracer_opt *opt)
 {
-  if (!list && opt->mark == 0) {
+  if (strcmp(opt->backend, "kprobe") != 0 &&
+      strcmp(opt->backend, "ftrace") != 0) {
+    fprintf(stderr, "Invalid backend %s\n", opt->backend);
+    return false;
+  }
+
+  if (opt->mark == 0) {
     fprintf(stderr, "-m --mark is missing (or specified 0 which is invalid)\n");
     return false;
   }
 
-  if (!list && opt->mask == 0) {
+  if (opt->mask == 0) {
     fprintf(stderr, "Masking by 0 is not allowed\n");
     return false;
   }
@@ -86,7 +96,7 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
     return false;
   }
 
-  if (!list && opt->perf_page_cnt == 0) {
+  if (opt->perf_page_cnt == 0) {
     fprintf(stderr, "Perf page count should be at least 1\n");
     return false;
   }
@@ -105,8 +115,12 @@ main(int argc, char **argv)
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "hlm:o:r:s:", options, &optind)) != -1) {
+  while ((c = getopt_long(argc, argv, "b:hlm:o:r:s:", options, &optind)) !=
+         -1) {
     switch (c) {
+    case 'b':
+      opt.backend = strdup(optarg);
+      break;
     case 'l':
       list = true;
       break;
@@ -147,7 +161,7 @@ main(int argc, char **argv)
     }
   }
 
-  if (!opt_validate(&opt, list)) {
+  if (!list && !opt_validate(&opt)) {
     usage();
     goto end;
   }
