@@ -9,6 +9,8 @@
 
 #include "ipft.h"
 #include "khash.h"
+#include "klist.h"
+#include "kvec.h"
 
 KHASH_MAP_INIT_STR(sym2info, struct ipft_syminfo *)
 KHASH_MAP_INIT_INT64(addr2sym, char *)
@@ -16,7 +18,26 @@ KHASH_MAP_INIT_INT64(addr2sym, char *)
 struct ipft_symsdb {
   khash_t(sym2info) * sym2info;
   khash_t(addr2sym) * addr2sym;
+  kvec_t(char *) pos2syms[MAX_SKB_POS];
 };
+
+static void
+pos2syms_append(struct ipft_symsdb *sdb, int pos, char *sym)
+{
+  kv_push(char *, sdb->pos2syms[pos], sym);
+}
+
+char *
+symsdb_pos2syms_get(struct ipft_symsdb *sdb, int pos, int idx)
+{
+  return kv_A(sdb->pos2syms[pos], idx);
+}
+
+int
+symsdb_get_pos2syms_total(struct ipft_symsdb *sdb, int pos)
+{
+  return kv_size(sdb->pos2syms[pos]);
+}
 
 size_t
 symsdb_get_sym2info_total(struct ipft_symsdb *sdb)
@@ -54,6 +75,8 @@ symsdb_put_sym2info(struct ipft_symsdb *sdb, const char *name,
   }
 
   kh_value(db, iter) = v;
+
+  pos2syms_append(sdb, v->skb_pos, k);
 
   return 0;
 }

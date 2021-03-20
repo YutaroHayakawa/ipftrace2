@@ -60,6 +60,7 @@ struct ipft_tracer_opt {
   char *output_type;
   size_t perf_page_cnt;
   bool set_rlimit;
+  char *backend;
 };
 
 struct ipft_syminfo {
@@ -85,6 +86,8 @@ int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
                             int (*cb)(const char *, struct ipft_syminfo *,
                                       void *),
                             void *arg);
+char *symsdb_pos2syms_get(struct ipft_symsdb *sdb, int pos, int idx);
+int symsdb_get_pos2syms_total(struct ipft_symsdb *sdb, int pos);
 
 int tracedb_create(struct ipft_tracedb **tdbp);
 size_t tracedb_get_total(struct ipft_tracedb *tdb);

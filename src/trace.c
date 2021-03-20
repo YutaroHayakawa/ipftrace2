@@ -11,7 +11,8 @@
 #include <bpf/libbpf.h>
 
 #include "ipft.h"
-#include "ipft.bpf.o.h"
+#include "ipft_kprobe.bpf.o.h"
+#include "ipft_ftrace.bpf.o.h"
 
 struct ipft_tracer {
   struct bpf_object *bpf;
@@ -361,14 +362,15 @@ get_target_image(struct target_elf *target, uint8_t **imagep,
  * Create an ELF image to load linked together with module ELF if provided
  */
 static int
-create_elf_image(uint8_t **target_imagep, size_t *target_image_sizep,
+create_elf_image(uint8_t **linked_imagep, size_t *linked_image_sizep,
+                 uint8_t *target_image, size_t target_image_size,
                  uint8_t *module_image, size_t module_image_size)
 {
   int error;
   struct target_elf *target;
   struct module_elf *module;
 
-  error = open_target_elf(ipft_bpf_o, ipft_bpf_o_len, &target);
+  error = open_target_elf(target_image, target_image_size, &target);
   if (error != 0) {
     fprintf(stderr, "open_target_elf failed\n");
     return -1;
@@ -390,7 +392,7 @@ create_elf_image(uint8_t **target_imagep, size_t *target_image_sizep,
     return -1;
   }
 
-  error = get_target_image(target, target_imagep, target_image_sizep);
+  error = get_target_image(target, linked_imagep, linked_image_sizep);
   if (error != 0) {
     fprintf(stderr, "Failed to get target image\n");
     return -1;
@@ -466,6 +468,154 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
           attach_stat.total, attach_stat.succeeded, attach_stat.failed,
           attach_stat.filtered, attach_stat.untraceable);
   fflush(stderr);
+
+  return 0;
+}
+
+/*
+ * fentry program requires target kernel function's BTF at
+ * loading time. Thus, we need to perform filtering with
+ * tracable_set and regex in here as well as taking stat.
+ */
+static int
+ftrace_prep(struct bpf_program *prog, int n,
+    struct bpf_insn *insns, int insns_cnt,
+    struct bpf_prog_prep_result *res)
+{
+  char *sym;
+  int error, skb_pos;
+  struct ipft_tracer *t = bpf_program__priv(prog);
+
+  if (sscanf(bpf_program__name(prog),
+        "ipft_main%d", &skb_pos) != 1) {
+    fprintf(stderr, "sscanf failed\n");
+    return -1;
+  }
+
+  sym = symsdb_pos2syms_get(t->sdb, skb_pos, n);
+
+  if (!traceable_set_is_traceable(t->tset, sym)) {
+    attach_stat.untraceable++;
+    return 0;
+  }
+
+  if (!regex_match(t->re, sym)) {
+    attach_stat.filtered++;
+    return 0;
+  }
+
+  error = bpf_program__set_attach_target(prog, 0, sym);
+  if (error == -1) {
+    fprintf(stderr, "bpf_program__set_attach_target failed\n");
+    return -1;
+  }
+
+  attach_stat.succeeded++;
+
+  fprintf(stderr,
+          "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
+          "%zu untraceable: %zu)",
+          attach_stat.total, attach_stat.succeeded, attach_stat.failed,
+          attach_stat.filtered, attach_stat.untraceable);
+  fflush(stderr);
+
+  res->new_insn_ptr = insns;
+  res->new_insn_cnt = insns_cnt;
+
+  return 0;
+}
+
+static int
+create_kprobe_bpf_object(struct bpf_object **bpfp,
+    uint8_t *module_image, size_t module_image_size,
+    __unused struct ipft_tracer *t)
+{
+  int error;
+  uint8_t *linked_image;
+  size_t linked_image_size;
+  struct bpf_object *bpf;
+
+  error = create_elf_image(&linked_image, &linked_image_size,
+      ipft_kprobe_bpf_o, ipft_kprobe_bpf_o_len,
+      module_image, module_image_size);
+  if (error == -1) {
+    fprintf(stderr, "create_elf_image failed\n");
+    return -1;
+  }
+
+  struct bpf_object_open_opts opts = {
+    .sz = sizeof(opts),
+    .object_name = "ipft-kprobe"
+  };
+
+  bpf = bpf_object__open_mem(linked_image,
+      linked_image_size, &opts);
+  if (bpf == NULL) {
+    fprintf(stderr, "bpf_object__open_mem failed\n");
+    return -1;
+  }
+
+  *bpfp = bpf;
+
+  return 0;
+}
+
+static int
+create_ftrace_bpf_object(struct bpf_object **bpfp,
+    uint8_t *module_image, size_t module_image_size,
+    struct ipft_tracer *t)
+{
+  int error;
+  uint8_t *linked_image;
+  size_t linked_image_size;
+  struct bpf_object *bpf;
+
+  error = create_elf_image(&linked_image, &linked_image_size,
+      ipft_ftrace_bpf_o, ipft_ftrace_bpf_o_len,
+      module_image, module_image_size);
+  if (error == -1) {
+    fprintf(stderr, "create_elf_image failed\n");
+    return -1;
+  }
+
+  struct bpf_object_open_opts opts = {
+    .sz = sizeof(opts),
+    .object_name = "ipft-ftrace"
+  };
+
+  bpf = bpf_object__open_mem(linked_image,
+      linked_image_size, &opts);
+  if (bpf == NULL) {
+    fprintf(stderr, "bpf_object__open_mem failed\n");
+    return -1;
+  }
+
+  for (int i = 0; i < MAX_SKB_POS; i++) {
+    char name[16] = {0};
+    struct bpf_program *prog;
+
+    if (sprintf(name, "ipft_main%d", i) < 0) {
+      fprintf(stderr, "sprintf failed\n");
+      return -1;
+    }
+
+    prog = bpf_object__find_program_by_name(bpf, name);
+    if (prog == NULL) {
+      fprintf(stderr, "bpf__find_program_by_name failed\n");
+      return -1;
+    }
+
+    bpf_program__set_priv(prog, t, NULL);
+
+    error = bpf_program__set_prep(prog,
+        symsdb_get_pos2syms_total(t->sdb, i), ftrace_prep);
+    if (error == -1) {
+      fprintf(stderr, "bpf_program__set_prep failed\n");
+      return -1;
+    }
+  }
+
+  *bpfp = bpf;
 
   return 0;
 }
@@ -571,22 +721,17 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
 }
 
 static int
-bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
-           struct ipft_script *script)
+bpf_create(struct bpf_object **bpfp, char *backend, uint32_t mark,
+           uint32_t mask, struct ipft_tracer *t)
 {
   int error;
+  uint8_t *module_image;
   struct bpf_object *bpf;
+  size_t module_image_size;
   struct ipft_trace_config conf;
-  uint8_t *target_image, *module_image;
-  size_t target_image_size, module_image_size;
 
-  struct bpf_object_open_opts opts = {
-      .sz = sizeof(opts),
-      .object_name = "ipft",
-  };
-
-  if (script != NULL) {
-    error = script_exec_emit(script, &module_image, &module_image_size);
+  if (t->script != NULL) {
+    error = script_exec_emit(t->script, &module_image, &module_image_size);
     if (error != 0) {
       fprintf(stderr, "script_exec_emit failed\n");
       return -1;
@@ -596,18 +741,28 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
     module_image_size = 0;
   }
 
-  error = create_elf_image(&target_image, &target_image_size, module_image,
-                           module_image_size);
-  if (error != 0) {
-    fprintf(stderr, "create_elf_image failed\n");
+  if (strcmp(backend, "ftrace") == 0) {
+    error = create_ftrace_bpf_object(&bpf,
+        module_image, module_image_size, t);
+    if (error != 0) {
+      fprintf(stderr, "create_ftrace_bpf_object failed\n");
+      return -1;
+    }
+    fprintf(stderr, "Using ftrace backend\n");
+  } else if (strcmp(backend, "kprobe") == 0) {
+    error = create_kprobe_bpf_object(&bpf,
+        module_image, module_image_size, t);
+    if (error != 0) {
+      fprintf(stderr, "create_kprobe_bpf_object failed\n");
+      return -1;
+    }
+    fprintf(stderr, "Using kprobe backend\n");
+  } else {
+    fprintf(stderr, "BUG: Invalid tracing backend %s\n", backend);
     return -1;
   }
 
-  bpf = bpf_object__open_mem(target_image, target_image_size, &opts);
-  if (bpf == NULL) {
-    fprintf(stderr, "ipft_bpf__open_and_load failed\n");
-    return -1;
-  }
+  bpf_object__set_priv(bpf, t, NULL);
 
   error = bpf_object__load(bpf);
   if (error == -1) {
@@ -674,12 +829,6 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = bpf_create(&t->bpf, opt->mark, opt->mask, t->script);
-  if (error == -1) {
-    fprintf(stderr, "bpf_create failed\n");
-    return -1;
-  }
-
   error = regex_create(&t->re, opt->regex);
   if (error != 0) {
     fprintf(stderr, "regex_create failed\n");
@@ -695,6 +844,12 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
   error = tracedb_create(&t->tdb);
   if (error != 0) {
     fprintf(stderr, "tracedb_create failed\n");
+    return -1;
+  }
+
+  error = bpf_create(&t->bpf, opt->backend, opt->mark, opt->mask, t);
+  if (error == -1) {
+    fprintf(stderr, "bpf_create failed\n");
     return -1;
   }
 
