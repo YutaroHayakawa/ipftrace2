@@ -590,7 +590,7 @@ create_ftrace_bpf_object(struct bpf_object **bpfp,
     return -1;
   }
 
-  for (int i = 0; i < MAX_SKB_POS; i++) {
+  for (int i = 1; i <= MAX_SKB_POS; i++) {
     char name[16] = {0};
     struct bpf_program *prog;
 
@@ -605,11 +605,17 @@ create_ftrace_bpf_object(struct bpf_object **bpfp,
       return -1;
     }
 
+    error = bpf_program__set_attach_target(prog, 0, "kfree_skb");
+    if (error == -1) {
+      fprintf(stderr, "bpf_program__set_attach_target failed\n");
+      return -1;
+    }
+
     bpf_program__set_priv(prog, t, NULL);
 
     error = bpf_program__set_prep(prog,
         symsdb_get_pos2syms_total(t->sdb, i), ftrace_prep);
-    if (error == -1) {
+    if (error < 0) {
       fprintf(stderr, "bpf_program__set_prep failed\n");
       return -1;
     }
@@ -721,6 +727,12 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
 }
 
 static int
+debug_print(enum libbpf_print_level level, const char *fmt, va_list ap)
+{
+  return vprintf(fmt, ap);
+}
+
+static int
 bpf_create(struct bpf_object **bpfp, char *backend, uint32_t mark,
            uint32_t mask, struct ipft_tracer *t)
 {
@@ -764,8 +776,10 @@ bpf_create(struct bpf_object **bpfp, char *backend, uint32_t mark,
 
   bpf_object__set_priv(bpf, t, NULL);
 
+  libbpf_set_print(debug_print);
+
   error = bpf_object__load(bpf);
-  if (error == -1) {
+  if (error < 0) {
     fprintf(stderr, "bpf_object__load failed\n");
     return -1;
   }
