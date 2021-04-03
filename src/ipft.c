@@ -23,6 +23,7 @@ static struct option options[] = {
     {"output", required_argument, 0, 'o'},
     {"regex", required_argument, 0, 'r'},
     {"script", required_argument, 0, 's'},
+    {"verbose", no_argument, 0, 'v'},
     {"mask", required_argument, 0, '0'},
     {"perf-page-count", required_argument, 0, '0'},
     {"no-set-rlimit", no_argument, 0, '0'},
@@ -47,6 +48,7 @@ usage(void)
       " -r, --regex           [REGEX]         Filter the function to trace"
       "with regex\n"
       " -s, --script          [PATH]          Path to extension script\n"
+      " -v, --verbose                         Turn on debug message\n"
       "   , --perf-page-count [NUMBER]        Number of pages to use with"
       " perf\n"
       "   , --no-set-rlimit                   Don't set rlimit\n"
@@ -105,7 +107,7 @@ main(int argc, char **argv)
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "hlm:o:r:s:", options, &optind)) != -1) {
+  while ((c = getopt_long(argc, argv, "hlm:o:r:s:v", options, &optind)) != -1) {
     switch (c) {
     case 'l':
       list = true;
@@ -121,6 +123,9 @@ main(int argc, char **argv)
       break;
     case 's':
       opt.script = strdup(optarg);
+      break;
+    case 'v':
+      opt.verbose = true;
       break;
     case '0':
       optname = options[optind].name;

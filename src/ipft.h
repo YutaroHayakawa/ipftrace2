@@ -50,6 +50,7 @@ struct ipft_tracer_opt {
   char *output_type;
   size_t perf_page_cnt;
   bool set_rlimit;
+  bool verbose;
 };
 
 struct ipft_syminfo {

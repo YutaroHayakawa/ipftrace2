@@ -726,11 +726,22 @@ do_trace(struct ipft_tracer *t)
   return 0;
 }
 
+static int
+debug_print(__unused enum libbpf_print_level level,
+    const char *fmt, va_list ap)
+{
+  return vfprintf(stderr, fmt, ap);
+}
+
 int
 tracer_run(struct ipft_tracer_opt *opt)
 {
   int error;
   struct ipft_tracer *t;
+
+  if (opt->verbose) {
+    libbpf_set_print(debug_print);
+  }
 
   error = tracer_create(&t, opt);
   if (error == -1) {
