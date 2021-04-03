@@ -460,11 +460,12 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
 
   attach_stat.succeeded++;
 
-  fprintf(stderr,
-          "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
-          "%zu untraceable: %zu)",
-          attach_stat.total, attach_stat.succeeded, attach_stat.failed,
-          attach_stat.filtered, attach_stat.untraceable);
+  fprintf(
+      stderr,
+      "\rAttaching program (total %zu, succeeded %zu, failed %zu, filtered: "
+      "%zu, untraceable: %zu)",
+      attach_stat.total, attach_stat.succeeded, attach_stat.failed,
+      attach_stat.filtered, attach_stat.untraceable);
   fflush(stderr);
 
   return 0;
