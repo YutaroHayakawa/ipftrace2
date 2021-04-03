@@ -67,6 +67,7 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->regex = NULL;
   opt->script = NULL;
   opt->set_rlimit = true;
+  opt->verbose = false;
 }
 
 static bool
