@@ -727,8 +727,7 @@ do_trace(struct ipft_tracer *t)
 }
 
 static int
-debug_print(__unused enum libbpf_print_level level,
-    const char *fmt, va_list ap)
+debug_print(__unused enum libbpf_print_level level, const char *fmt, va_list ap)
 {
   return vfprintf(stderr, fmt, ap);
 }
