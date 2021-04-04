@@ -6,8 +6,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <linux/bpf.h>
 #include <linux/perf_event.h>
+
+#include <uapi/linux/bpf.h>
 
 #define __unused __attribute__((unused))
 

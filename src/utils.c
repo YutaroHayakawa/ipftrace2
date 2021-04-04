@@ -4,7 +4,8 @@
 #include <stdbool.h>
 #include <string.h>
 #include <assert.h>
-#include <linux/bpf.h>
+
+#include <uapi/linux/bpf.h>
 
 #include "ipft.h"
 

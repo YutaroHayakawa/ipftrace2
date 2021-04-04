@@ -14,6 +14,9 @@ add_executable(ipft
   script.c
 )
 
+target_include_directories(ipft PUBLIC compat)
+target_include_directories(ipft PUBLIC compat/uapi)
+
 if(STATIC_LINKING)
   add_library(ZLIB STATIC IMPORTED)
   add_library(LIBELF STATIC IMPORTED)
