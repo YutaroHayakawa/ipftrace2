@@ -11,26 +11,81 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/utsname.h>
 #include <unistd.h>
-#include <linux/btf.h>
+#include <errno.h>
+#include <fts.h>
 
+#include <bpf/bpf.h>
 #include <bpf/btf.h>
+#include <bpf/libbpf.h>
 
 #include "ipft.h"
+
+static int
+load_module_btfs(struct btf *base_btf, struct btf **btfp)
+{
+  FTS *fts;
+  FTSENT *f;
+  struct btf *btf = base_btf;
+  char * const path_argv[] = { "/sys/kernel/btf", NULL };
+
+  fts = fts_open(path_argv, FTS_NOSTAT | FTS_LOGICAL, NULL);
+  if (fts == NULL) {
+    fprintf(stderr, "fts_open failed: %s\n", strerror(errno));
+    return -1;
+  }
+
+  while ((f = fts_read(fts)) != NULL) {
+    switch (f->fts_info) {
+    case FTS_F:
+      if (strcmp("vmlinux", f->fts_name) == 0) {
+        continue;
+      }
+
+      btf = btf__parse_raw_split(f->fts_accpath, base_btf);
+      if (btf != NULL) {
+        base_btf = btf;
+      } else {
+        fprintf(stderr, "btf__parse_raw_split failed\n");
+        return -1;
+      }
+
+      break;
+
+    default:
+      continue;
+    }
+  }
+
+  *btfp = btf;
+
+  return 0;
+}
 
 int
 kernel_btf_fill_sym2info(struct ipft_symsdb *sdb)
 {
   int error;
-  struct btf *btf;
   struct ipft_syminfo sinfo;
+  struct btf *btf, *kernel_btf;
   const struct btf_param *params;
   const char *func_name, *st_name;
   const struct btf_type *t, *func_proto;
 
-  btf = libbpf_find_kernel_btf();
-  if (btf == NULL) {
+  kernel_btf = libbpf_find_kernel_btf();
+  if (kernel_btf == NULL) {
     fprintf(stderr, "libbpf_find_kernel_btf failed\n");
+    return -1;
+  }
+
+  /*
+   * We use our own BTF loader in here since libbpf
+   * doesn't expose module BTF loader.
+   */
+  error = load_module_btfs(kernel_btf, &btf);
+  if (error == -1) {
+    fprintf(stderr, "load_module_btfs failed\n");
     return -1;
   }
 
