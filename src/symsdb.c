@@ -50,7 +50,8 @@ symsdb_put_sym2info(struct ipft_symsdb *sdb, const char *name,
 
   iter = kh_put(sym2info, db, k, &missing);
   if (!missing) {
-    return -1;
+    /* Already exists */
+    return -2;
   }
 
   kh_value(db, iter) = v;
