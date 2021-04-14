@@ -514,7 +514,8 @@ trace_cb(void *ctx, __unused int cpu, struct perf_event_header *ehdr)
 
 static int
 perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
-                   size_t perf_page_cnt)
+                   size_t perf_page_cnt, uint64_t perf_sample_period,
+                   uint32_t perf_wakeup_events)
 {
   struct perf_buffer *pb;
   struct perf_event_attr pe_attr = {0};
@@ -522,9 +523,9 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
 
   pe_attr.type = PERF_TYPE_SOFTWARE;
   pe_attr.config = PERF_COUNT_SW_BPF_OUTPUT;
-  pe_attr.sample_period = 1;
+  pe_attr.sample_period = perf_sample_period;
   pe_attr.sample_type = PERF_SAMPLE_RAW;
-  pe_attr.wakeup_events = 1;
+  pe_attr.wakeup_events = perf_wakeup_events;
 
   pb_opts.attr = &pe_attr;
   pb_opts.event_cb = trace_cb;
@@ -677,7 +678,8 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = perf_buffer_create(&t->pb, t, opt->perf_page_cnt);
+  error = perf_buffer_create(&t->pb, t, opt->perf_page_cnt,
+                             opt->perf_sample_period, opt->perf_wakeup_events);
   if (error == -1) {
     fprintf(stderr, "perf_buffer_create failed\n");
     return -1;

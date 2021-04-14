@@ -26,6 +26,8 @@ static struct option options[] = {
     {"verbose", no_argument, 0, 'v'},
     {"mask", required_argument, 0, '0'},
     {"perf-page-count", required_argument, 0, '0'},
+    {"perf-sample-period", required_argument, 0, '0'},
+    {"perf-wakeup-events", required_argument, 0, '0'},
     {"no-set-rlimit", no_argument, 0, '0'},
     {NULL, 0, 0, 0},
 };
@@ -137,7 +139,17 @@ main(int argc, char **argv)
       }
 
       if (strcmp(optname, "perf-page-count") == 0) {
-        opt.perf_page_cnt = atoi(optarg);
+        opt.perf_page_cnt = strtoull(optarg, NULL, 10);
+        break;
+      }
+
+      if (strcmp(optname, "perf-sample-period") == 0) {
+        opt.perf_sample_period = strtoull(optarg, NULL, 10);
+        break;
+      }
+
+      if (strcmp(optname, "perf-wakeup-events") == 0) {
+        opt.perf_wakeup_events = strtoul(optarg, NULL, 10);
         break;
       }
 
