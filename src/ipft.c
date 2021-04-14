@@ -35,28 +35,31 @@ static struct option options[] = {
 static void
 usage(void)
 {
-  fprintf(
-      stderr,
-      "Usage: ipft [OPTIONS]\n"
-      "\n"
-      "Options:\n"
-      " -h, --help                            Show this text\n"
-      " -l, --list                            List functions\n"
-      " -m, --mark            [HEX]           Trace the packet "
-      "marked with <mark> [required]\n"
-      "   , --mask            [HEX]           Only match to the bits masked "
-      "with given bitmask\n"
-      " -o, --output          [OUTPUT-FORMAT] Specify output format\n"
-      " -r, --regex           [REGEX]         Filter the function to trace"
-      "with regex\n"
-      " -s, --script          [PATH]          Path to extension script\n"
-      " -v, --verbose                         Turn on debug message\n"
-      "   , --perf-page-count [NUMBER]        Number of pages to use with"
-      " perf\n"
-      "   , --no-set-rlimit                   Don't set rlimit\n"
-      "\n"
-      "OUTPUT-FORMAT := { aggregate, stream }\n"
-      "\n");
+  fprintf(stderr,
+          "Usage: ipft [OPTIONS]\n"
+          "\n"
+          "Options:\n"
+          " -h, --help                               Show this text\n"
+          " -l, --list                               List functions\n"
+          " -m, --mark               [HEX]           Trace the packet marked "
+          "with <mark> [required]\n"
+          "   , --mask               [HEX]           Only match to the bits "
+          "masked with given bitmask (default: 0xffffffff)\n"
+          " -o, --output             [OUTPUT-FORMAT] Specify output format\n"
+          " -r, --regex              [REGEX]         Filter the function to "
+          "trace with regex\n"
+          " -s, --script             [PATH]          Path to extension script\n"
+          " -v, --verbose                            Turn on debug message\n"
+          "   , --perf-page-count    [NUMBER]        Number of pages to use "
+          "with perf (default: 8)\n"
+          "   , --perf-sample-period [NUMBER]        Number of pages to use "
+          "with perf (default: 1)\n"
+          "   , --perf-wakeup-events [NUMBER]        Number of pages to use "
+          "with perf (default: 1)\n"
+          "   , --no-set-rlimit                      Don't set rlimit\n"
+          "\n"
+          "OUTPUT-FORMAT := { aggregate, stream }\n"
+          "\n");
 }
 
 static void
@@ -66,10 +69,29 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->mask = 0xffffffff;
   opt->output_type = default_output_type;
   opt->perf_page_cnt = 8;
+  opt->perf_sample_period = 1;
+  opt->perf_wakeup_events = 1;
   opt->regex = NULL;
   opt->script = NULL;
   opt->set_rlimit = true;
   opt->verbose = false;
+}
+
+static void
+opt_dump(struct ipft_tracer_opt *opt)
+{
+  fprintf(stderr, "============   Options   ============\n");
+  fprintf(stderr, "mark               : 0x%x\n", opt->mark);
+  fprintf(stderr, "mask               : 0x%x\n", opt->mask);
+  fprintf(stderr, "regex              : %s\n", opt->regex);
+  fprintf(stderr, "script             : %s\n", opt->script);
+  fprintf(stderr, "output_type        : %s\n", opt->output_type);
+  fprintf(stderr, "perf_page_cnt      : %zu\n", opt->perf_page_cnt);
+  fprintf(stderr, "perf_sample_period : %zu\n", opt->perf_sample_period);
+  fprintf(stderr, "perf_wakeup_events : %u\n", opt->perf_wakeup_events);
+  fprintf(stderr, "set_rlimit         : %s\n",
+          opt->set_rlimit ? "true" : "false");
+  fprintf(stderr, "============ End Options ============\n");
 }
 
 static bool
@@ -173,6 +195,10 @@ main(int argc, char **argv)
   if (list) {
     error = list_functions(&opt);
     goto end;
+  }
+
+  if (opt.verbose) {
+    opt_dump(&opt);
   }
 
   error = tracer_run(&opt);
