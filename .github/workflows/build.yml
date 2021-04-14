@@ -2,7 +2,7 @@ on: [push]
 
 jobs:
   build:
-    name: Run unittests
+    name: Run build test
     runs-on: ubuntu-latest
     steps:
     - name: Checkout the repository
