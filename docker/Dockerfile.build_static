@@ -20,9 +20,8 @@ RUN apk add \
   readline-static \
   linux-headers
 
-RUN curl -OL https://github.com/libbpf/libbpf/archive/v0.3.tar.gz
-RUN tar xvf v0.3.tar.gz
-RUN cd libbpf-0.3/src && make install BUILD_STATIC_ONLY=1
+RUN git clone https://github.com/libbpf/libbpf
+RUN cd libbpf/src && make install BUILD_STATIC_ONLY=1
 
 RUN curl -OL http://www.lua.org/ftp/lua-5.4.2.tar.gz
 RUN tar xvf lua-5.4.2.tar.gz
