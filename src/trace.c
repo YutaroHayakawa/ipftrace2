@@ -12,6 +12,7 @@
 
 #include "ipft.h"
 #include "ipft.bpf.o.h"
+#include "null_module.bpf.o.h"
 
 struct ipft_tracer {
   struct bpf_object *bpf;
@@ -23,26 +24,6 @@ struct ipft_tracer {
   struct ipft_debuginfo *dinfo;
   struct ipft_traceable_set *tset;
   struct perf_buffer *pb;
-};
-
-struct target_elf {
-  FILE *fp;
-  Elf *elf;
-  Elf64_Ehdr ehdr;
-  Elf_Scn *symtab_scn;
-  Elf_Scn *text_scn;
-  int text_sh_idx;
-  int strtab_shidx;
-};
-
-struct module_elf {
-  uint8_t *image;
-  size_t image_size;
-};
-
-static struct bpf_insn default_module[] = {
-    {BPF_ALU64 | BPF_MOV | BPF_K, 0, 0, 0, 0},
-    {BPF_JMP | BPF_EXIT, 0, 0, 0, 0},
 };
 
 static int
@@ -91,315 +72,6 @@ set_rlimit(struct ipft_symsdb *sdb)
   if (error == -1) {
     perror("setrlimit");
     return -1;
-  }
-
-  return 0;
-}
-
-static int
-open_target_elf(uint8_t *image, size_t image_size, struct target_elf **objp)
-{
-  char *name;
-  size_t wsize;
-  Elf_Scn *scn;
-  GElf_Shdr sh;
-  struct target_elf *obj;
-
-  elf_version(EV_CURRENT);
-
-  obj = malloc(sizeof(*obj));
-  if (obj == NULL) {
-    fprintf(stderr, "Failed to allocate memory\n");
-    return -1;
-  }
-
-  /*
-   * We cannot use elf_memory in here, since the descriptor
-   * returned by it is immutable. Thus, we need to create
-   * tmpfile and write the ELF image to it.
-   */
-  obj->fp = tmpfile();
-  if (obj->fp == NULL) {
-    fprintf(stderr, "Failed to open tmpfile\n");
-    return -1;
-  }
-
-  wsize = fwrite(image, image_size, 1, obj->fp);
-  if (wsize != 1) {
-    fprintf(stderr, "Failed to write image to tmpfile\n");
-    return -1;
-  }
-
-  /* Need to reset offset before reading ELF */
-  fseek(obj->fp, 0, SEEK_SET);
-
-  obj->elf = elf_begin(fileno(obj->fp), ELF_C_RDWR, NULL);
-  if (obj->elf == NULL) {
-    fprintf(stderr, "Failed to open ELF object from memory\n");
-    return -1;
-  }
-
-  /* First find symtab section */
-  scn = NULL;
-  while ((scn = elf_nextscn(obj->elf, scn)) != NULL) {
-    if (gelf_getshdr(scn, &sh) != &sh) {
-      return -1;
-    }
-
-    if (sh.sh_type == SHT_SYMTAB) {
-      obj->symtab_scn = scn;
-      obj->strtab_shidx = sh.sh_link;
-      break;
-    }
-  }
-
-  if (obj->symtab_scn == NULL) {
-    fprintf(stderr, "Cannot find symtab section\n");
-    return -1;
-  }
-
-  /* Next find .text section */
-  scn = NULL;
-  while ((scn = elf_nextscn(obj->elf, scn)) != NULL) {
-    if (gelf_getshdr(scn, &sh) != &sh) {
-      return -1;
-    }
-
-    name = elf_strptr(obj->elf, obj->strtab_shidx, sh.sh_name);
-
-    if (sh.sh_type == SHT_PROGBITS && sh.sh_flags & SHF_EXECINSTR) {
-      if (strcmp(".text", name) == 0) {
-        obj->text_scn = scn;
-        obj->text_sh_idx = elf_ndxscn(scn);
-        break;
-      }
-    }
-  }
-
-  *objp = obj;
-
-  return 0;
-}
-
-static void
-close_target_elf(struct target_elf *target)
-{
-  elf_end(target->elf);
-  fclose(target->fp);
-}
-
-static int
-get_relocated_image(struct bpf_program *prog, __unused int n,
-                    struct bpf_insn *insns, int insns_cnt,
-                    struct bpf_prog_prep_result *res)
-{
-  struct module_elf *obj = (struct module_elf *)bpf_program__priv(prog);
-
-  obj->image = malloc(insns_cnt * sizeof(*insns));
-  if (obj->image == NULL) {
-    fprintf(stderr, "Couldn't allocate memory\n");
-    return -1;
-  }
-
-  memcpy(obj->image, (uint8_t *)insns, insns_cnt * sizeof(*insns));
-  obj->image_size = insns_cnt * sizeof(*insns);
-
-  /* Don't load program. Just copy binary. */
-  res->new_insn_ptr = NULL;
-  res->new_insn_cnt = 0;
-  res->pfd = NULL;
-
-  return 0;
-}
-
-static int
-open_module_elf(uint8_t *image, size_t image_size, struct module_elf **objp)
-{
-  int error;
-  struct module_elf *obj;
-  struct bpf_object *bpf;
-  struct bpf_program *prog;
-  struct bpf_object_open_opts opts = {.sz = sizeof(opts)};
-
-  obj = malloc(sizeof(*obj));
-  if (obj == NULL) {
-    fprintf(stderr, "Couldn't allocate memory\n");
-    return -1;
-  }
-
-  /*
-   * Intercept load by preprocessor and get relocated bpf image.
-   * Once libbpf supports kind of the "static linker", we don't need this.
-   */
-  bpf = bpf_object__open_mem(image, image_size, &opts);
-  if (bpf == NULL) {
-    fprintf(stderr, "bpf_object__open_mem failed\n");
-    return -1;
-  }
-
-  prog = bpf_object__find_program_by_name(bpf, "module");
-  if (prog == NULL) {
-    fprintf(stderr, "bpf_object__find_program_by_title failed\n");
-    return -1;
-  }
-
-  error = bpf_program__set_priv(prog, obj, NULL);
-  if (error == -1) {
-    fprintf(stderr, "bpf_program__set_priv failed\n");
-    return -1;
-  }
-
-  error = bpf_program__set_prep(prog, 1, get_relocated_image);
-  if (error == -1) {
-    fprintf(stderr, "bpf_program__set_prep failed\n");
-    return -1;
-  }
-
-  error = bpf_object__load(bpf);
-  if (error == -1) {
-    fprintf(stderr, "bpf_object__load failed\n");
-    return -1;
-  }
-
-  bpf_object__close(bpf);
-
-  *objp = obj;
-
-  return 0;
-}
-
-static void
-close_module_elf(struct module_elf *module)
-{
-  free(module->image);
-}
-
-static int
-do_link(struct target_elf *target, struct module_elf *module)
-{
-  char *name;
-  GElf_Sym *sym;
-  uint8_t *image;
-  size_t image_size;
-  Elf_Data *data, *symtab_data;
-
-  /* Copy module binary from module ELF */
-  if (module != NULL) {
-    image = module->image;
-    image_size = module->image_size;
-  } else {
-    image = (uint8_t *)default_module;
-    image_size = sizeof(default_module);
-  }
-
-  /* Copy module binary to target ELF */
-  data = elf_getdata(target->text_scn, NULL);
-  data->d_buf = image;
-  data->d_size = image_size;
-  data->d_align = 8;
-
-  /* Fill symtab */
-  symtab_data = elf_getdata(target->symtab_scn, NULL);
-  if (symtab_data == NULL) {
-    fprintf(stderr, "Couldn't get symtab data\n");
-    return -1;
-  }
-
-  for (size_t i = 0; i < symtab_data->d_size / sizeof(*sym); i++) {
-    sym = symtab_data->d_buf + i * sizeof(*sym);
-    name = elf_strptr(target->elf, target->strtab_shidx, sym->st_name);
-
-    if (strcmp(name, "module") != 0) {
-      continue;
-    }
-
-    sym->st_info = ELF64_ST_INFO(STB_GLOBAL, STT_FUNC);
-    sym->st_other = STV_DEFAULT;
-    sym->st_shndx = target->text_sh_idx;
-    sym->st_value = 0;
-    sym->st_size = image_size;
-
-    elf_flagdata(data, ELF_C_SET, ELF_F_DIRTY);
-
-    break;
-  }
-
-  elf_update(target->elf, ELF_C_WRITE);
-
-  return 0;
-}
-
-static int
-get_target_image(struct target_elf *target, uint8_t **imagep,
-                 size_t *image_sizep)
-{
-  uint8_t *image;
-  size_t image_size;
-
-  fseek(target->fp, 0, SEEK_END);
-  image_size = ftell(target->fp);
-  fseek(target->fp, 0, SEEK_SET);
-
-  image = calloc(1, image_size);
-  if (image == NULL) {
-    fprintf(stderr, "Failed to allocate memory\n");
-    return -1;
-  }
-
-  if (fread(image, image_size, 1, target->fp) != 1) {
-    fprintf(stderr, "Failed to read raw ELF image from file\n");
-    return -1;
-  }
-
-  *imagep = image;
-  *image_sizep = image_size;
-
-  return 0;
-}
-
-/*
- * Create an ELF image to load linked together with module ELF if provided
- */
-static int
-create_elf_image(uint8_t **target_imagep, size_t *target_image_sizep,
-                 uint8_t *module_image, size_t module_image_size)
-{
-  int error;
-  struct target_elf *target;
-  struct module_elf *module;
-
-  error = open_target_elf(ipft_bpf_o, ipft_bpf_o_len, &target);
-  if (error != 0) {
-    fprintf(stderr, "open_target_elf failed\n");
-    return -1;
-  }
-
-  if (module_image != NULL) {
-    error = open_module_elf(module_image, module_image_size, &module);
-    if (error != 0) {
-      fprintf(stderr, "Failed to parse module ELF\n");
-      return -1;
-    }
-  } else {
-    module = NULL;
-  }
-
-  error = do_link(target, module);
-  if (error != 0) {
-    fprintf(stderr, "Failed to link module\n");
-    return -1;
-  }
-
-  error = get_target_image(target, target_imagep, target_image_sizep);
-  if (error != 0) {
-    fprintf(stderr, "Failed to get target image\n");
-    return -1;
-  }
-
-  close_target_elf(target);
-
-  if (module_image != NULL) {
-    close_module_elf(module);
   }
 
   return 0;
@@ -545,14 +217,95 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
 }
 
 static int
+do_link(struct bpf_object **bpfp,
+        uint8_t *module_image, size_t module_image_len)
+{
+  int error;
+  struct bpf_object *bpf;
+  struct bpf_linker *linker;
+  FILE *tmpf_target, *tmpf_module;
+  char *tmp_dst;
+  char tmpf_name_target[FILENAME_MAX] = {0}, tmpf_name_module[FILENAME_MAX] = {0};
+  char link_name_target[FILENAME_MAX] = {0}, link_name_module[FILENAME_MAX] = {0};
+
+  tmpf_target = tmpfile();
+  if (tmpf_target == NULL) {
+    fprintf(stderr, "Failed to create tmpfile for target\n");
+    return -1;
+  }
+
+  fwrite(ipft_bpf_o, ipft_bpf_o_len, 1, tmpf_target);
+  fflush(tmpf_target);
+
+  tmpf_module = tmpfile();
+  if (tmpf_module == NULL) {
+    fprintf(stderr, "Failed to create tmpfile for module\n");
+    return -1;
+  }
+
+  fwrite(module_image, module_image_len, 1, tmpf_module);
+  fflush(tmpf_module);
+
+  sprintf(tmpf_name_target, "/proc/self/fd/%d", fileno(tmpf_target));
+  sprintf(tmpf_name_module, "/proc/self/fd/%d", fileno(tmpf_module));
+  readlink(tmpf_name_target, link_name_target, FILENAME_MAX - 1);
+  readlink(tmpf_name_module, link_name_module, FILENAME_MAX - 1);
+
+  struct bpf_linker_opts lopts = {
+    .sz = sizeof(lopts)
+  };
+
+  tmp_dst = tmpnam(NULL);
+
+  linker = bpf_linker__new(tmp_dst, &lopts);
+  if (linker == NULL) {
+    fprintf(stderr, "bpf_linker__create failed\n");
+    return -1;
+  }
+
+  error = bpf_linker__add_file(linker, tmpf_name_target);
+  if (error == -1) {
+    fprintf(stderr, "bpf_linker__add_file failed\n");
+    return -1;
+  }
+
+  error = bpf_linker__add_file(linker, tmpf_name_module);
+  if (error == -1) {
+    fprintf(stderr, "bpf_linker__add_file failed\n");
+    return -1;
+  }
+
+  error = bpf_linker__finalize(linker);
+  if (error == -1) {
+    fprintf(stderr, "bpf_linker__finalize failed\n");
+    return -1;
+  }
+
+  bpf = bpf_object__open(tmp_dst);
+  if (bpf == NULL) {
+    fprintf(stderr, "bpf_object__open failed\n");
+    return -1;
+  }
+
+  bpf_linker__free(linker);
+
+  // fclose(tmpf_target);
+  // fclose(tmpf_module);
+
+  *bpfp = bpf;
+
+  return 0;
+}
+
+static int
 bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
            struct ipft_script *script)
 {
   int error;
   struct bpf_object *bpf;
   struct ipft_trace_config conf;
-  uint8_t *target_image, *module_image;
-  size_t target_image_size, module_image_size;
+  uint8_t *module_image;
+  size_t module_image_size;
 
   struct bpf_object_open_opts opts = {
       .sz = sizeof(opts),
@@ -566,20 +319,13 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
       return -1;
     }
   } else {
-    module_image = NULL;
-    module_image_size = 0;
+    module_image = null_module_bpf_o;
+    module_image_size = null_module_bpf_o_len;
   }
 
-  error = create_elf_image(&target_image, &target_image_size, module_image,
-                           module_image_size);
-  if (error != 0) {
-    fprintf(stderr, "create_elf_image failed\n");
-    return -1;
-  }
-
-  bpf = bpf_object__open_mem(target_image, target_image_size, &opts);
-  if (bpf == NULL) {
-    fprintf(stderr, "ipft_bpf__open_and_load failed\n");
+  error = do_link(&bpf, module_image, module_image_size);
+  if (error == -1) {
+    fprintf(stderr, "finalize_bpf_prog failed\n");
     return -1;
   }
 
