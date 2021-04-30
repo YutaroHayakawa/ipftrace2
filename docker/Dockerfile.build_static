@@ -3,7 +3,10 @@
 FROM alpine:3.12.1
 
 RUN apk add \
+  git \
+  xxd \
   curl \
+  clang \
   cmake \
   xz-dev \
   fts-dev \
@@ -30,4 +33,5 @@ RUN cd lua-5.4.2 && make && make install
 ADD . /ipftrace2
 WORKDIR /ipftrace2
 
+RUN cd src && make
 RUN cmake -DSTATIC_LINKING=1 -DSTATIC_LIBC=1 . && make
