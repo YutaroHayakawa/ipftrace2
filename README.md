@@ -34,7 +34,7 @@ Please install [pahole](https://git.kernel.org/pub/scm/devel/pahole/pahole.git) 
 ```
 $ git clone https://git.kernel.org/pub/scm/devel/pahole/pahole.git
 $ git checkout v1.19
-$ cmake -DCMAKE_INSTALL_PREFIX="/usr/local" -DEXEC_INSTALL_PREFIX="" .
+$ cmake -D__LIB="lib" -DCMAKE_INSTALL_PREFIX="/usr/local" -DEXEC_INSTALL_PREFIX="" .
 $ make
 $ sudo make install
 ```
