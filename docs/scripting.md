@@ -26,6 +26,11 @@
  * https://facebookmicrosites.github.io/bpf/blog/2020/02/20/bcc-to-libbpf-howto-guide.html
  */
 
+/*
+ * CO-RE style kernel struct definition. You can only declare the subset
+ * of struct sk_buff you are interested in here. You don't have to prepare
+ * your module for each kernel version, libbpf takes care about it.
+ */
 struct sk_buff {
   uint32_t mark;
 };
@@ -66,7 +71,7 @@ module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
 
 ```
 // Need Clang 10 or later built with BPF backend
-$ clang -target bpf -O3 -c -g foo.bpf.c
+$ clang -target bpf -O3 -c -g foo.bpf.c -o foo.bpf.o
 ```
 
 ## Lua script
