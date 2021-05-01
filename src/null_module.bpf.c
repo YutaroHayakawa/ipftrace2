@@ -9,12 +9,13 @@
  */
 #include <stdint.h>
 #include <linux/ptrace.h>
+#include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 
 struct sk_buff {
 };
 
-int
+__hidden int
 module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
 {
   /* Do nothing */
