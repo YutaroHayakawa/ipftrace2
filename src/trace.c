@@ -217,59 +217,78 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
 }
 
 static int
-do_link(struct bpf_object **bpfp,
-        uint8_t *module_image, size_t module_image_len)
+create_tmpfile_from_image(int *fdp, char **namep,
+                          uint8_t *image, size_t image_size)
 {
-  int error;
-  struct bpf_object *bpf;
+  int fd;
+  char *name;
+  
+  name = strdup("/tmp/ipft_XXXXXX");
+  if (name == NULL) {
+    fprintf(stderr, "Failed to allocate memory for tmpfile name\n");
+    return -1;
+  }
+
+  fd = mkstemp(name);
+  if (fd == -1) {
+    fprintf(stderr, "Failed to create tmpfile\n");
+    return -1;
+  }
+
+  if (write(fd, image, image_size) == -1) {
+    fprintf(stderr, "Failed to write image to tmpfile\n");
+    return -1;
+  }
+
+  *fdp = fd;
+  *namep = name;
+
+  return 0;
+}
+
+static int
+do_link(char **namep,
+        uint8_t *target_image, size_t target_image_size,
+        uint8_t *module_image, size_t module_image_size)
+{
+  char *name;
   struct bpf_linker *linker;
-  FILE *tmpf_target, *tmpf_module;
-  char *tmp_dst;
-  char tmpf_name_target[FILENAME_MAX] = {0}, tmpf_name_module[FILENAME_MAX] = {0};
-  char link_name_target[FILENAME_MAX] = {0}, link_name_module[FILENAME_MAX] = {0};
+  int error, target_fd, module_fd;
+  char *target_name, *module_name;
 
-  tmpf_target = tmpfile();
-  if (tmpf_target == NULL) {
-    fprintf(stderr, "Failed to create tmpfile for target\n");
+  error = create_tmpfile_from_image(&target_fd, &target_name,
+		  target_image, target_image_size);
+  if (error == -1) {
+    fprintf(stderr, "create_tmpfile_from_image for target image failed\n");
     return -1;
   }
 
-  fwrite(ipft_bpf_o, ipft_bpf_o_len, 1, tmpf_target);
-  fflush(tmpf_target);
-
-  tmpf_module = tmpfile();
-  if (tmpf_module == NULL) {
-    fprintf(stderr, "Failed to create tmpfile for module\n");
+  error = create_tmpfile_from_image(&module_fd, &module_name,
+		  module_image, module_image_size);
+  if (error == -1) {
+    fprintf(stderr, "create_tmpfile_from_image for module image failed\n");
     return -1;
   }
-
-  fwrite(module_image, module_image_len, 1, tmpf_module);
-  fflush(tmpf_module);
-
-  sprintf(tmpf_name_target, "/proc/self/fd/%d", fileno(tmpf_target));
-  sprintf(tmpf_name_module, "/proc/self/fd/%d", fileno(tmpf_module));
-  readlink(tmpf_name_target, link_name_target, FILENAME_MAX - 1);
-  readlink(tmpf_name_module, link_name_module, FILENAME_MAX - 1);
 
   struct bpf_linker_opts lopts = {
     .sz = sizeof(lopts)
   };
 
-  tmp_dst = tmpnam(NULL);
+  name = tmpnam(NULL);
 
-  linker = bpf_linker__new(tmp_dst, &lopts);
+  linker = bpf_linker__new(name, &lopts);
   if (linker == NULL) {
     fprintf(stderr, "bpf_linker__create failed\n");
     return -1;
   }
 
-  error = bpf_linker__add_file(linker, tmpf_name_target);
+  error = bpf_linker__add_file(linker, target_name);
   if (error == -1) {
     fprintf(stderr, "bpf_linker__add_file failed\n");
     return -1;
   }
 
-  error = bpf_linker__add_file(linker, tmpf_name_module);
+  error = bpf_linker__add_file(linker, module_name);
   if (error == -1) {
     fprintf(stderr, "bpf_linker__add_file failed\n");
     return -1;
@@ -281,19 +300,33 @@ do_link(struct bpf_object **bpfp,
     return -1;
   }
 
-  bpf = bpf_object__open(tmp_dst);
-  if (bpf == NULL) {
-    fprintf(stderr, "bpf_object__open failed\n");
-    return -1;
-  }
-
   bpf_linker__free(linker);
 
-  // fclose(tmpf_target);
-  // fclose(tmpf_module);
+  close(target_fd);
+  close(module_fd);
+  unlink(target_name);
+  unlink(module_name);
+  free(target_name);
+  free(module_name);
 
-  *bpfp = bpf;
+  *namep = name;
 
+  return 0;
+}
+
+static int
+get_target_image(uint8_t **imagep, size_t *image_sizep)
+{
+  *imagep = ipft_bpf_o;
+  *image_sizep = ipft_bpf_o_len;
+  return 0;
+}
+
+static int
+get_default_module_image(uint8_t **imagep, size_t *image_sizep)
+{
+  *imagep = null_module_bpf_o;
+  *image_sizep = null_module_bpf_o_len;
   return 0;
 }
 
@@ -302,15 +335,17 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
            struct ipft_script *script)
 {
   int error;
+  char *name;
   struct bpf_object *bpf;
   struct ipft_trace_config conf;
-  uint8_t *module_image;
-  size_t module_image_size;
+  uint8_t *target_image, *module_image;
+  size_t target_image_size, module_image_size;
 
-  struct bpf_object_open_opts opts = {
-      .sz = sizeof(opts),
-      .object_name = "ipft",
-  };
+  error = get_target_image(&target_image, &target_image_size);
+  if (error != 0) {
+    fprintf(stderr, "get_target_image failed\n");
+    return -1;
+  }
 
   if (script != NULL) {
     error = script_exec_emit(script, &module_image, &module_image_size);
@@ -319,15 +354,32 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
       return -1;
     }
   } else {
-    module_image = null_module_bpf_o;
-    module_image_size = null_module_bpf_o_len;
+    error = get_default_module_image(&module_image, &module_image_size);
+    if (error != 0) {
+      fprintf(stderr, "get_default_module failed\n");
+      return -1;
+    }
   }
 
-  error = do_link(&bpf, module_image, module_image_size);
+  error = do_link(&name, target_image, target_image_size,
+		  module_image, module_image_size);
   if (error == -1) {
-    fprintf(stderr, "finalize_bpf_prog failed\n");
+    fprintf(stderr, "do_link failed\n");
     return -1;
   }
+
+  struct bpf_object_open_opts opts = {
+      .sz = sizeof(opts),
+      .object_name = "ipft",
+  };
+
+  bpf = bpf_object__open(name);
+  if (bpf == NULL) {
+    fprintf(stderr, "bpf_object__open failed\n");
+    return -1;
+  }
+
+  unlink(name);
 
   error = bpf_object__load(bpf);
   if (error == -1) {
