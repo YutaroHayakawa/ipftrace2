@@ -44,14 +44,14 @@ struct example_info {
  * return -1, then ipftrace2 main program returns without generating
  * any trace event.
  *
- * Annotating the function with __weak is essential. Otherwise your
+ * Annotating the function with __hidden is essential. Otherwise your
  * program will not pass the verification with kernel older than 5.12.
  *
- * See below for more details about the background for __weak
+ * See below for more details about the background for __hidden
  * https://github.com/libbpf/libbpf/commit/3319982d34ddc51a2807ccc92445d9a9d9089dcf
  * https://github.com/torvalds/linux/commit/e5069b9c23b3857db986c58801bebe450cff3392
  */
-__weak int
+__hidden int
 module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
 {
   struct example_info *info = (struct example_info *)data;
