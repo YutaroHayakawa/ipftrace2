@@ -50,7 +50,7 @@ struct example_info {
  * See below for more details about the background for __weak
  * https://github.com/libbpf/libbpf/commit/3319982d34ddc51a2807ccc92445d9a9d9089dcf
  * https://github.com/torvalds/linux/commit/e5069b9c23b3857db986c58801bebe450cff3392
- * /
+ */
 __weak int
 module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
 {
