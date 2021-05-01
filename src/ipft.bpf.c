@@ -3,9 +3,9 @@
  * Copyright (C) 2020 Yutaro Hayakawa
  */
 #include <stdint.h>
-#include <linux/bpf.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>
+#include <uapi/linux/bpf.h>
 
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -19,6 +19,8 @@ struct sk_buff {
   uint32_t mark;
 };
 
+extern int module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64]);
+
 struct {
   __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
   __uint(key_size, sizeof(uint32_t));
@@ -31,14 +33,6 @@ struct {
   __type(key, uint32_t);
   __type(value, struct ipft_trace_config);
 } config SEC(".maps");
-
-static __noinline int
-module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
-{
-  data[0] = (uint8_t)ctx;
-  data[1] = (uint8_t)skb;
-  return (int)data;
-}
 
 static __inline void
 ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
