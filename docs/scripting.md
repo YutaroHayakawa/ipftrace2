@@ -40,7 +40,7 @@ struct example_info {
  * 64 Bytes for better performance. The information you write to `data`
  * will be passed to the Lua script when ipftrace2 output the trace.
  *
- * Please return 0 if your module run successfully. Otherwise please
+ * Please return 0 if your module finish successfully. Otherwise please
  * return -1, then ipftrace2 main program returns without generating
  * any trace event.
  *
