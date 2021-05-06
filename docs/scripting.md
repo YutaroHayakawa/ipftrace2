@@ -28,8 +28,7 @@
 
 /*
  * CO-RE style kernel struct definition. You can only declare the subset
- * of struct sk_buff you are interested in here. You don't have to prepare
- * your module for each kernel version, libbpf takes care about it.
+ * of struct sk_buff you are interested in here.
  */
 struct sk_buff {
   uint32_t mark;
@@ -64,13 +63,13 @@ module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
   info->mark = BPF_CORE_READ(skb, mark);
 
   return 0;
-}s
+}
 ```
 
 ### Compile
 
 ```
-// Need Clang 10 or later built with BPF backend
+// Need Clang 10 or later built with LLVM BPF backend
 $ clang -target bpf -O3 -c -g foo.bpf.c -o foo.bpf.o
 ```
 
