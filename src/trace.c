@@ -19,7 +19,6 @@ struct ipft_tracer {
   struct ipft_regex *re;
   struct ipft_symsdb *sdb;
   struct ipft_output *out;
-  struct ipft_tracedb *tdb;
   struct ipft_script *script;
   struct ipft_debuginfo *dinfo;
   struct ipft_traceable_set *tset;
@@ -461,12 +460,6 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
   error = traceable_set_create(&t->tset);
   if (error != 0) {
     fprintf(stderr, "tracable_set_create\n");
-    return -1;
-  }
-
-  error = tracedb_create(&t->tdb);
-  if (error != 0) {
-    fprintf(stderr, "tracedb_create failed\n");
     return -1;
   }
 
