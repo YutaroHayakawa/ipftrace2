@@ -417,18 +417,6 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = kernel_btf_fill_sym2info(t->sdb);
-  if (error != 0) {
-    fprintf(stderr, "debuginfo_fill_sym2info failed\n");
-    return -1;
-  }
-
-  error = kallsyms_fill_addr2sym(t->sdb);
-  if (error != 0) {
-    fprintf(stderr, "kallsyms_fill_addr2sym failed\n");
-    return -1;
-  }
-
   if (opt->set_rlimit) {
     error = set_rlimit(t->sdb);
     if (error == -1) {

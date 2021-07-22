@@ -141,6 +141,7 @@ symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp)
 int
 symsdb_create(struct ipft_symsdb **sdbp)
 {
+  int error;
   struct ipft_symsdb *sdb;
 
   sdb = (struct ipft_symsdb *)malloc(sizeof(*sdb));
@@ -155,9 +156,21 @@ symsdb_create(struct ipft_symsdb **sdbp)
     return -1;
   }
 
+  error = kernel_btf_fill_sym2info(sdb);
+  if (error == -1) {
+    fprintf(stderr, "kernel_btf_fill_sym2info failed\n");
+    return -1;
+  }
+
   sdb->addr2sym = kh_init(addr2sym);
   if (sdb->addr2sym == NULL) {
     perror("kh_init");
+    return -1;
+  }
+
+  error = kallsyms_fill_addr2sym(sdb);
+  if (error == -1) {
+    fprintf(stderr, "kallsyms_fill_addr2sym failed\n");
     return -1;
   }
 
