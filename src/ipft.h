@@ -71,6 +71,7 @@ size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
 int symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
                         struct ipft_syminfo **sinfop);
 int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp);
+bool symsdb_func_is_available(struct ipft_symsdb *sdb, const char *sym);
 int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
                             int (*cb)(const char *, struct ipft_syminfo *,
                                       void *),
@@ -91,10 +92,6 @@ int aggregate_output_create(struct ipft_output **outp);
 int stream_output_create(struct ipft_output **outp);
 int output_on_trace(struct ipft_output *out, struct ipft_trace *t);
 int output_post_trace(struct ipft_output *out);
-
-int traceable_set_create(struct ipft_traceable_set **tsetp);
-bool traceable_set_is_traceable(struct ipft_traceable_set *tset,
-                                const char *sym);
 
 int tracer_run(struct ipft_tracer_opt *opt);
 int list_functions(struct ipft_tracer_opt *opt);

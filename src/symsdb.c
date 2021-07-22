@@ -26,10 +26,12 @@
 
 KHASH_MAP_INIT_STR(sym2info, struct ipft_syminfo *)
 KHASH_MAP_INIT_INT64(addr2sym, char *)
+KHASH_MAP_INIT_STR(availfuncs, int)
 
 struct ipft_symsdb {
   khash_t(sym2info) * sym2info;
   khash_t(addr2sym) * addr2sym;
+  khash_t(availfuncs) * availfuncs;
 };
 
 size_t
@@ -148,6 +150,80 @@ symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp)
   }
 
   *symp = kh_value(db, iter);
+
+  return 0;
+}
+
+static int
+symsdb_put_availfuncs(struct ipft_symsdb *sdb, char *sym)
+{
+  char *k;
+  int missing;
+  __unused khint_t iter;
+
+  k = strdup(sym);
+  if (k == NULL) {
+    return -1;
+  }
+
+  iter = kh_put(availfuncs, sdb->availfuncs, k, &missing);
+  if (missing == -1) {
+    fprintf(stderr, "kh_put failed\n");
+    return -1;
+  } else if (!missing) {
+    free(k);
+  }
+
+  return 0;
+}
+
+bool
+symsdb_func_is_available(struct ipft_symsdb *sdb, const char *sym)
+{
+  khint_t iter;
+
+  iter = kh_get(availfuncs, sdb->availfuncs, sym);
+  if (iter == kh_end(sdb->availfuncs)) {
+    return false;
+  }
+
+  return true;
+}
+
+static int
+fill_availfuncs(struct ipft_symsdb *sdb)
+{
+  FILE *f;
+  int error;
+  ssize_t nread;
+  size_t len = 0;
+  char *line = NULL;
+
+  f = fopen("/sys/kernel/debug/tracing/available_filter_functions", "r");
+  if (f == NULL) {
+    perror("fopen");
+    return -1;
+  }
+
+  while ((nread = getline(&line, &len, f)) != -1) {
+    char sym[129] = {0};
+    char *cur = line;
+    while (cur - line != 128) {
+      sym[cur - line] = *cur;
+      cur++;
+      if (*cur == '\n' || *cur == ' ') {
+        error = symsdb_put_availfuncs(sdb, sym);
+        if (error == -1) {
+          fprintf(stderr, "symsdb_put_availfuncs failed\n");
+          return -1;
+        }
+        break;
+      }
+    }
+  }
+
+  free(line);
+  fclose(f);
 
   return 0;
 }
@@ -384,6 +460,18 @@ symsdb_create(struct ipft_symsdb **sdbp)
   sdb = (struct ipft_symsdb *)malloc(sizeof(*sdb));
   if (sdb == NULL) {
     perror("malloc");
+    return -1;
+  }
+
+  sdb->availfuncs = kh_init(availfuncs);
+  if (sdb->availfuncs == NULL) {
+    perror("kh_init");
+    return -1;
+  }
+
+  error = fill_availfuncs(sdb);
+  if (error == -1) {
+    fprintf(stderr, "fill_availfuncs failed\n");
     return -1;
   }
 

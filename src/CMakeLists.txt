@@ -6,7 +6,6 @@ add_executable(ipft
   regex.c
   symsdb.c
   trace.c
-  traceable_set.c
   utils.c
   script.c
 )

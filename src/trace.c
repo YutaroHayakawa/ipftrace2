@@ -20,7 +20,6 @@ struct ipft_tracer {
   struct ipft_symsdb *sdb;
   struct ipft_output *out;
   struct ipft_script *script;
-  struct ipft_traceable_set *tset;
   struct perf_buffer *pb;
 };
 
@@ -90,7 +89,7 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
   struct bpf_program *prog;
   struct ipft_tracer *t = (struct ipft_tracer *)data;
 
-  if (!traceable_set_is_traceable(t->tset, sym)) {
+  if (!symsdb_func_is_available(t->sdb, sym)) {
     attach_stat.untraceable++;
     return 0;
   }
@@ -440,12 +439,6 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
   error = regex_create(&t->re, opt->regex);
   if (error != 0) {
     fprintf(stderr, "regex_create failed\n");
-    return -1;
-  }
-
-  error = traceable_set_create(&t->tset);
-  if (error != 0) {
-    fprintf(stderr, "tracable_set_create\n");
     return -1;
   }
 
