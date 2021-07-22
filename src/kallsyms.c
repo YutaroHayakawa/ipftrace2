@@ -20,11 +20,11 @@
 // https://www.kernel.org/doc/Documentation/x86/x86_64/mm.txt
 const unsigned long long kernel_addr_space = 0x00ffffffffffffff;
 #else
-const unsigned long long kernel_addr_spacee = 0x0;
+const unsigned long long kernel_addr_space = 0x0;
 #endif
 
 int
-kallsyms_fill_addr2sym(struct ipft_symsdb *db)
+kallsyms_fill_addr2sym(struct ipft_symsdb *sdb)
 {
   FILE *f;
   int error;
@@ -80,7 +80,7 @@ kallsyms_fill_addr2sym(struct ipft_symsdb *db)
     /*
      * Only add the symbols which are used
      */
-    error = symsdb_get_sym2info(db, symname, &si);
+    error = symsdb_get_sym2info(sdb, symname, &si);
     if (error == -1) {
       continue;
     }
@@ -88,7 +88,7 @@ kallsyms_fill_addr2sym(struct ipft_symsdb *db)
     /*
      * This shouldn't fail
      */
-    error = symsdb_put_addr2sym(db, addr, symname);
+    error = symsdb_put_addr2sym(sdb, addr, symname);
     if (error == -1) {
       fprintf(stderr, "symsdb_put_addr2sym failed\n");
       return -1;
