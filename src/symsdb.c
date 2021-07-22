@@ -174,8 +174,8 @@ put_availfuncs(struct ipft_symsdb *sdb, char *sym)
   return 0;
 }
 
-bool
-symsdb_func_is_available(struct ipft_symsdb *sdb, const char *sym)
+static bool
+func_is_available(struct ipft_symsdb *sdb, const char *sym)
 {
   khint_t iter;
 
@@ -330,6 +330,14 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
     }
 
     func_name = btf__str_by_offset(btf, t->name_off);
+
+    /*
+     * Only add the symbols which are available for tracing
+     */
+    if (!func_is_available(sdb, func_name)) {
+      continue;
+    }
+
     func_proto = btf__type_by_id(btf, t->type);
     params = btf_params(func_proto);
 

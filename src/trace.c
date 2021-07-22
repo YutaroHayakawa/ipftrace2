@@ -79,7 +79,6 @@ static struct {
   size_t succeeded;
   size_t failed;
   size_t filtered;
-  size_t untraceable;
 } attach_stat;
 
 static int
@@ -88,11 +87,6 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
   struct bpf_link *link;
   struct bpf_program *prog;
   struct ipft_tracer *t = (struct ipft_tracer *)data;
-
-  if (!symsdb_func_is_available(t->sdb, sym)) {
-    attach_stat.untraceable++;
-    return 0;
-  }
 
   if (!regex_match(t->re, sym)) {
     attach_stat.filtered++;
@@ -132,9 +126,9 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
   fprintf(
       stderr,
       "\rAttaching program (total %zu, succeeded %zu, failed %zu, filtered: "
-      "%zu, untraceable: %zu)",
+      "%zu)",
       attach_stat.total, attach_stat.succeeded, attach_stat.failed,
-      attach_stat.filtered, attach_stat.untraceable);
+      attach_stat.filtered);
   fflush(stderr);
 
   return 0;

@@ -71,7 +71,6 @@ size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
 int symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
                         struct ipft_syminfo **sinfop);
 int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp);
-bool symsdb_func_is_available(struct ipft_symsdb *sdb, const char *sym);
 int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
                             int (*cb)(const char *, struct ipft_syminfo *,
                                       void *),
