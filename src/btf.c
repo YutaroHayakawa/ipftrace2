@@ -68,7 +68,7 @@ kernel_btf_fill_sym2info(struct ipft_symsdb *sdb)
   FTSENT *f;
   int error;
   struct btf *btf, *kernel_btf;
-  char * const path_argv[] = { "/sys/kernel/btf", NULL };
+  char *const path_argv[] = {"/sys/kernel/btf", NULL};
 
   kernel_btf = libbpf_find_kernel_btf();
   if (kernel_btf == NULL) {

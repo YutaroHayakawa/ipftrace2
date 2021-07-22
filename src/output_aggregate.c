@@ -27,7 +27,7 @@ KHASH_MAP_INIT_INT64(trace, klist_t(trace_list) *)
 
 struct aggregate_output {
   struct ipft_output base;
-  khash_t(trace) *trace;
+  khash_t(trace) * trace;
   size_t ntraces;
 };
 
@@ -142,7 +142,7 @@ aggregate_output_post_trace(struct ipft_output *_out)
 
       free(tarray);)
 
-  return 0;
+      return 0;
 }
 
 int

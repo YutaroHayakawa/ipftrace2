@@ -20,7 +20,6 @@ struct ipft_tracer {
   struct ipft_symsdb *sdb;
   struct ipft_output *out;
   struct ipft_script *script;
-  struct ipft_debuginfo *dinfo;
   struct ipft_traceable_set *tset;
   struct perf_buffer *pb;
 };
@@ -216,12 +215,12 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
 }
 
 static int
-create_tmpfile_from_image(int *fdp, char **namep,
-                          uint8_t *image, size_t image_size)
+create_tmpfile_from_image(int *fdp, char **namep, uint8_t *image,
+                          size_t image_size)
 {
   int fd;
   char *name;
-  
+
   name = strdup("/tmp/ipft_XXXXXX");
   if (name == NULL) {
     fprintf(stderr, "Failed to allocate memory for tmpfile name\n");
@@ -246,8 +245,7 @@ create_tmpfile_from_image(int *fdp, char **namep,
 }
 
 static int
-do_link(char **namep,
-        uint8_t *target_image, size_t target_image_size,
+do_link(char **namep, uint8_t *target_image, size_t target_image_size,
         uint8_t *module_image, size_t module_image_size)
 {
   char *name;
@@ -255,23 +253,21 @@ do_link(char **namep,
   int error, target_fd, module_fd;
   char *target_name, *module_name;
 
-  error = create_tmpfile_from_image(&target_fd, &target_name,
-		  target_image, target_image_size);
+  error = create_tmpfile_from_image(&target_fd, &target_name, target_image,
+                                    target_image_size);
   if (error == -1) {
     fprintf(stderr, "create_tmpfile_from_image for target image failed\n");
     return -1;
   }
 
-  error = create_tmpfile_from_image(&module_fd, &module_name,
-		  module_image, module_image_size);
+  error = create_tmpfile_from_image(&module_fd, &module_name, module_image,
+                                    module_image_size);
   if (error == -1) {
     fprintf(stderr, "create_tmpfile_from_image for module image failed\n");
     return -1;
   }
 
-  struct bpf_linker_opts lopts = {
-    .sz = sizeof(lopts)
-  };
+  struct bpf_linker_opts lopts = {.sz = sizeof(lopts)};
 
   name = tmpnam(NULL);
 
@@ -281,9 +277,7 @@ do_link(char **namep,
     return -1;
   }
 
-  struct bpf_linker_file_opts fopts = {
-    .sz = sizeof(fopts)
-  };
+  struct bpf_linker_file_opts fopts = {.sz = sizeof(fopts)};
 
   error = bpf_linker__add_file(linker, target_name, &fopts);
   if (error == -1) {
@@ -364,8 +358,8 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
     }
   }
 
-  error = do_link(&name, target_image, target_image_size,
-		  module_image, module_image_size);
+  error = do_link(&name, target_image, target_image_size, module_image,
+                  module_image_size);
   if (error == -1) {
     fprintf(stderr, "do_link failed\n");
     return -1;
