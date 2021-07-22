@@ -281,13 +281,17 @@ do_link(char **namep,
     return -1;
   }
 
-  error = bpf_linker__add_file(linker, target_name);
+  struct bpf_linker_file_opts fopts = {
+    .sz = sizeof(fopts)
+  };
+
+  error = bpf_linker__add_file(linker, target_name, &fopts);
   if (error == -1) {
     fprintf(stderr, "bpf_linker__add_file failed\n");
     return -1;
   }
 
-  error = bpf_linker__add_file(linker, module_name);
+  error = bpf_linker__add_file(linker, module_name, &fopts);
   if (error == -1) {
     fprintf(stderr, "bpf_linker__add_file failed\n");
     return -1;
