@@ -1,7 +1,5 @@
 add_executable(ipft
-  btf.c
   ipft.c
-  kallsyms.c
   output.c
   output_aggregate.c
   output_stream.c

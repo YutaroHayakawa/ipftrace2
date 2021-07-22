@@ -68,19 +68,13 @@ struct ipft_output {
 
 int symsdb_create(struct ipft_symsdb **sdbp);
 size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
-int symsdb_put_sym2info(struct ipft_symsdb *sdb, const char *name,
-                        struct ipft_syminfo *sinfo);
 int symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
                         struct ipft_syminfo **sinfop);
-int symsdb_put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *sym);
 int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp);
 int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
                             int (*cb)(const char *, struct ipft_syminfo *,
                                       void *),
                             void *arg);
-
-int kernel_btf_fill_sym2info(struct ipft_symsdb *sdb);
-int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
 
 int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);
