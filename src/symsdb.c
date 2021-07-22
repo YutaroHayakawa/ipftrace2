@@ -41,7 +41,7 @@ symsdb_get_sym2info_total(struct ipft_symsdb *sdb)
 }
 
 static int
-symsdb_put_sym2info(struct ipft_symsdb *sdb, const char *name,
+put_sym2info(struct ipft_symsdb *sdb, const char *name,
                     struct ipft_syminfo *sinfo)
 {
   char *k;
@@ -111,7 +111,7 @@ symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
 }
 
 static int
-symsdb_put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *sym)
+put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *sym)
 {
   char *v;
   int missing;
@@ -155,7 +155,7 @@ symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp)
 }
 
 static int
-symsdb_put_availfuncs(struct ipft_symsdb *sdb, char *sym)
+put_availfuncs(struct ipft_symsdb *sdb, char *sym)
 {
   char *k;
   int missing;
@@ -212,9 +212,9 @@ fill_availfuncs(struct ipft_symsdb *sdb)
       sym[cur - line] = *cur;
       cur++;
       if (*cur == '\n' || *cur == ' ') {
-        error = symsdb_put_availfuncs(sdb, sym);
+        error = put_availfuncs(sdb, sym);
         if (error == -1) {
-          fprintf(stderr, "symsdb_put_availfuncs failed\n");
+          fprintf(stderr, "put_availfuncs failed\n");
           return -1;
         }
         break;
@@ -306,9 +306,9 @@ kallsyms_fill_addr2sym(struct ipft_symsdb *sdb)
     /*
      * This shouldn't fail
      */
-    error = symsdb_put_addr2sym(sdb, addr, symname);
+    error = put_addr2sym(sdb, addr, symname);
     if (error == -1) {
-      fprintf(stderr, "symsdb_put_addr2sym failed\n");
+      fprintf(stderr, "put_addr2sym failed\n");
       return -1;
     }
   }
@@ -358,9 +358,9 @@ fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
 
       sinfo.skb_pos = i + 1;
 
-      error = symsdb_put_sym2info(sdb, func_name, &sinfo);
+      error = put_sym2info(sdb, func_name, &sinfo);
       if (error != -2 && error != 0) {
-        fprintf(stderr, "symsdb_put_sym2info failed\n");
+        fprintf(stderr, "put_sym2info failed\n");
         return -1;
       }
 
