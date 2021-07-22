@@ -23,7 +23,6 @@
 #define MAX_RECURSE_LEVEL 8
 
 struct ipft_symsdb;
-struct ipft_tracedb;
 struct ipft_regex;
 struct ipft_script;
 struct ipft_traceable_set;
@@ -79,12 +78,6 @@ int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
                             int (*cb)(const char *, struct ipft_syminfo *,
                                       void *),
                             void *arg);
-
-int tracedb_create(struct ipft_tracedb **tdbp);
-size_t tracedb_get_total(struct ipft_tracedb *tdb);
-int tracedb_put_trace(struct ipft_tracedb *tdb, struct ipft_trace *t);
-void tracedb_dump(struct ipft_tracedb *tdb, struct ipft_symsdb *sdb,
-                  struct ipft_script *script);
 
 int kernel_btf_fill_sym2info(struct ipft_symsdb *sdb);
 int kallsyms_fill_addr2sym(struct ipft_symsdb *sdb);
