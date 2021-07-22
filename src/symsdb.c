@@ -46,7 +46,6 @@ put_sym2info(struct ipft_symsdb *sdb, const char *name,
 {
   char *k;
   khint_t iter;
-  khash_t(sym2info) * db;
   int missing;
   struct ipft_syminfo *v;
 
@@ -62,15 +61,13 @@ put_sym2info(struct ipft_symsdb *sdb, const char *name,
 
   memcpy(v, sinfo, sizeof(*v));
 
-  db = ((struct ipft_symsdb *)sdb)->sym2info;
-
-  iter = kh_put(sym2info, db, k, &missing);
+  iter = kh_put(sym2info, sdb->sym2info, k, &missing);
   if (!missing) {
     /* Already exists */
     return -2;
   }
 
-  kh_value(db, iter) = v;
+  kh_value(sdb->sym2info, iter) = v;
 
   return 0;
 }
@@ -242,7 +239,7 @@ const unsigned long long kernel_addr_space = 0x0;
  * Record the mapping of kernel functions and their addresses
  */
 static int
-kallsyms_fill_addr2sym(struct ipft_symsdb *sdb)
+fill_addr2sym(struct ipft_symsdb *sdb)
 {
   FILE *f;
   int error;
@@ -319,7 +316,7 @@ kallsyms_fill_addr2sym(struct ipft_symsdb *sdb)
 }
 
 static int
-fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
+btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
 {
   int error;
   struct ipft_syminfo sinfo;
@@ -376,7 +373,7 @@ fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
  * as an argument and record the position of the argument.
  */
 static int
-kernel_btf_fill_sym2info(struct ipft_symsdb *sdb)
+fill_sym2info(struct ipft_symsdb *sdb)
 {
   FTS *fts;
   FTSENT *f;
@@ -396,9 +393,9 @@ kernel_btf_fill_sym2info(struct ipft_symsdb *sdb)
     return -1;
   }
 
-  error = fill_sym2info(sdb, vmlinux_btf);
+  error = btf_fill_sym2info(sdb, vmlinux_btf);
   if (error == -1) {
-    fprintf(stderr, "fill_sym2info failed\n");
+    fprintf(stderr, "btf_fill_sym2info failed\n");
     return -1;
   }
 
@@ -436,9 +433,9 @@ kernel_btf_fill_sym2info(struct ipft_symsdb *sdb)
         return -1;
       }
 
-      error = fill_sym2info(sdb, btf);
+      error = btf_fill_sym2info(sdb, btf);
       if (error == -1) {
-        fprintf(stderr, "fill_sym2info failed\n");
+        fprintf(stderr, "btf_fill_sym2info failed\n");
         return -1;
       }
 
@@ -481,9 +478,9 @@ symsdb_create(struct ipft_symsdb **sdbp)
     return -1;
   }
 
-  error = kernel_btf_fill_sym2info(sdb);
+  error = fill_sym2info(sdb);
   if (error == -1) {
-    fprintf(stderr, "kernel_btf_fill_sym2info failed\n");
+    fprintf(stderr, "fill_sym2info failed\n");
     return -1;
   }
 
@@ -493,9 +490,9 @@ symsdb_create(struct ipft_symsdb **sdbp)
     return -1;
   }
 
-  error = kallsyms_fill_addr2sym(sdb);
+  error = fill_addr2sym(sdb);
   if (error == -1) {
-    fprintf(stderr, "kallsyms_fill_addr2sym failed\n");
+    fprintf(stderr, "fill_addr2sym failed\n");
     return -1;
   }
 
