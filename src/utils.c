@@ -40,12 +40,6 @@ list_functions(struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = kernel_btf_fill_sym2info(sdb);
-  if (error == -1) {
-    fprintf(stderr, "Failed to fill sym2info\n");
-    return -1;
-  }
-
   error = symsdb_sym2info_foreach(sdb, print_sym, re);
   if (error == -1) {
     fprintf(stderr, "Failed to traverse sym2info\n");
