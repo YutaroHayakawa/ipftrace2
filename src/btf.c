@@ -77,16 +77,16 @@ kernel_btf_fill_sym2info(struct ipft_symsdb *sdb)
   FTS *fts;
   FTSENT *f;
   int error;
-  struct btf *btf, *kernel_btf;
+  struct btf *btf, *vmlinux_btf;
   char *const path_argv[] = {"/sys/kernel/btf", NULL};
 
-  kernel_btf = libbpf_find_kernel_btf();
-  if (kernel_btf == NULL) {
+  vmlinux_btf = libbpf_find_kernel_btf();
+  if (vmlinux_btf == NULL) {
     fprintf(stderr, "libbpf_find_kernel_btf failed\n");
     return -1;
   }
 
-  error = fill_sym2info(sdb, kernel_btf);
+  error = fill_sym2info(sdb, vmlinux_btf);
   if (error == -1) {
     fprintf(stderr, "fill_sym2info failed\n");
     return -1;
@@ -113,7 +113,7 @@ kernel_btf_fill_sym2info(struct ipft_symsdb *sdb)
         continue;
       }
 
-      btf = btf__parse_raw_split(f->fts_accpath, kernel_btf);
+      btf = btf__parse_raw_split(f->fts_accpath, vmlinux_btf);
       if (btf == NULL) {
         fprintf(stderr, "btf__parse_raw failed\n");
         return -1;
