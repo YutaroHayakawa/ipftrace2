@@ -144,8 +144,8 @@ aggregate_output_post_trace(struct ipft_output *_out)
           printf("%zu %03u %32.32s ( ", t->tstamp, t->processor_id, name);
 
           /* Execute script and print results */
-          error = script_exec_dump(out->base.script,
-              t->data, sizeof(t->data), print_script_output);
+          error = script_exec_dump(out->base.script, t->data, sizeof(t->data),
+                                   print_script_output);
           if (error == -1) {
             return -1;
           }

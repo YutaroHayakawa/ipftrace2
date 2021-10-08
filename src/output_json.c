@@ -35,12 +35,13 @@ json_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
     return -1;
   }
 
-  printf("{\"packet_id\":\"%p\",\"timestamp\":%zu,\"processor_id\":%u,\"function\":\"%s\"",
-      (void *)t->skb_addr, t->tstamp, t->processor_id, name);
+  printf("{\"packet_id\":\"%p\",\"timestamp\":%zu,\"processor_id\":%u,"
+         "\"function\":\"%s\"",
+         (void *)t->skb_addr, t->tstamp, t->processor_id, name);
 
   if (out->base.script) {
-    error = script_exec_dump(out->base.script,
-        t->data, sizeof(t->data), print_script_output);
+    error = script_exec_dump(out->base.script, t->data, sizeof(t->data),
+                             print_script_output);
     if (error == -1) {
       return -1;
     }

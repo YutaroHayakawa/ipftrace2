@@ -180,7 +180,7 @@ script_exec_emit(struct ipft_script *script, uint8_t **imagep,
 
 int
 script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len,
-    int (*cb)(const char *, size_t, const char *, size_t))
+                 int (*cb)(const char *, size_t, const char *, size_t))
 {
   int error;
   lua_State *L = script->L;
@@ -199,8 +199,11 @@ script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len,
   while (lua_next(L, -2) != 0) {
     /* We only support flat string => string table for simplicity */
     if (!lua_isstring(L, -2) || !lua_isstring(L, -1)) {
-      fprintf(stderr, "Invalid key value type, expect string key/value got %s key %s value\n",
-          lua_typename(L, lua_type(L, -2)), lua_typename(L, lua_type(L, -1)));
+      fprintf(stderr,
+              "Invalid key value type, expect string key/value got %s key %s "
+              "value\n",
+              lua_typename(L, lua_type(L, -2)),
+              lua_typename(L, lua_type(L, -1)));
       return -1;
     }
 

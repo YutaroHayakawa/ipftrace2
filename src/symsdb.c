@@ -42,7 +42,7 @@ symsdb_get_sym2info_total(struct ipft_symsdb *sdb)
 
 static int
 put_sym2info(struct ipft_symsdb *sdb, const char *name,
-                    struct ipft_syminfo *sinfo)
+             struct ipft_syminfo *sinfo)
 {
   char *k;
   khint_t iter;
