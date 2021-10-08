@@ -2,7 +2,7 @@ add_executable(ipft
   ipft.c
   output.c
   output_aggregate.c
-  output_stream.c
+  output_json.c
   regex.c
   symsdb.c
   trace.c

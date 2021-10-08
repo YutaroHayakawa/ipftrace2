@@ -13,8 +13,8 @@ output_create(struct ipft_output **outp, const char *type,
 
   if (strcmp(type, "aggregate") == 0) {
     error = aggregate_output_create(&out);
-  } else if (strcmp(type, "stream") == 0) {
-    error = stream_output_create(&out);
+  } else if (strcmp(type, "json") == 0) {
+    error = json_output_create(&out);
   } else {
     fprintf(stderr, "Unsupported output type %s\n", type);
     return -1;

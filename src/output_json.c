@@ -11,7 +11,7 @@
  * Line-oriented JSON stream output
  */
 
-struct stream_output {
+struct json_output {
   struct ipft_output base;
 };
 
@@ -23,11 +23,11 @@ print_script_output(const char *k, size_t klen, const char *v, size_t vlen)
 }
 
 static int
-stream_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
+json_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
 {
   int error;
   char *name;
-  struct stream_output *out = (struct stream_output *)_out;
+  struct json_output *out = (struct json_output *)_out;
 
   error = symsdb_get_addr2sym(out->base.sdb, t->faddr, &name);
   if (error == -1) {
@@ -54,15 +54,15 @@ stream_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
 }
 
 static int
-stream_output_post_trace(__unused struct ipft_output *_out)
+json_output_post_trace(__unused struct ipft_output *_out)
 {
   return 0;
 }
 
 int
-stream_output_create(struct ipft_output **outp)
+json_output_create(struct ipft_output **outp)
 {
-  struct stream_output *out;
+  struct json_output *out;
 
   out = malloc(sizeof(*out));
   if (out == NULL) {
@@ -70,8 +70,8 @@ stream_output_create(struct ipft_output **outp)
     return -1;
   }
 
-  out->base.on_trace = stream_output_on_trace;
-  out->base.post_trace = stream_output_post_trace;
+  out->base.on_trace = json_output_on_trace;
+  out->base.post_trace = json_output_post_trace;
 
   *outp = (struct ipft_output *)out;
 

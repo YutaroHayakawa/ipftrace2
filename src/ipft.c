@@ -58,7 +58,7 @@ usage(void)
           "with perf (default: 1)\n"
           "   , --no-set-rlimit                      Don't set rlimit\n"
           "\n"
-          "OUTPUT-FORMAT := { aggregate, stream }\n"
+          "OUTPUT-FORMAT := { aggregate, json }\n"
           "\n");
 }
 
@@ -108,7 +108,7 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
   }
 
   if (strcmp(opt->output_type, "aggregate") != 0 &&
-      strcmp(opt->output_type, "stream") != 0) {
+      strcmp(opt->output_type, "json") != 0) {
     fprintf(stderr, "Invalid output format %s\n", opt->output_type);
     return false;
   }

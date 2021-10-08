@@ -88,7 +88,7 @@ void script_exec_fini(struct ipft_script *script);
 int output_create(struct ipft_output **outp, const char *type,
                   struct ipft_symsdb *sdb, struct ipft_script *script);
 int aggregate_output_create(struct ipft_output **outp);
-int stream_output_create(struct ipft_output **outp);
+int json_output_create(struct ipft_output **outp);
 int output_on_trace(struct ipft_output *out, struct ipft_trace *t);
 int output_post_trace(struct ipft_output *out);
 
