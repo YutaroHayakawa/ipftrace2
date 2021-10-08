@@ -8,12 +8,19 @@
 #include "ipft.h"
 
 /*
- * Line-oriented text stream output
+ * Line-oriented JSON stream output
  */
 
 struct stream_output {
   struct ipft_output base;
 };
+
+static int
+print_script_output(const char *k, size_t klen, const char *v, size_t vlen)
+{
+  printf(",\"%.*s\":\"%.*s\"", (int)klen, k, (int)vlen, v);
+  return 0;
+}
 
 static int
 stream_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
@@ -28,14 +35,18 @@ stream_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
     return -1;
   }
 
+  printf("{\"packet_id\":\"%p\",\"timestamp\":%zu,\"processor_id\":%u,\"function\":\"%s\"",
+      (void *)t->skb_addr, t->tstamp, t->processor_id, name);
+
   if (out->base.script) {
-    printf("%p %zu %03u %s %s\n", (void *)t->skb_addr, t->tstamp,
-           t->processor_id, name,
-           script_exec_dump(out->base.script, t->data, sizeof(t->data)));
-  } else {
-    printf("%p %zu %03u %s\n", (void *)t->skb_addr, t->tstamp, t->processor_id,
-           name);
+    error = script_exec_dump(out->base.script,
+        t->data, sizeof(t->data), print_script_output);
+    if (error == -1) {
+      return -1;
+    }
   }
+
+  printf("}\n");
 
   fflush(stdout);
 

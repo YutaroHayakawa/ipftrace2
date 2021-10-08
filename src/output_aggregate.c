@@ -86,6 +86,13 @@ compare_tstamp(const void *_t1, const void *_t2)
 }
 
 static int
+print_script_output(const char *k, size_t klen, const char *v, size_t vlen)
+{
+  printf("%.*s: %.*s ", (int)klen, k, (int)vlen, v);
+  return 0;
+}
+
+static int
 aggregate_output_post_trace(struct ipft_output *_out)
 {
   int error;
@@ -133,8 +140,17 @@ aggregate_output_post_trace(struct ipft_output *_out)
         }
 
         if (out->base.script != NULL) {
-          printf("%zu %03u %32.32s %s\n", t->tstamp, t->processor_id, name,
-                 script_exec_dump(out->base.script, t->data, sizeof(t->data)));
+          /* Print basic data */
+          printf("%zu %03u %32.32s ( ", t->tstamp, t->processor_id, name);
+
+          /* Execute script and print results */
+          error = script_exec_dump(out->base.script,
+              t->data, sizeof(t->data), print_script_output);
+          if (error == -1) {
+            return -1;
+          }
+
+          printf(")\n");
         } else {
           printf("%zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
         }

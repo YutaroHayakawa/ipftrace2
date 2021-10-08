@@ -44,6 +44,9 @@ function flags2str(flags)
       end
     end
   end
+  if ret == "" then
+    ret = "none"
+  end
   return ret
 end
 
@@ -54,6 +57,10 @@ end
 
 function dump(data)
   len, gso_size, gso_segs, gso_type = string.unpack("=I4I2I2I4", data)
-  return string.format("(len: %d gso_size: %d gso_segs: %d gso_type: %s)",
-                       len, gso_size, gso_segs, flags2str(gso_type))
+  return {
+    gso_type=flags2str(gso_type),
+    gso_segs=gso_segs,
+    gso_size=gso_size,
+    len=len
+  }
 end

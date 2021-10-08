@@ -178,27 +178,44 @@ script_exec_emit(struct ipft_script *script, uint8_t **imagep,
   return 0;
 }
 
-char *
-script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len)
+int
+script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len,
+    int (*cb)(const char *, size_t, const char *, size_t))
 {
-  const char *dump;
-  size_t dump_len;
+  int error;
+  lua_State *L = script->L;
 
-  if (!script_has_dump(script->L)) {
-    return NULL;
+  if (!script_has_dump(L)) {
+    return 0;
   }
 
-  lua_getglobal(script->L, "dump");
-  lua_pushlstring(script->L, (char *)data, len);
-  lua_call(script->L, 1, 1);
+  /* A table user returned will be put on top of Lua stack */
+  lua_getglobal(L, "dump");
+  lua_pushlstring(L, (char *)data, len);
+  lua_call(L, 1, 1);
 
-  dump = lua_tolstring(script->L, -1, &dump_len);
-  if (dump == NULL) {
-    fprintf(stderr, "lua_tolstring failed\n");
-    return NULL;
+  /* Iterate over the table elements */
+  lua_pushnil(L);
+  while (lua_next(L, -2) != 0) {
+    /* We only support flat string => string table for simplicity */
+    if (!lua_isstring(L, -2) || !lua_isstring(L, -1)) {
+      fprintf(stderr, "Invalid key value type, expect string key/value got %s key %s value\n",
+          lua_typename(L, lua_type(L, -2)), lua_typename(L, lua_type(L, -1)));
+      return -1;
+    }
+
+    /* Callback for each key/value pair */
+    size_t klen, vlen;
+    const char *k = lua_tolstring(L, -2, &klen);
+    const char *v = lua_tolstring(L, -1, &vlen);
+    error = cb(k, klen, v, vlen);
+    if (error == -1) {
+      fprintf(stderr, "Callback returned with error\n");
+      return -1;
+    }
+
+    lua_pop(L, 1);
   }
 
-  lua_pop(script->L, 1);
-
-  return strndup(dump, dump_len);
+  return 0;
 }
