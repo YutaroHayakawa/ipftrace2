@@ -12,10 +12,9 @@ It aggregates the function call trace of individual packets, sorts them by times
 
 #### How to read
 
-Below is an example output including script output. Each lines are corresponds to the single tracing sample. From the left, it shows time stamp, processor id, function name, and script output (in the brackets). Lines surrounded by `===` are the traces of single packet basically. But in some cases, it is not always the actual boundary.
+Below is an example output including script output. Each lines are corresponds to the single tracing sample. From the left, it shows time stamp, processor id, function name, and script output (in the brackets). Lines surrounded by `===` are the traces of single packet [basically](#what-is-packet_id).
 
 ```
-
 <skip...>
 Attaching program (total 1303, succeeded 1303, failed 0, filtered: 0)
 Trace ready!
@@ -182,3 +181,12 @@ Meaning of each JSON elements are below.
 
 In [examples/aggregation/aggregate.py](https://github.com/YutaroHayakawa/ipftrace2/blob/master/example/aggregation/aggregate.py) we have a minimal example of how to aggregate samples with Python.
 
+## What is packet\_id?
+
+`packet_id` is an ID that can identify individual `struct sk_buff` inside the kernel. 
+
+`ipftrace2` is a tool to trace which function a packet passed through in the kernel. The packet here is technically a `struct sk_buff`. `iptrace2` internally attaches a BPF program to a function that takes `struct sk_buff` as an argument, and records the function calls. At this point, when we have two `struct sk_buff`, skb1 and skb2, we need a unique ID to distinguish each of them in order to know how to distinguish a series of function calls between them. This is where the `packet_id` comes in.
+
+The Linux kernel does not explicitly provide such an ID. Therefore, `ipftrace2` currently uses the **pointer to `struct sk_buff`** as the `packet_id`. However, this method is not perfect. The memory area can be reused, so the same pointer may appear again. Furthermore, Linux currently allocates `struct sk_buff` from the memory pool, so it is highly likely to be reused.
+
+It is possible that a kernel update in the future could provide a truly unique ID in some way. This is why we currently use vague names like `packet_id` instead of names like `skb_pointer`.
