@@ -104,6 +104,7 @@ aggregate_output_post_trace(struct ipft_output *_out)
 
   printf("\n");
 
+  printf("%-20s %3.3s %32.32s\n", "Timestamp", "CPU", "Function");
   kh_foreach_value(
       out->trace, l, printf("===\n");
 
