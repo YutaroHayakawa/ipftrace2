@@ -141,7 +141,7 @@ aggregate_output_post_trace(struct ipft_output *_out)
 
         if (out->base.script != NULL) {
           /* Print basic data */
-          printf("%zu %03u %32.32s ( ", t->tstamp, t->processor_id, name);
+          printf("%-20zu %03u %32.32s ( ", t->tstamp, t->processor_id, name);
 
           /* Execute script and print results */
           error = script_exec_dump(out->base.script, t->data, sizeof(t->data),
@@ -152,7 +152,7 @@ aggregate_output_post_trace(struct ipft_output *_out)
 
           printf(")\n");
         } else {
-          printf("%zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
+          printf("%-20zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
         }
       }
 
