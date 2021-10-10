@@ -141,17 +141,6 @@ the programs by this feature.
 $ sudo ipft -m 0xdeadbeef -r "ip_.*"
 ```
 
-#### Step2-3: Use custom script
-
-`ipftrace2` is capable of customizing the tracing by C and Lua script. By using this feature, you can
-trace more than just functions the packets have gone through, but the content of `skb` or any
-other data associate with it. Please see [Scripting manual](docs/scripting.md) for more details.
-Also, you can find the example in `example` directory.
-
-```
-$ sudo ipft -m 0xdeadbeef -s example/gso.lua
-```
-
 ### Step-3: Generate the packet
 
 Now you are ready to trace. Generate the packet from another shell.
@@ -159,3 +148,26 @@ Now you are ready to trace. Generate the packet from another shell.
 ```
 $ curl https://1.1.1.1
 ````
+
+## Advanced usage
+
+### Use custom script
+
+`ipftrace2` is capable of customizing the tracing by C and Lua script. By using this feature, you can
+trace more than just functions the packets have gone through, but the content of `skb` or any
+other data associate with it. Please see [Scripting manual](docs/scripting.md) for more details.
+Also, you can find the examples in `example` directory.
+
+```
+$ sudo ipft -m 0xdeadbeef -s example/gso.lua
+```
+
+### Use JSON stream output
+
+`ipftrace2` supports JSON output that streams tracing samples with machine-readable JSON format. Compared
+to the default "aggregated" output, "streaming" output is more memory efficient, but users are responsible
+for parsing/aggregating the tracing samples by themselves. For more details, please see the [doc](docs/output.md).
+
+```
+$ sudo ipft -m 0xdeadbeef -o json
+```
