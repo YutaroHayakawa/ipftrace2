@@ -96,10 +96,13 @@ end
 
 function dump(data)
   -- Called multiple times for every tracing output. Parse binary data (which
-  -- comes from `data` buffer of C module() function) and generate human-readable
-  -- string. It will be appended to the end of default tracing output.
+  -- comes from `data` buffer of C module() function) and generate flat table
+  -- that maps string to string/number. Type other than string/number or nested
+  -- tables are not supported currently.
   mark = string.unpack("=I4", data)
-  return string.format("(mark: 0x%x)", mark)
+  return {
+    mark=mark
+  }
 end
 
 function fini()
