@@ -180,5 +180,5 @@ Meaning of each JSON elements are below.
 
 #### How to aggregate
 
-In [examples/aggregation/aggregate.py](../examples/aggregation/aggregate.py) we have a minimal example of how to aggregate samples with Python.
+In [examples/aggregation/aggregate.py](https://github.com/YutaroHayakawa/ipftrace2/blob/master/example/aggregation/aggregate.py) we have a minimal example of how to aggregate samples with Python.
 
