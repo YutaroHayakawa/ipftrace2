@@ -6,7 +6,7 @@ Marking the packet is what you'll need to do first when you use `ipftrace2` . Th
 
 Here we have a diagram that shows where and how we can mark the packet. There are a lot of the places we can mark the packet, but this diagram only shows the "meaningful" place for `ipftrace2` tracing. Since `ipftrace2` only generates the tracing sample when the packet is marked, to maximize the tracing coverage, you should mark the packet as early as possible. For example, in the TX path, the earliest possible place to mark the packet is `SO_MARK` . In the RX path,  XDP metadata is the earliest. However, both of them requires us to write some program. If you don't want to write a program, `tc` or `iptables (netfilter)` are easier to use.
 
-![ipftrace2_marking.drawio.pdf](ipftrace2_marking.drawio.pdf)
+![ipftrace2_marking.drawio.pdf](ipftrace2_marking.drawio.png)
 
 ## Useful things to know about the mark
 
