@@ -159,7 +159,7 @@ other data associate with it. Please see [Scripting manual](docs/scripting.md) f
 Also, you can find the examples in `example` directory.
 
 ```
-$ sudo ipft -m 0xdeadbeef -s example/gso.lua
+$ sudo ipft -m 0xdeadbeef -s example/gso/gso.lua
 ```
 
 ### Use JSON stream output
@@ -169,5 +169,5 @@ to the default "aggregated" output, "streaming" output is more memory efficient,
 for parsing/aggregating the tracing samples by themselves. For more details, please see the [doc](docs/output.md).
 
 ```
-$ sudo ipft -m 0xdeadbeef -o json
+$ sudo ipft -m 0xdeadbeef -o json | python example/aggregation/aggregate.py
 ```
