@@ -41,9 +41,9 @@ usage(void)
           "Options:\n"
           " -h, --help                               Show this text\n"
           " -l, --list                               List functions\n"
-          " -m, --mark               [HEX]           Trace the packet marked "
+          " -m, --mark               [NUMBER]        Trace the packet marked "
           "with <mark> [required]\n"
-          "   , --mask               [HEX]           Only match to the bits "
+          "   , --mask               [NUMBER]        Only match to the bits "
           "masked with given bitmask (default: 0xffffffff)\n"
           " -o, --output             [OUTPUT-FORMAT] Specify output format\n"
           " -r, --regex              [REGEX]         Filter the function to "
@@ -138,7 +138,7 @@ main(int argc, char **argv)
       list = true;
       break;
     case 'm':
-      opt.mark = strtoul(optarg, NULL, 16);
+      opt.mark = strtoul(optarg, NULL, 0);
       break;
     case 'o':
       opt.output_type = strdup(optarg);
@@ -156,7 +156,7 @@ main(int argc, char **argv)
       optname = options[optind].name;
 
       if (strcmp(optname, "mask") == 0) {
-        opt.mask = strtoul(optarg, NULL, 16);
+        opt.mask = strtoul(optarg, NULL, 0);
         break;
       }
 
