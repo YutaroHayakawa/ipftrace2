@@ -5,7 +5,7 @@ add_executable(ipft
   output_json.c
   regex.c
   symsdb.c
-  trace.c
+  tracer.c
   utils.c
   script.c
 )
