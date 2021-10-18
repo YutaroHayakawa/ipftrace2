@@ -1,7 +1,3 @@
-/*
- * SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
- * Copyright (C) 2020 Yutaro Hayakawa
- */
 #include <stdint.h>
 #include <linux/types.h>
 #include <linux/ptrace.h>

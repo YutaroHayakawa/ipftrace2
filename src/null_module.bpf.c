@@ -1,9 +1,4 @@
 /*
- * SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
- * Copyright (C) 2020 Yutaro Hayakawa
- */
-
-/*
  * Workaround to deal with missing weak symbol support. We can put
  * this function into ipft.bpf.c with weak symbol once it is supported.
  */
