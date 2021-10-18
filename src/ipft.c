@@ -13,8 +13,6 @@
 
 #include "ipft.h"
 
-static char *default_output_type = "aggregate";
-
 static struct option options[] = {
     {"help", no_argument, 0, 'h'},
     {"list", no_argument, 0, 'l'},
@@ -66,7 +64,7 @@ opt_init(struct ipft_tracer_opt *opt)
 {
   opt->mark = 0;
   opt->mask = 0xffffffff;
-  opt->output_type = default_output_type;
+  opt->output_type = "aggregate";
   opt->perf_page_cnt = 8;
   opt->perf_sample_period = 1;
   opt->perf_wakeup_events = 1;
