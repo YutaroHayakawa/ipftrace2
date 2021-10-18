@@ -145,12 +145,13 @@ do_set_rlimit(bool verbose)
   struct rlimit lim;
   unsigned int nr_open;
 
-
   /*
    * Set locked memory limit to infinity
    */
   if (verbose) {
-    fprintf(stderr, "Bumping RLIMIT_MEMLOCK (cur: RLIM_INFINITY, max: RLIM_INFINITY)\n");
+    fprintf(
+        stderr,
+        "Bumping RLIMIT_MEMLOCK (cur: RLIM_INFINITY, max: RLIM_INFINITY)\n");
   }
 
   lim.rlim_cur = RLIM_INFINITY;
@@ -174,14 +175,17 @@ do_set_rlimit(bool verbose)
    * Set file limit
    */
   if (verbose) {
-    fprintf(stderr, "Bumping RLIMIT_MEMLOCK (cur: %u, max: %u)\n", nr_open, nr_open);
+    fprintf(stderr, "Bumping RLIMIT_MEMLOCK (cur: %u, max: %u)\n", nr_open,
+            nr_open);
   }
 
   lim.rlim_cur = nr_open;
   lim.rlim_max = nr_open;
   error = setrlimit(RLIMIT_NOFILE, &lim);
   if (error == -1) {
-    fprintf(stderr, "setlimit failed (resource: RLIMIT_NOFILE, cur: %u, max: %u\n", nr_open, nr_open);
+    fprintf(stderr,
+            "setlimit failed (resource: RLIMIT_NOFILE, cur: %u, max: %u\n",
+            nr_open, nr_open);
     return -1;
   }
 
