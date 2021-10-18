@@ -51,7 +51,6 @@ struct ipft_tracer_opt {
   size_t perf_page_cnt;
   uint64_t perf_sample_period;
   uint32_t perf_wakeup_events;
-  bool set_rlimit;
   bool verbose;
 };
 

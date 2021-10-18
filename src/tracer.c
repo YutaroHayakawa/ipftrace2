@@ -3,7 +3,6 @@
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <sys/resource.h>
 
 #include <gelf.h>
 #include <libelf.h>
@@ -22,57 +21,6 @@ struct ipft_tracer {
   struct ipft_script *script;
   struct perf_buffer *pb;
 };
-
-static int
-set_rlimit(struct ipft_symsdb *sdb)
-{
-  int error;
-  size_t nfiles;
-  struct rlimit lim;
-
-  /*
-   * Rough estimations for various file descriptors like eBPF
-   * program, maps or perf events and kprobe events. This is
-   * the "required" number of file descriptors.
-   */
-  nfiles = 32 + symsdb_get_sym2info_total(sdb);
-
-  /*
-   * Set locked memory limit to infinity
-   */
-  lim.rlim_cur = RLIM_INFINITY;
-  lim.rlim_max = RLIM_INFINITY;
-  error = setrlimit(RLIMIT_MEMLOCK, &lim);
-  if (error == -1) {
-    perror("setrlimit");
-    return -1;
-  }
-
-  /*
-   * Set file limit
-   */
-  error = getrlimit(RLIMIT_NOFILE, &lim);
-  if (error == -1) {
-    perror("getrlimit");
-    return -1;
-  }
-
-  if (lim.rlim_cur < nfiles && lim.rlim_cur != RLIM_INFINITY) {
-    lim.rlim_cur = nfiles;
-  }
-
-  if (lim.rlim_max != RLIM_INFINITY && lim.rlim_max < lim.rlim_cur) {
-    lim.rlim_max = lim.rlim_cur;
-  }
-
-  error = setrlimit(RLIMIT_NOFILE, &lim);
-  if (error == -1) {
-    perror("setrlimit");
-    return -1;
-  }
-
-  return 0;
-}
 
 static struct {
   size_t total;
@@ -392,12 +340,6 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
   return 0;
 }
 
-static int
-debug_print(__unused enum libbpf_print_level level, const char *fmt, va_list ap)
-{
-  return vfprintf(stderr, fmt, ap);
-}
-
 static bool end = false;
 
 static void
@@ -451,10 +393,6 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
   int error;
   struct ipft_tracer *t;
 
-  if (opt->verbose) {
-    libbpf_set_print(debug_print);
-  }
-
   t = calloc(1, sizeof(*t));
   if (t == NULL) {
     fprintf(stderr, "Failed to allocate memory\n");
@@ -465,14 +403,6 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
   if (error != 0) {
     fprintf(stderr, "symsdb_create failed\n");
     return -1;
-  }
-
-  if (opt->set_rlimit) {
-    error = set_rlimit(t->sdb);
-    if (error == -1) {
-      fprintf(stderr, "set_rlimit failed\n");
-      return -1;
-    }
   }
 
   error = script_create(&t->script, opt->script);

@@ -11,6 +11,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/resource.h>
+
+#include <bpf/libbpf.h>
 
 #include "ipft.h"
 
@@ -73,7 +76,6 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->perf_wakeup_events = 1;
   opt->regex = NULL;
   opt->script = NULL;
-  opt->set_rlimit = true;
   opt->verbose = false;
 }
 
@@ -89,8 +91,6 @@ opt_dump(struct ipft_tracer_opt *opt)
   fprintf(stderr, "perf_page_cnt      : %zu\n", opt->perf_page_cnt);
   fprintf(stderr, "perf_sample_period : %zu\n", opt->perf_sample_period);
   fprintf(stderr, "perf_wakeup_events : %u\n", opt->perf_wakeup_events);
-  fprintf(stderr, "set_rlimit         : %s\n",
-          opt->set_rlimit ? "true" : "false");
   fprintf(stderr, "============ End Options ============\n");
 }
 
@@ -121,6 +121,85 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
   return true;
 }
 
+static int
+get_nr_open(unsigned int *nr_openp)
+{
+  unsigned int nr_open;
+
+  FILE *f = fopen("/proc/sys/fs/nr_open", "r");
+  if (f == NULL) {
+    perror("Failed to open /proc/sys/fs/nr_open");
+    return -1;
+  }
+
+  if (fscanf(f, "%u", &nr_open) != 1) {
+    perror("Failed to read the value from /proc/sys/fs/nr_open");
+    return -1;
+  }
+
+  fclose(f);
+
+  *nr_openp = nr_open;
+
+  return 0;
+}
+
+static int
+do_set_rlimit(bool verbose)
+{
+  int error;
+  struct rlimit lim;
+  unsigned int nr_open;
+
+
+  /*
+   * Set locked memory limit to infinity
+   */
+  if (verbose) {
+    fprintf(stderr, "Bumping RLIMIT_MEMLOCK (cur: RLIM_INFINITY, max: RLIM_INFINITY)\n");
+  }
+
+  lim.rlim_cur = RLIM_INFINITY;
+  lim.rlim_max = RLIM_INFINITY;
+  error = setrlimit(RLIMIT_MEMLOCK, &lim);
+  if (error == -1) {
+    perror("setrlimit");
+    return -1;
+  }
+
+  /*
+   * Get maximum possible value of open files
+   */
+  error = get_nr_open(&nr_open);
+  if (error == -1) {
+    fprintf(stderr, "get_nr_open failed\n");
+    return -1;
+  }
+
+  /*
+   * Set file limit
+   */
+  if (verbose) {
+    fprintf(stderr, "Bumping RLIMIT_MEMLOCK (cur: %u, max: %u)\n", nr_open, nr_open);
+  }
+
+  lim.rlim_cur = nr_open;
+  lim.rlim_max = nr_open;
+  error = setrlimit(RLIMIT_NOFILE, &lim);
+  if (error == -1) {
+    fprintf(stderr, "setlimit failed (resource: RLIMIT_NOFILE, cur: %u, max: %u\n", nr_open, nr_open);
+    return -1;
+  }
+
+  return 0;
+}
+
+static int
+debug_print(__unused enum libbpf_print_level level, const char *fmt, va_list ap)
+{
+  return vfprintf(stderr, fmt, ap);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -130,6 +209,7 @@ main(int argc, char **argv)
   struct ipft_tracer *t;
   struct ipft_tracer_opt opt;
   bool list = false;
+  bool set_rlimit = true;
 
   opt_init(&opt);
 
@@ -177,7 +257,7 @@ main(int argc, char **argv)
       }
 
       if (strcmp(optname, "no-set-rlimit") == 0) {
-        opt.set_rlimit = false;
+        set_rlimit = false;
         break;
       }
 
@@ -199,7 +279,18 @@ main(int argc, char **argv)
   }
 
   if (opt.verbose) {
+    /* Enable debug print for libbpf */
+    libbpf_set_print(debug_print);
+    /* Print out all options user provided */
     opt_dump(&opt);
+  }
+
+  if (set_rlimit) {
+    error = do_set_rlimit(opt.verbose);
+    if (error == -1) {
+      fprintf(stderr, "do_set_rlimit failed\n");
+      return -1;
+    }
   }
 
   error = tracer_create(&t, &opt);
