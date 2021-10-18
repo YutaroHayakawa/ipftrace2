@@ -25,7 +25,7 @@
 struct ipft_symsdb;
 struct ipft_regex;
 struct ipft_script;
-struct ipft_traceable_set;
+struct ipft_tracer;
 
 struct ipft_trace {
   uint64_t skb_addr;
@@ -93,5 +93,6 @@ int json_output_create(struct ipft_output **outp);
 int output_on_trace(struct ipft_output *out, struct ipft_trace *t);
 int output_post_trace(struct ipft_output *out);
 
-int tracer_run(struct ipft_tracer_opt *opt);
+int tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt);
+int tracer_run(struct ipft_tracer *t);
 int list_functions(struct ipft_tracer_opt *opt);

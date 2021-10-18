@@ -127,6 +127,7 @@ main(int argc, char **argv)
   int c, optind;
   int error = -1;
   const char *optname;
+  struct ipft_tracer *t;
   struct ipft_tracer_opt opt;
   bool list = false;
 
@@ -201,9 +202,16 @@ main(int argc, char **argv)
     opt_dump(&opt);
   }
 
-  error = tracer_run(&opt);
+  error = tracer_create(&t, &opt);
+  if (error == -1) {
+    fprintf(stderr, "Failed to create tracer\n");
+    goto end;
+  }
+
+  error = tracer_run(t);
   if (error == -1) {
     fprintf(stderr, "Trace failed with error\n");
+    goto end;
   }
 
 end:

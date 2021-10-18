@@ -393,10 +393,67 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
 }
 
 static int
+debug_print(__unused enum libbpf_print_level level, const char *fmt, va_list ap)
+{
+  return vfprintf(stderr, fmt, ap);
+}
+
+static bool end = false;
+
+static void
+handle_sigint(__unused int signum)
+{
+  end = true;
+  signal(SIGINT, SIG_DFL);
+}
+
+int
+tracer_run(struct ipft_tracer *t)
+{
+  int error;
+
+  error = attach_all(t);
+  if (error) {
+    fprintf(stderr, "attach_all failed\n");
+    return -1;
+  }
+
+  fprintf(stderr, "Trace ready!\n");
+
+  signal(SIGINT, handle_sigint);
+
+  while (!end) {
+    if ((error = perf_buffer__poll(t->pb, 1000)) < 0) {
+      /* perf_buffer__poll cancelled with SIGINT */
+      if (end) {
+        break;
+      }
+      return -1;
+    }
+  }
+
+  error = output_post_trace(t->out);
+  if (error == -1) {
+    fprintf(stderr, "output_post_trace failed\n");
+    return -1;
+  }
+
+  if (t->script != NULL) {
+    script_exec_fini(t->script);
+  }
+
+  return 0;
+}
+
+int
 tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
 {
   int error;
   struct ipft_tracer *t;
+
+  if (opt->verbose) {
+    libbpf_set_print(debug_print);
+  }
 
   t = calloc(1, sizeof(*t));
   if (t == NULL) {
@@ -452,76 +509,4 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
   *tp = t;
 
   return 0;
-}
-
-static bool end = false;
-
-static void
-handle_sigint(__unused int signum)
-{
-  end = true;
-  signal(SIGINT, SIG_DFL);
-}
-
-static int
-do_trace(struct ipft_tracer *t)
-{
-  int error;
-
-  signal(SIGINT, handle_sigint);
-
-  while (!end) {
-    if ((error = perf_buffer__poll(t->pb, 1000)) < 0) {
-      /* perf_buffer__poll cancelled with SIGINT */
-      if (end) {
-        break;
-      }
-      return -1;
-    }
-  }
-
-  error = output_post_trace(t->out);
-  if (error == -1) {
-    fprintf(stderr, "output_post_trace failed\n");
-    return -1;
-  }
-
-  if (t->script != NULL) {
-    script_exec_fini(t->script);
-  }
-
-  return 0;
-}
-
-static int
-debug_print(__unused enum libbpf_print_level level, const char *fmt, va_list ap)
-{
-  return vfprintf(stderr, fmt, ap);
-}
-
-int
-tracer_run(struct ipft_tracer_opt *opt)
-{
-  int error;
-  struct ipft_tracer *t;
-
-  if (opt->verbose) {
-    libbpf_set_print(debug_print);
-  }
-
-  error = tracer_create(&t, opt);
-  if (error == -1) {
-    fprintf(stderr, "tracer_create failed\n");
-    return -1;
-  }
-
-  error = attach_all(t);
-  if (error) {
-    fprintf(stderr, "attach_all failed\n");
-    return -1;
-  }
-
-  fprintf(stderr, "Trace ready!\n");
-
-  return do_trace(t);
 }
