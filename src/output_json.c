@@ -33,7 +33,7 @@ json_output_on_trace(struct ipft_output *_out, struct ipft_event *e)
 
   printf("{\"packet_id\":\"%p\",\"timestamp\":%zu,\"processor_id\":%u,"
          "\"function\":\"%s\"",
-         (void *)e->skb_addr, e->tstamp, e->processor_id, name);
+         (void *)e->packet_id, e->tstamp, e->processor_id, name);
 
   if (out->base.script) {
     error = script_exec_dump(out->base.script, e->data, sizeof(e->data),

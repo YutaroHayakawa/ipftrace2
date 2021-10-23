@@ -49,7 +49,7 @@ ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
     return;
   }
 
-  e.skb_addr = (uint64_t)skb;
+  e.packet_id = (uint64_t)skb;
   e.tstamp = bpf_ktime_get_ns();
   e.processor_id = bpf_get_smp_processor_id();
 

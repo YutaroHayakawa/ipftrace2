@@ -24,7 +24,7 @@ struct ipft_script;
 struct ipft_tracer;
 
 struct ipft_event {
-  uint64_t skb_addr;
+  uint64_t packet_id;
   uint64_t tstamp;
   uint64_t faddr;
   uint32_t processor_id;

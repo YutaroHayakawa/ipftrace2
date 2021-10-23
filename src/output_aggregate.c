@@ -36,7 +36,7 @@ aggregate_output_on_trace(struct ipft_output *_out, struct ipft_event *e)
   struct aggregate_output *out = (struct aggregate_output *)_out;
 
   /* Put trace to trace store */
-  iter = kh_put(trace, out->trace, e->skb_addr, &ret);
+  iter = kh_put(trace, out->trace, e->packet_id, &ret);
   if (ret == -1) {
     fprintf(stderr, "Failed to put trace to store\n");
     return -1;
