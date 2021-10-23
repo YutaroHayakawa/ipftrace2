@@ -43,19 +43,19 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
 
   switch (si->skb_pos) {
   case 1:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main1");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main1");
     break;
   case 2:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main2");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main2");
     break;
   case 3:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main3");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main3");
     break;
   case 4:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main4");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main4");
     break;
   case 5:
-    prog = bpf_object__find_program_by_title(t->bpf, "kprobe/ipft_main5");
+    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main5");
     break;
   default:
     fprintf(stderr, "Unsupported skb_pos %d\n", si->skb_pos);
