@@ -23,7 +23,7 @@ struct ipft_regex;
 struct ipft_script;
 struct ipft_tracer;
 
-struct ipft_trace {
+struct ipft_event {
   uint64_t skb_addr;
   uint64_t tstamp;
   uint64_t faddr;
@@ -57,7 +57,7 @@ struct ipft_syminfo {
 struct ipft_output {
   struct ipft_symsdb *sdb;
   struct ipft_script *script;
-  int (*on_trace)(struct ipft_output *, struct ipft_trace *);
+  int (*on_trace)(struct ipft_output *, struct ipft_event *);
   int (*post_trace)(struct ipft_output *);
 };
 
@@ -85,7 +85,7 @@ int output_create(struct ipft_output **outp, const char *type,
                   struct ipft_symsdb *sdb, struct ipft_script *script);
 int aggregate_output_create(struct ipft_output **outp);
 int json_output_create(struct ipft_output **outp);
-int output_on_trace(struct ipft_output *out, struct ipft_trace *t);
+int output_on_trace(struct ipft_output *out, struct ipft_event *e);
 int output_post_trace(struct ipft_output *out);
 
 int tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt);

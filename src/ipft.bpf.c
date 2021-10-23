@@ -36,7 +36,7 @@ ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
   int error;
   uint32_t mark;
   uint32_t idx = 0;
-  struct ipft_trace trace = {0};
+  struct ipft_event e = {0};
   struct ipft_trace_config *conf;
 
   conf = bpf_map_lookup_elem(&config, &idx);
@@ -49,17 +49,17 @@ ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
     return;
   }
 
-  trace.skb_addr = (uint64_t)skb;
-  trace.tstamp = bpf_ktime_get_ns();
-  trace.faddr = PT_REGS_IP(ctx);
-  trace.processor_id = bpf_get_smp_processor_id();
+  e.skb_addr = (uint64_t)skb;
+  e.tstamp = bpf_ktime_get_ns();
+  e.faddr = PT_REGS_IP(ctx);
+  e.processor_id = bpf_get_smp_processor_id();
 
-  error = module(ctx, skb, trace.data);
+  error = module(ctx, skb, e.data);
   if (error != 0) {
     return;
   }
 
-  bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &trace, sizeof(trace));
+  bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &e, sizeof(e));
 }
 
 SEC("kprobe/ipft_main1") void ipft_main1(struct pt_regs *ctx)

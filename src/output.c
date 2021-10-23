@@ -34,9 +34,9 @@ output_create(struct ipft_output **outp, const char *type,
 }
 
 int
-output_on_trace(struct ipft_output *out, struct ipft_trace *t)
+output_on_trace(struct ipft_output *out, struct ipft_event *e)
 {
-  return out->on_trace(out, t);
+  return out->on_trace(out, e);
 }
 
 int

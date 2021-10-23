@@ -15,10 +15,10 @@
 static void
 dtor(void *p)
 {
-  free(*(struct ipft_trace **)p);
+  free(*(struct ipft_event **)p);
 }
 
-KLIST_INIT(trace_list, struct ipft_trace *, dtor)
+KLIST_INIT(trace_list, struct ipft_event *, dtor)
 KHASH_MAP_INIT_INT64(trace, klist_t(trace_list) *)
 
 struct aggregate_output {
@@ -28,37 +28,37 @@ struct aggregate_output {
 };
 
 static int
-aggregate_output_on_trace(struct ipft_output *_out, struct ipft_trace *_t)
+aggregate_output_on_trace(struct ipft_output *_out, struct ipft_event *_e)
 {
   int ret;
   khint_t iter;
-  struct ipft_trace *t;
+  struct ipft_event *e;
   klist_t(trace_list) * l;
   struct aggregate_output *out = (struct aggregate_output *)_out;
 
-  t = malloc(sizeof(*t));
-  if (t == NULL) {
+  e = malloc(sizeof(*e));
+  if (e == NULL) {
     perror("malloc");
     return -1;
   }
 
-  memcpy(t, _t, sizeof(*t));
+  memcpy(e, _e, sizeof(*e));
 
   /* Put trace to trace store */
-  iter = kh_put(trace, out->trace, t->skb_addr, &ret);
+  iter = kh_put(trace, out->trace, e->skb_addr, &ret);
   if (ret == -1) {
     fprintf(stderr, "Failed to put trace to store\n");
     return -1;
   } else if (ret == 0) {
     l = kh_value(out->trace, iter);
-    *kl_pushp(trace_list, l) = t;
+    *kl_pushp(trace_list, l) = e;
   } else {
     l = kl_init(trace_list);
     if (l == NULL) {
       perror("kl_init");
       return -1;
     }
-    *kl_pushp(trace_list, l) = t;
+    *kl_pushp(trace_list, l) = e;
     kh_value(out->trace, iter) = l;
   }
 
@@ -70,11 +70,11 @@ aggregate_output_on_trace(struct ipft_output *_out, struct ipft_trace *_t)
 }
 
 static int
-compare_tstamp(const void *_t1, const void *_t2)
+compare_tstamp(const void *_e1, const void *_e2)
 {
-  const struct ipft_trace *t1 = *(struct ipft_trace **)_t1;
-  const struct ipft_trace *t2 = *(struct ipft_trace **)_t2;
-  if (t1->tstamp < t2->tstamp) {
+  const struct ipft_event *e1 = *(struct ipft_event **)_e1;
+  const struct ipft_event *e2 = *(struct ipft_event **)_e2;
+  if (e1->tstamp < e2->tstamp) {
     return -1;
   } else {
     return 1;
@@ -95,7 +95,7 @@ aggregate_output_post_trace(struct ipft_output *_out)
   char *name;
   klist_t(trace_list) * l;
   kliter_t(trace_list) * iter;
-  struct ipft_trace *t, **tarray;
+  struct ipft_event *e, **earray;
   struct aggregate_output *out = (struct aggregate_output *)_out;
 
   printf("\n");
@@ -108,15 +108,15 @@ aggregate_output_post_trace(struct ipft_output *_out)
        * We need to put trace data to array just to use qsort(3)
        * this is not so efficient way, but works well.
        */
-      tarray = calloc(l->size, sizeof(*tarray));
-      if (tarray == NULL) {
+      earray = calloc(l->size, sizeof(*earray));
+      if (earray == NULL) {
         perror("calloc");
         return -1;
       }
 
       uint32_t count = 0;
       for (iter = kl_begin(l); iter != kl_end(l); iter = kl_next(iter)) {
-        tarray[count] = kl_val(iter);
+        earray[count] = kl_val(iter);
         count++;
       }
 
@@ -124,24 +124,24 @@ aggregate_output_post_trace(struct ipft_output *_out)
        * Order trace by timestamp. They are not always orderd since they
        * can be collected with different perf ring.
        */
-      qsort(tarray, count, sizeof(*tarray), compare_tstamp);
+      qsort(earray, count, sizeof(*earray), compare_tstamp);
 
       for (uint32_t i = 0; i < count; i++) {
-        t = tarray[i];
+        e = earray[i];
 
-        error = symsdb_get_addr2sym(out->base.sdb, t->faddr, &name);
+        error = symsdb_get_addr2sym(out->base.sdb, e->faddr, &name);
         if (error == -1) {
           fprintf(stderr, "Failed to resolve the symbol from address\n");
-          free(tarray);
+          free(earray);
           return -1;
         }
 
         if (out->base.script != NULL) {
           /* Print basic data */
-          printf("%-20zu %03u %32.32s ( ", t->tstamp, t->processor_id, name);
+          printf("%-20zu %03u %32.32s ( ", e->tstamp, e->processor_id, name);
 
           /* Execute script and print results */
-          error = script_exec_dump(out->base.script, t->data, sizeof(t->data),
+          error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
                                    print_script_output);
           if (error == -1) {
             return -1;
@@ -149,11 +149,11 @@ aggregate_output_post_trace(struct ipft_output *_out)
 
           printf(")\n");
         } else {
-          printf("%-20zu %03u %32.32s\n", t->tstamp, t->processor_id, name);
+          printf("%-20zu %03u %32.32s\n", e->tstamp, e->processor_id, name);
         }
       }
 
-      free(tarray);)
+      free(earray);)
 
       return 0;
 }

@@ -107,7 +107,7 @@ trace_cb(void *ctx, __unused int cpu, struct perf_event_header *ehdr)
 
   switch (ehdr->type) {
   case PERF_RECORD_SAMPLE:
-    error = output_on_trace(t->out, (struct ipft_trace *)s->data);
+    error = output_on_trace(t->out, (struct ipft_event *)s->data);
     if (error == -1) {
       return LIBBPF_PERF_EVENT_ERROR;
     }

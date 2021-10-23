@@ -19,13 +19,13 @@ print_script_output(const char *k, size_t klen, const char *v, size_t vlen)
 }
 
 static int
-json_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
+json_output_on_trace(struct ipft_output *_out, struct ipft_event *e)
 {
   int error;
   char *name;
   struct json_output *out = (struct json_output *)_out;
 
-  error = symsdb_get_addr2sym(out->base.sdb, t->faddr, &name);
+  error = symsdb_get_addr2sym(out->base.sdb, e->faddr, &name);
   if (error == -1) {
     fprintf(stderr, "Failed to resolve the symbol from address\n");
     return -1;
@@ -33,10 +33,10 @@ json_output_on_trace(struct ipft_output *_out, struct ipft_trace *t)
 
   printf("{\"packet_id\":\"%p\",\"timestamp\":%zu,\"processor_id\":%u,"
          "\"function\":\"%s\"",
-         (void *)t->skb_addr, t->tstamp, t->processor_id, name);
+         (void *)e->skb_addr, e->tstamp, e->processor_id, name);
 
   if (out->base.script) {
-    error = script_exec_dump(out->base.script, t->data, sizeof(t->data),
+    error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
                              print_script_output);
     if (error == -1) {
       return -1;
