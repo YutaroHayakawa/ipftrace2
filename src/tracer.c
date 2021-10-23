@@ -10,7 +10,7 @@
 #include <bpf/libbpf.h>
 
 #include "ipft.h"
-#include "ipft.bpf.o.h"
+#include "ipft_kprobe.bpf.o.h"
 #include "null_module.bpf.o.h"
 
 struct ipft_tracer {
@@ -273,8 +273,8 @@ do_link(char **namep, uint8_t *target_image, size_t target_image_size,
 static int
 get_target_image(uint8_t **imagep, size_t *image_sizep)
 {
-  *imagep = ipft_bpf_o;
-  *image_sizep = ipft_bpf_o_len;
+  *imagep = ipft_kprobe_bpf_o;
+  *image_sizep = ipft_kprobe_bpf_o_len;
   return 0;
 }
 

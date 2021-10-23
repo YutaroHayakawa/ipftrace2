@@ -10,11 +10,11 @@ CFLAGS := \
   
 
 .PHONY: all
-all: ipft.bpf.o null_module.bpf.o
+all: ipft_kprobe.bpf.o null_module.bpf.o
 
-ipft.bpf.o: ipft.bpf.c
+ipft_kprobe.bpf.o: ipft_kprobe.bpf.c
 	$(CLANG) $(CFLAGS) -c $^
-	xxd -i ipft.bpf.o > ipft.bpf.o.h
+	xxd -i ipft_kprobe.bpf.o > ipft_kprobe.bpf.o.h
 
 null_module.bpf.o: null_module.bpf.c
 	$(CLANG) $(CFLAGS) -c $^
