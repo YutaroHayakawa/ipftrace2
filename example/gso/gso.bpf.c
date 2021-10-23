@@ -34,7 +34,7 @@ struct skb_shared_info {
 };
 
 __hidden int
-module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
+module(void *ctx, struct sk_buff *skb, uint8_t data[64])
 {
   unsigned int end;
   unsigned char *head;
