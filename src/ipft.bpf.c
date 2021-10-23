@@ -51,7 +51,6 @@ ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
 
   e.skb_addr = (uint64_t)skb;
   e.tstamp = bpf_ktime_get_ns();
-  e.faddr = PT_REGS_IP(ctx);
   e.processor_id = bpf_get_smp_processor_id();
 
   error = module(ctx, skb, e.data);
