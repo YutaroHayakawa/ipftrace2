@@ -11,7 +11,7 @@ struct sk_buff {
 };
 
 __hidden int
-module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
+module(void *ctx, struct sk_buff *skb, uint8_t data[64])
 {
   /* Do nothing */
   return 0;

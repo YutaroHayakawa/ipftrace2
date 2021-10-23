@@ -16,7 +16,7 @@ struct sk_buff {
   uint32_t mark;
 };
 
-extern int module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64]);
+extern int module(void *ctx, struct sk_buff *skb, uint8_t data[64]);
 
 struct {
   __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
@@ -32,7 +32,7 @@ struct {
 } config SEC(".maps");
 
 static __inline void
-ipft_body(struct pt_regs *ctx, struct sk_buff *skb)
+ipft_body(void *ctx, struct sk_buff *skb)
 {
   int error;
   uint32_t mark;
