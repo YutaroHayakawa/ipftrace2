@@ -28,7 +28,7 @@ struct aggregate_output {
 };
 
 static int
-aggregate_output_on_trace(struct ipft_output *_out, struct ipft_event *e)
+aggregate_output_on_event(struct ipft_output *_out, struct ipft_event *e)
 {
   int ret;
   khint_t iter;
@@ -167,7 +167,7 @@ aggregate_output_create(struct ipft_output **outp)
   }
 
   out->ntraces = 0;
-  out->base.on_trace = aggregate_output_on_trace;
+  out->base.on_event = aggregate_output_on_event;
   out->base.post_trace = aggregate_output_post_trace;
 
   *outp = (struct ipft_output *)out;

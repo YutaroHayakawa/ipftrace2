@@ -57,7 +57,7 @@ struct ipft_syminfo {
 struct ipft_output {
   struct ipft_symsdb *sdb;
   struct ipft_script *script;
-  int (*on_trace)(struct ipft_output *, struct ipft_event *);
+  int (*on_event)(struct ipft_output *, struct ipft_event *);
   int (*post_trace)(struct ipft_output *);
 };
 

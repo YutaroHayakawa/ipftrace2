@@ -19,7 +19,7 @@ print_script_output(const char *k, size_t klen, const char *v, size_t vlen)
 }
 
 static int
-json_output_on_trace(struct ipft_output *_out, struct ipft_event *e)
+json_output_on_event(struct ipft_output *_out, struct ipft_event *e)
 {
   int error;
   char *name;
@@ -72,7 +72,7 @@ json_output_create(struct ipft_output **outp)
     return -1;
   }
 
-  out->base.on_trace = json_output_on_trace;
+  out->base.on_event = json_output_on_event;
   out->base.post_trace = json_output_post_trace;
 
   *outp = (struct ipft_output *)out;
