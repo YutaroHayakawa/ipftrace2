@@ -12,6 +12,14 @@ people than **which functions are called** information provided by `ftrace`.
 - Architecture: (Currently) x86_64 only
 - Linux version: v4.17 or above
 
+## Required kernel config
+
+- CONFIG_DEBUG_INFO_BTF=y
+- CONFIG_KPROBES=y
+- CONFIG_PERF_EVENTS=y
+- CONFIG_BPF=y
+- CONFIG_BPF_SYSCALL=y
+
 ## Install pre-compiled binary
 
 ### Step1: Install `ipft` command
