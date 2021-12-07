@@ -42,4 +42,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: "ipftrace2_amd64.tar.gz"
+          args: "src/ipftrace2_amd64.tar.gz"
