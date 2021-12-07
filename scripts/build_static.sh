@@ -13,4 +13,4 @@ if [ -z "$CONTAINER_NAME" ]; then
     CONTAINER_NAME="ipftrace2-builder"
 fi
 
-docker run -it --rm --name $CONTAINER_NAME -v $ROOT:/mnt $DOCKER_IMAGE /bin/sh -c "cd /mnt/src && make"
+docker run --rm --name $CONTAINER_NAME -v $ROOT:/mnt $DOCKER_IMAGE /bin/sh -c "cd /mnt/src && make"
