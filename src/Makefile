@@ -1,21 +1,61 @@
 CLANG ?= clang
 XXD ?= xxd
-ARCH := $(shell uname -m | sed 's/x86_64/x86/')
+
+OBJS := \
+  ipft.o \
+  output.o \
+  output_aggregate.o \
+  output_json.o \
+  regex.o \
+  symsdb.o \
+  tracer.o \
+  utils.o \
+  script.o \
+
 CFLAGS := \
+  -g \
+  -Wall \
+  -Wextra \
+  -I compat \
+  -I compat/uapi \
+
+LDFLAGS := \
+  -static \
+
+LDLIBS := \
+  -lbpf \
+  -lz \
+  -lelf \
+  -lpcre2-8 \
+  -llua \
+  -lpthread \
+  -ldl \
+  -lm \
+  -lfts \
+
+ARCH := $(shell uname -m | sed 's/x86_64/x86/')
+BPF_CFLAGS := \
   -g \
   -O3 \
   -I compat \
   -target bpf \
   -D__TARGET_ARCH_$(ARCH)
-  
 
-.PHONY: all
-all: ipft_kprobe.bpf.o null_module.bpf.o
+ipft: $(OBJS)
 
-ipft_kprobe.bpf.o: ipft_kprobe.bpf.c
-	$(CLANG) $(CFLAGS) -c $^
+tracer.o: ipft_kprobe.bpf.o.h null_module.bpf.o.h
+
+ipft_kprobe.bpf.o:
+	$(CLANG) $(BPF_CFLAGS) -c $^
+
+ipft_kprobe.bpf.o.h: ipft_kprobe.bpf.o
 	xxd -i ipft_kprobe.bpf.o > ipft_kprobe.bpf.o.h
 
-null_module.bpf.o: null_module.bpf.c
-	$(CLANG) $(CFLAGS) -c $^
+null_module.bpf.o:
+	$(CLANG) $(BPF_CFLAGS) -c $^
+
+null_module.bpf.o.h:
 	xxd -i null_module.bpf.o > null_module.bpf.o.h
+
+clean:
+	- rm -f $(OBJS) ipft

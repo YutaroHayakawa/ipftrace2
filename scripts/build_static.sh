@@ -2,11 +2,15 @@
 
 # Run this in project top
 
-docker build -t ipftrace:latest .
-docker run --name ipft --rm -d --entrypoint /sbin/init ipftrace:latest
-docker cp ipft:/ipftrace2/src/ipft .
-docker cp ipft:/ipftrace2/src/ipft_kprobe.bpf.o src/ipft_kprobe.bpf.o
-docker cp ipft:/ipftrace2/src/ipft_kprobe.bpf.o.h src/ipft_kprobe.bpf.o.h
-docker cp ipft:/ipftrace2/src/null_module.bpf.o src/null_module.bpf.o
-docker cp ipft:/ipftrace2/src/null_module.bpf.o.h src/null_module.bpf.o.h
-docker stop ipft
+ROOT=$(pwd)
+VERSION=$(git describe --tags --abbrev=0)
+
+if [ -z "$DOCKER_IMAGE" ]; then
+    DOCKER_IMAGE="yutarohayakawa/ipftrace2:$VERSION"
+fi
+
+if [ -z "$CONTAINER_NAME" ]; then
+    CONTAINER_NAME="ipftrace2"
+fi
+
+docker run -it --rm --name $CONTAINER_NAME -v $ROOT:/mnt $DOCKER_IMAGE /bin/sh -c "cd /mnt/src && make"

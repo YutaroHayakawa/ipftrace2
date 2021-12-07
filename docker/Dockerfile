@@ -7,7 +7,6 @@ RUN apk add \
   xxd \
   curl \
   clang \
-  cmake \
   xz-dev \
   fts-dev \
   libc-dev \
