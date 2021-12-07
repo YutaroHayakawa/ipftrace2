@@ -35,7 +35,7 @@ jobs:
       - name: Build static binary with Docker
         run: |
           sudo ./scripts/build_static.sh
-          tar cfvz ipftrace2_amd64.tar.gz ipft
+          cd src && tar cfvz ipftrace2_amd64.tar.gz ipft
 
       - name: Publish binary
         uses: skx/github-action-publish-binaries@master
