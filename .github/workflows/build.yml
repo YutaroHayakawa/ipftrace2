@@ -1,12 +1,31 @@
-on: [push]
+name: Workflow triggered for every master push
+
+on:
+  push:
+    branches:
+      - master
 
 jobs:
-  build:
-    name: Run build test
+  build_and_push:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ipftrace2-builder
     steps:
-    - name: Checkout the repository
-      uses: actions/checkout@v2
-    - name: Build static binary with Docker
-      run: |
-        sudo ./scripts/build_static.sh
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.CR_PAT }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:$GITHUB_SHA
+            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
