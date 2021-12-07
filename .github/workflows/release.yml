@@ -5,7 +5,7 @@ on:
     types: [created]
 
 jobs:
-  build_and_publish_ipftrace2_builder:
+  build_and_publish_all:
     name: Build and push ipftrace2-builder image
     runs-on: ubuntu-latest
     env:
@@ -32,19 +32,14 @@ jobs:
           tags: |
             ghcr.io/${{ env.USER_NAME }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
 
-  build_and_publish_ipftrace2:
-    name: Build ipftrace2 binary
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout the repository
-      uses: actions/checkout@v2
-    - name: Build static binary with Docker
-      run: |
-        sudo ./scripts/build_static.sh
-        tar cfvz ipftrace2_amd64.tar.gz ipft
-    - name: Publish binary
-      uses: skx/github-action-publish-binaries@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        args: "ipftrace2_amd64.tar.gz"
+      - name: Build static binary with Docker
+        run: |
+          sudo ./scripts/build_static.sh
+          tar cfvz ipftrace2_amd64.tar.gz ipft
+
+      - name: Publish binary
+        uses: skx/github-action-publish-binaries@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: "ipftrace2_amd64.tar.gz"
