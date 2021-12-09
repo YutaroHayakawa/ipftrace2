@@ -44,7 +44,7 @@ ipft_body(void *ctx, struct sk_buff *skb, uint8_t is_return)
 
   conf = bpf_map_lookup_elem(&config, &idx);
   if (conf == NULL) {
-    return -1;
+    return 0;
   }
 
   mark = BPF_CORE_READ(skb, mark);
