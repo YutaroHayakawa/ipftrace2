@@ -46,6 +46,7 @@ usage(void)
           " -r, --regex              [REGEX]         Filter the function to "
           "trace with regex\n"
           " -s, --script             [PATH]          Path to extension script\n"
+          " -t, --tracer             [TRACER-TYPE]   Specify tracer type\n"
           " -v, --verbose                            Turn on debug message\n"
           "   , --perf-page-count    [NUMBER]        Number of pages to use "
           "with perf (default: 8)\n"
@@ -56,6 +57,7 @@ usage(void)
           "   , --no-set-rlimit                      Don't set rlimit\n"
           "\n"
           "OUTPUT-FORMAT := { aggregate, json }\n"
+          "TRACER-TYPE   := { function, function_graph}\n"
           "\n");
 }
 
@@ -70,6 +72,7 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->perf_wakeup_events = 1;
   opt->regex = NULL;
   opt->script = NULL;
+  opt->tracer = "function";
   opt->verbose = false;
 }
 
@@ -81,6 +84,7 @@ opt_dump(struct ipft_tracer_opt *opt)
   fprintf(stderr, "mask               : 0x%x\n", opt->mask);
   fprintf(stderr, "regex              : %s\n", opt->regex);
   fprintf(stderr, "script             : %s\n", opt->script);
+  fprintf(stderr, "tracer             : %s\n", opt->tracer);
   fprintf(stderr, "output_type        : %s\n", opt->output_type);
   fprintf(stderr, "perf_page_cnt      : %zu\n", opt->perf_page_cnt);
   fprintf(stderr, "perf_sample_period : %zu\n", opt->perf_sample_period);
@@ -104,6 +108,12 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
   if (strcmp(opt->output_type, "aggregate") != 0 &&
       strcmp(opt->output_type, "json") != 0) {
     fprintf(stderr, "Invalid output format %s\n", opt->output_type);
+    return false;
+  }
+
+  if (strcmp(opt->tracer, "function") != 0 &&
+      strcmp(opt->tracer, "function_graph") != 0) {
+    fprintf(stderr, "Invalid tracer type %s\n", opt->tracer);
     return false;
   }
 
@@ -211,7 +221,7 @@ main(int argc, char **argv)
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "hlm:o:r:s:v", options, &optind)) != -1) {
+  while ((c = getopt_long(argc, argv, "hlm:o:r:s:t:v", options, &optind)) != -1) {
     switch (c) {
     case 'l':
       list = true;
@@ -227,6 +237,9 @@ main(int argc, char **argv)
       break;
     case 's':
       opt.script = strdup(optarg);
+      break;
+    case 't':
+      opt.tracer = strdup(optarg);
       break;
     case 'v':
       opt.verbose = true;

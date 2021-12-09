@@ -44,6 +44,7 @@ struct ipft_tracer_opt {
   uint32_t mask;
   char *regex;
   char *script;
+  char *tracer;
   char *output_type;
   size_t perf_page_cnt;
   uint64_t perf_sample_period;
