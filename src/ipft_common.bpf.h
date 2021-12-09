@@ -16,6 +16,8 @@ struct sk_buff {
   uint32_t mark;
 };
 
+static uint64_t get_func_ip(void *ctx);
+
 extern int module(void *ctx, struct sk_buff *skb, uint8_t data[64]);
 
 struct {
@@ -52,7 +54,7 @@ ipft_body(void *ctx, struct sk_buff *skb)
 
   e.packet_id = (uint64_t)skb;
   e.tstamp = bpf_ktime_get_ns();
-  e.faddr = PT_REGS_IP(ctx);
+  e.faddr = get_func_ip(ctx);
   e.processor_id = bpf_get_smp_processor_id();
 
   error = module(ctx, skb, e.data);

@@ -2,6 +2,12 @@
 
 #include "ipft_common.bpf.h"
 
+static __inline uint64_t
+get_func_ip(void *ctx)
+{
+  return PT_REGS_IP((struct pt_regs *)ctx) - 1;
+}
+
 SEC("kprobe/ipft_main1") void ipft_main1(struct pt_regs *ctx)
 {
   struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM1(ctx);

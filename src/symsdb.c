@@ -138,6 +138,7 @@ symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp)
 
   iter = kh_get(addr2sym, db, addr);
   if (iter == kh_end(db)) {
+    fprintf(stderr, "Failed to resolve func addr: %lu\n", addr);
     *symp = "(unknown)";
     return 0;
   }
@@ -282,11 +283,6 @@ fill_addr2sym(struct ipft_symsdb *sdb)
     }
 
     *endsym = '\0';
-
-    /*
-     * IP points to 1byte after than the address kallsyms reports
-     */
-    addr += 1;
 
     /*
      * Only add the symbols which are used
