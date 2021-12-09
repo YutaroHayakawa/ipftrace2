@@ -11,12 +11,14 @@
 
 #include "ipft.h"
 #include "ipft_kprobe.bpf.o.h"
+#include "ipft_ftrace.bpf.o.h"
 #include "null_module.bpf.o.h"
 
 struct ipft_tracer {
   struct bpf_object *bpf;
   struct ipft_regex *re;
   struct ipft_symsdb *sdb;
+  struct ipft_tracer_opt *opt;
   struct ipft_output *out;
   struct ipft_script *script;
   struct perf_buffer *pb;
@@ -27,7 +29,7 @@ static struct {
   size_t succeeded;
   size_t failed;
   size_t filtered;
-} attach_stat;
+} attach_stat = {0};
 
 static int
 attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
@@ -83,12 +85,108 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
 }
 
 static int
+attach_kprobe(struct ipft_tracer *t)
+{
+  int error;
+
+  error = symsdb_sym2info_foreach(t->sdb, attach_cb, t);
+  if (error == -1) {
+    return -1;
+  }
+
+  return 0;
+}
+
+static int
+attach_ftrace(struct ipft_tracer *t)
+{
+  char name[32];
+  int entry_fd, exit_fd;
+  struct bpf_program *entry_prog, *exit_prog;
+
+  for (int i = 0; i < MAX_SKB_POS; i++) {
+    memset(name, 0, sizeof(name));
+
+    if (sprintf(name, "ipft_main%d", i + 1) < 0) {
+      fprintf(stderr, "sprintf failed\n");
+      return -1;
+    }
+
+    entry_prog = bpf_object__find_program_by_name(t->bpf, name);
+    if (entry_prog == NULL) {
+      fprintf(stderr, "bpf_object__find_program_by_name failed\n");
+      return -1;
+    }
+
+    memset(name, 0, sizeof(name));
+
+    if (sprintf(name, "ipft_main_return%d", i + 1) < 0) {
+      fprintf(stderr, "sprintf failed\n");
+      return -1;
+    }
+
+    exit_prog = bpf_object__find_program_by_name(t->bpf, name);
+    if (exit_prog == NULL) {
+      fprintf(stderr, "bpf_object__find_program_by_name failed\n");
+      return -1;
+    }
+
+    for (int j = 0; j < symsdb_get_pos2syms_total(t->sdb, i); j++) {
+      const char *sym = symsdb_pos2syms_get(t->sdb, i, j);
+
+      if (!regex_match(t->re, sym)) {
+        attach_stat.filtered++;
+        continue;
+      }
+
+      /*
+       * Don't keep fd to anywhere since we can close it automatically
+       * with process exit.
+       */
+      entry_fd = bpf_raw_tracepoint_open(NULL, bpf_program__nth_fd(entry_prog, j));
+      exit_fd = bpf_raw_tracepoint_open(NULL, bpf_program__nth_fd(exit_prog, j));
+      if (entry_fd < 0 || exit_fd < 0) {
+        fprintf(stderr, "bpf_raw_tracepoint_open failed\n");
+        return -1;
+      }
+
+      attach_stat.succeeded++;
+
+      fprintf(stderr,
+              "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
+              "%zu)",
+              attach_stat.total, attach_stat.succeeded, attach_stat.failed, attach_stat.filtered);
+      fflush(stderr);
+    }
+  }
+
+  return 0;
+}
+
+static int
 attach_all(struct ipft_tracer *t)
 {
   int error;
+
   attach_stat.total = symsdb_get_sym2info_total(t->sdb);
-  error = symsdb_sym2info_foreach(t->sdb, attach_cb, t);
+
+  if (strcmp(t->opt->tracer, "function") == 0) {
+    error = attach_kprobe(t);
+    if (error == -1) {
+      return -1;
+    }
+  } else if (strcmp(t->opt->tracer, "function_graph") == 0) {
+    error = attach_ftrace(t);
+    if (error == -1) {
+      return -1;
+    }
+  } else {
+    fprintf(stderr, "Unexpected tracer type %s\n", t->opt->tracer);
+    return -1;
+  }
+
   fprintf(stderr, "\n");
+
   return error;
 }
 
@@ -253,10 +351,18 @@ do_link(char **namep, uint8_t *target_image, size_t target_image_size,
 }
 
 static int
-get_target_image(uint8_t **imagep, size_t *image_sizep)
+get_target_image(char *tracer, uint8_t **imagep, size_t *image_sizep)
 {
-  *imagep = ipft_kprobe_bpf_o;
-  *image_sizep = ipft_kprobe_bpf_o_len;
+  if (strcmp(tracer, "function") == 0) {
+    *imagep = ipft_kprobe_bpf_o;
+    *image_sizep = ipft_kprobe_bpf_o_len;
+  } else if (strcmp(tracer, "function_graph") == 0) {
+    *imagep = ipft_ftrace_bpf_o;
+    *image_sizep = ipft_ftrace_bpf_o_len;
+  } else {
+    fprintf(stderr, "Unexpected tracer type %s\n", tracer);
+    return -1;
+  }
   return 0;
 }
 
@@ -269,8 +375,145 @@ get_default_module_image(uint8_t **imagep, size_t *image_sizep)
 }
 
 static int
+ftrace_prep(struct bpf_program *prog, int n,
+    struct bpf_insn *insns, int insns_cnt,
+    struct bpf_prog_prep_result *res)
+{
+  const char *sym;
+  int error, skb_pos;
+  struct ipft_tracer *t = bpf_program__priv(prog);
+
+  if (sscanf(bpf_program__name(prog), "ipft_main%d", &skb_pos) != 1 &&
+      sscanf(bpf_program__name(prog), "ipft_main_return%d", &skb_pos) != 1) {
+    fprintf(stderr, "sscanf failed\n");
+    return -1;
+  }
+
+  sym = symsdb_pos2syms_get(t->sdb, skb_pos - 1, n);
+
+  error = bpf_program__set_attach_target(prog, 0, sym);
+  if (error == -1) {
+    fprintf(stderr, "bpf_program__set_attach_target failed\n");
+    return -1;
+  }
+
+  res->new_insn_ptr = insns;
+  res->new_insn_cnt = insns_cnt;
+
+  return 0;
+}
+
+static int
+ftrace_setup_prep(struct bpf_object *bpf, struct ipft_tracer *t)
+{
+  int error;
+  char name[32];
+
+  /*
+   * In case of fentry/fexit, we need to specify the function to attach the
+   * program on load time. Thus, we need a BPF program for each functions.
+   * The usual way to specify the function name is statically specifying it
+   * through section name like SEC("fentry/kfree_skb"), but in our case, it
+   * doesn't work because we dynamically find the function to trace.
+   *
+   * So, here we take another way that uses libbpf preprocessor feature plus
+   * bpf_program__set_attach_target() combo. In this way we can dynamically
+   * generate the different variants of BPF programs for each functions while
+   * we only maintain MAX_SKB_POS of BPF programs.
+   */
+  for (int i = 1; i <= MAX_SKB_POS; i++) {
+    int ninsts;
+    struct bpf_program *entry_prog, *exit_prog;
+
+    memset(name, 0, sizeof(name));
+
+    if (sprintf(name, "ipft_main%d", i) < 0) {
+      fprintf(stderr, "sprintf failed\n");
+      return -1;
+    }
+
+    entry_prog = bpf_object__find_program_by_name(bpf, name);
+    if (entry_prog == NULL) {
+      fprintf(stderr, "bpf__find_program_by_name failed\n");
+      return -1;
+    }
+
+    memset(name, 0, sizeof(name));
+
+    if (sprintf(name, "ipft_main_return%d", i) < 0) {
+      fprintf(stderr, "sprintf failed\n");
+      return -1;
+    }
+
+    exit_prog = bpf_object__find_program_by_name(bpf, name);
+    if (exit_prog == NULL) {
+      fprintf(stderr, "bpf__find_program_by_name failed\n");
+      return -1;
+    }
+
+    /*
+     * libbpf (v0.6.0) doesn't allow us to load the tracing programs
+     * which don't have attach target. For now set dummy attach target.
+     * This will be overridden in preprocessor functions.
+     */
+    error = bpf_program__set_attach_target(entry_prog, 0, "kfree_skb");
+    if (error == -1) {
+      fprintf(stderr, "bpf_program__set_attach_target failed\n");
+      return -1;
+    }
+
+    error = bpf_program__set_attach_target(exit_prog, 0, "kfree_skb");
+    if (error == -1) {
+      fprintf(stderr, "bpf_program__set_attach_target failed\n");
+      return -1;
+    }
+
+    /*
+     * We cannot specify 0 to the 2nd argument of bpf_program__set_prep.
+     * Disable auto loading to not loading the unncesessary program and
+     * skip setting up prep.
+     */
+    ninsts = symsdb_get_pos2syms_total(t->sdb, i - 1);
+    if (ninsts == 0) {
+      error = bpf_program__set_autoload(entry_prog, false);
+      if (error < 0) {
+        fprintf(stderr, "bpf_program__set_autoload failed\n");
+        return -1;
+      }
+
+      error = bpf_program__set_autoload(exit_prog, false);
+      if (error < 0) {
+        fprintf(stderr, "bpf_program__set_autoload failed\n");
+        return -1;
+      }
+      
+      continue;
+    }
+
+    /* Used in preprocessor function later */
+    bpf_program__set_priv(entry_prog, t, NULL);
+    bpf_program__set_priv(exit_prog, t, NULL);
+
+    /* Setup preprocessor */
+    error = bpf_program__set_prep(entry_prog, ninsts, ftrace_prep);
+    if (error < 0) {
+      fprintf(stderr, "bpf_program__set_prep failed\n");
+      return -1;
+    }
+
+    error = bpf_program__set_prep(exit_prog, ninsts, ftrace_prep);
+    if (error < 0) {
+      fprintf(stderr, "bpf_program__set_prep failed\n");
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+static int
 bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
-           struct ipft_script *script)
+           char *tracer, struct ipft_tracer *t)
 {
   int error;
   char *name;
@@ -279,14 +522,14 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
   uint8_t *target_image, *module_image;
   size_t target_image_size, module_image_size;
 
-  error = get_target_image(&target_image, &target_image_size);
+  error = get_target_image(tracer, &target_image, &target_image_size);
   if (error != 0) {
     fprintf(stderr, "get_target_image failed\n");
     return -1;
   }
 
-  if (script != NULL) {
-    error = script_exec_emit(script, &module_image, &module_image_size);
+  if (t->script != NULL) {
+    error = script_exec_emit(t->script, &module_image, &module_image_size);
     if (error != 0) {
       fprintf(stderr, "script_exec_emit failed\n");
       return -1;
@@ -318,6 +561,14 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
   }
 
   unlink(name);
+
+  if (strcmp(tracer, "function_graph") == 0) {
+    error = ftrace_setup_prep(bpf, t);
+    if (error == -1) {
+      fprintf(stderr, "ftrace_setup_prep failed\n");
+      return -1;
+    }
+  }
 
   error = bpf_object__load(bpf);
   if (error == -1) {
@@ -399,6 +650,8 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
+  t->opt = opt;
+
   error = symsdb_create(&t->sdb);
   if (error != 0) {
     fprintf(stderr, "symsdb_create failed\n");
@@ -411,7 +664,7 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = bpf_create(&t->bpf, opt->mark, opt->mask, t->script);
+  error = bpf_create(&t->bpf, opt->mark, opt->mask, opt->tracer, t);
   if (error == -1) {
     fprintf(stderr, "bpf_create failed\n");
     return -1;
