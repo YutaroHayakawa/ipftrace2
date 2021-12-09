@@ -33,8 +33,8 @@ struct {
   __type(value, struct ipft_trace_config);
 } config SEC(".maps");
 
-static __inline void
-ipft_body(void *ctx, struct sk_buff *skb)
+static __inline int
+ipft_body(void *ctx, struct sk_buff *skb, uint8_t is_return)
 {
   int error;
   uint32_t mark;
@@ -44,25 +44,28 @@ ipft_body(void *ctx, struct sk_buff *skb)
 
   conf = bpf_map_lookup_elem(&config, &idx);
   if (conf == NULL) {
-    return;
+    return -1;
   }
 
   mark = BPF_CORE_READ(skb, mark);
   if ((mark & conf->mask) != (conf->mark & conf->mask)) {
-    return;
+    return 0;
   }
 
   e.packet_id = (uint64_t)skb;
   e.tstamp = bpf_ktime_get_ns();
   e.faddr = get_func_ip(ctx);
   e.processor_id = bpf_get_smp_processor_id();
+  e.is_return = is_return;
 
   error = module(ctx, skb, e.data);
   if (error != 0) {
-    return;
+    return 0;
   }
 
   bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &e, sizeof(e));
+
+  return 0;
 }
 
 char LICENSE[] SEC("license") = "GPL";
