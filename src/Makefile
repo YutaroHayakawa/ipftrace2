@@ -41,21 +41,29 @@ BPF_CFLAGS := \
   -target bpf \
   -D__TARGET_ARCH_$(ARCH)
 
+BPF_OBJS := \
+  ipft_kprobe.bpf.o \
+  null_module.bpf.o \
+
+BPF_HEADERS := \
+  ipft_kprobe.bpf.o.h \
+  null_module.bpf.o.h \
+
 ipft: $(OBJS)
 
-tracer.o: ipft_kprobe.bpf.o.h null_module.bpf.o.h
+tracer.o: $(BPF_HEADERS)
 
-ipft_kprobe.bpf.o:
+ipft_kprobe.bpf.o: ipft_kprobe.bpf.c
 	$(CLANG) $(BPF_CFLAGS) -c $^
 
 ipft_kprobe.bpf.o.h: ipft_kprobe.bpf.o
 	xxd -i ipft_kprobe.bpf.o > ipft_kprobe.bpf.o.h
 
-null_module.bpf.o:
+null_module.bpf.o: null_module.bpf.c
 	$(CLANG) $(BPF_CFLAGS) -c $^
 
-null_module.bpf.o.h:
+null_module.bpf.o.h: null_module.bpf.o 
 	xxd -i null_module.bpf.o > null_module.bpf.o.h
 
 clean:
-	- rm -f $(OBJS) ipft
+	- rm -f $(OBJS) $(BPF_OBJS) $(BPF_HEADERS) ipft 
