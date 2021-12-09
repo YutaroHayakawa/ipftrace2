@@ -47,11 +47,6 @@ json_output_on_event(struct ipft_output *_out, struct ipft_event *e)
 
   fflush(stdout);
 
-  /*
-   * We no longer need the event structure since we already output it
-   */
-  free(e);
-
   return 0;
 }
 

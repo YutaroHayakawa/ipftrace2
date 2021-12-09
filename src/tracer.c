@@ -94,9 +94,6 @@ attach_all(struct ipft_tracer *t)
 
 struct perf_sample_data {
   struct perf_event_header header;
-  /* PERF_SAMPLE_IP */
-  uint64_t ip;
-  /* PERF_SAMPLE_RAW */
   uint32_t size;
   uint8_t data[0];
 };
@@ -105,27 +102,12 @@ static enum bpf_perf_event_ret
 trace_cb(void *ctx, __unused int cpu, struct perf_event_header *ehdr)
 {
   int error;
-  struct ipft_event *e;
   struct ipft_tracer *t = (struct ipft_tracer *)ctx;
   struct perf_sample_data *s = (struct perf_sample_data *)ehdr;
 
   switch (ehdr->type) {
   case PERF_RECORD_SAMPLE:
-    e = malloc(sizeof(*e));
-    if (e == NULL) {
-      perror("malloc");
-      return LIBBPF_PERF_EVENT_ERROR;
-    }
-
-    memcpy(e, s->data, sizeof(*e));
-
-    /*
-     * With fentry/fexit program, we cannot get IP from inside the
-     * BPF program. Thus, we need to rely on the PERF_SAMPLE_IP.
-     */
-    e->faddr = s->ip;
-
-    error = output_on_trace(t->out, e);
+    error = output_on_trace(t->out, (struct ipft_event *)s->data);
     if (error == -1) {
       return LIBBPF_PERF_EVENT_ERROR;
     }
@@ -153,7 +135,7 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
   pe_attr.type = PERF_TYPE_SOFTWARE;
   pe_attr.config = PERF_COUNT_SW_BPF_OUTPUT;
   pe_attr.sample_period = perf_sample_period;
-  pe_attr.sample_type = PERF_SAMPLE_IP | PERF_SAMPLE_RAW;
+  pe_attr.sample_type = PERF_SAMPLE_RAW;
   pe_attr.wakeup_events = perf_wakeup_events;
 
   pb_opts.attr = &pe_attr;

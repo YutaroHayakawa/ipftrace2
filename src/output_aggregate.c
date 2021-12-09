@@ -28,12 +28,21 @@ struct aggregate_output {
 };
 
 static int
-aggregate_output_on_event(struct ipft_output *_out, struct ipft_event *e)
+aggregate_output_on_event(struct ipft_output *_out, struct ipft_event *_e)
 {
   int ret;
   khint_t iter;
+  struct ipft_event *e;
   klist_t(trace_list) * l;
   struct aggregate_output *out = (struct aggregate_output *)_out;
+
+  e = malloc(sizeof(*e));
+  if (e == NULL) {
+    perror("malloc");
+    return -1;
+  }
+
+  memcpy(e, _e, sizeof(*e));
 
   /* Put trace to trace store */
   iter = kh_put(trace, out->trace, e->packet_id, &ret);
