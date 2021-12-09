@@ -72,6 +72,8 @@ int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
                             int (*cb)(const char *, struct ipft_syminfo *,
                                       void *),
                             void *arg);
+const char *symsdb_pos2syms_get(struct ipft_symsdb *sdb, int pos, int idx);
+int symsdb_get_pos2syms_total(struct ipft_symsdb *sdb, int pos);
 
 int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);

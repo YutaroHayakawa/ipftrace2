@@ -19,6 +19,7 @@
 
 #include "ipft.h"
 #include "khash.h"
+#include "kvec.h"
 
 KHASH_MAP_INIT_STR(sym2info, struct ipft_syminfo *)
 KHASH_MAP_INIT_INT64(addr2sym, char *)
@@ -28,7 +29,26 @@ struct ipft_symsdb {
   khash_t(sym2info) * sym2info;
   khash_t(addr2sym) * addr2sym;
   khash_t(availfuncs) * availfuncs;
+  kvec_t(const char *) pos2syms[MAX_SKB_POS];
 };
+
+static void
+pos2syms_append(struct ipft_symsdb *sdb, int pos, const char *sym)
+{
+  kv_push(const char *, sdb->pos2syms[pos], sym);
+}
+
+const char *
+symsdb_pos2syms_get(struct ipft_symsdb *sdb, int pos, int idx)
+{
+  return kv_A(sdb->pos2syms[pos], idx);
+}
+
+int
+symsdb_get_pos2syms_total(struct ipft_symsdb *sdb, int pos)
+{
+  return kv_size(sdb->pos2syms[pos]);
+}
 
 size_t
 symsdb_get_sym2info_total(struct ipft_symsdb *sdb)
@@ -334,6 +354,39 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
     params = btf_params(func_proto);
 
     /*
+     * Function takes more than MAX_SKB_POS shouldn't be traced
+     */
+    if (btf_vlen(func_proto) > MAX_SKB_POS) {
+      continue;
+    }
+
+    bool abort = false;
+    for (uint16_t i = 0; i < btf_vlen(func_proto); i++) {
+      t = btf__type_by_id(btf, params[i].type);
+
+      /*
+       * Strip modifier and typedef to get true data type
+       */
+      while (btf_is_mod(t) || btf_is_typedef(t)) {
+        t = btf__type_by_id(btf, t->type);
+      }
+
+      /*
+       * Depending on the version, the kernel doesn't allow us to
+       * attach fentry/fexit program to functions takes struct/union
+       * (not pointer to struct/union) as argument.
+       */
+      if (btf_is_struct(t) || btf_is_union(t)) {
+        abort = true;
+        break;
+      }
+    }
+
+    if (abort) {
+      continue;
+    }
+
+    /*
      * Find the type "struct sk_buff *" from function arguments
      * and record its position.
      */
@@ -359,6 +412,10 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
       if (error != -2 && error != 0) {
         fprintf(stderr, "put_sym2info failed\n");
         return -1;
+      }
+
+      if (error != -2) {
+        pos2syms_append(sdb, i, func_name);
       }
 
       break;
@@ -454,10 +511,14 @@ symsdb_create(struct ipft_symsdb **sdbp)
   int error;
   struct ipft_symsdb *sdb;
 
-  sdb = (struct ipft_symsdb *)malloc(sizeof(*sdb));
+  sdb = (struct ipft_symsdb *)calloc(1, sizeof(*sdb));
   if (sdb == NULL) {
     perror("malloc");
     return -1;
+  }
+
+  for (int i = 0; i < MAX_SKB_POS; i++) {
+    kv_init(sdb->pos2syms[i]);
   }
 
   sdb->availfuncs = kh_init(availfuncs);
