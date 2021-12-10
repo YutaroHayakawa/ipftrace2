@@ -57,6 +57,7 @@ struct ipft_syminfo {
 };
 
 struct ipft_output {
+  char *tracer;
   struct ipft_symsdb *sdb;
   struct ipft_script *script;
   int (*on_event)(struct ipft_output *, struct ipft_event *);
@@ -86,7 +87,7 @@ int script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len,
 void script_exec_fini(struct ipft_script *script);
 
 int output_create(struct ipft_output **outp, const char *type,
-                  struct ipft_symsdb *sdb, struct ipft_script *script);
+                  struct ipft_symsdb *sdb, struct ipft_script *script, char *tracer);
 int aggregate_output_create(struct ipft_output **outp);
 int json_output_create(struct ipft_output **outp);
 int output_on_trace(struct ipft_output *out, struct ipft_event *e);

@@ -676,7 +676,7 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = output_create(&t->out, opt->output_type, t->sdb, t->script);
+  error = output_create(&t->out, opt->output_type, t->sdb, t->script, opt->tracer);
   if (error != 0) {
     fprintf(stderr, "output_create failed\n");
     return -1;

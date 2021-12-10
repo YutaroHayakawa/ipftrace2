@@ -6,7 +6,7 @@
 
 int
 output_create(struct ipft_output **outp, const char *type,
-              struct ipft_symsdb *sdb, struct ipft_script *script)
+              struct ipft_symsdb *sdb, struct ipft_script *script, char *tracer)
 {
   int error;
   struct ipft_output *out;
@@ -25,6 +25,7 @@ output_create(struct ipft_output **outp, const char *type,
     return -1;
   }
 
+  out->tracer = tracer;
   out->sdb = sdb;
   out->script = script;
 

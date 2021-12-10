@@ -89,13 +89,115 @@ print_script_output(const char *k, size_t klen, const char *v, size_t vlen)
 }
 
 static int
-aggregate_output_post_trace(struct ipft_output *_out)
+dump_function(struct aggregate_output *out, struct ipft_event **earray, uint32_t count)
 {
   int error;
   char *name;
+  struct ipft_event *e;
+
+  for (uint32_t i = 0; i < count; i++) {
+    e = earray[i];
+
+    error = symsdb_get_addr2sym(out->base.sdb, e->faddr, &name);
+    if (error == -1) {
+      fprintf(stderr, "Failed to resolve the symbol from address\n");
+      return -1;
+    }
+
+    if (out->base.script != NULL) {
+      /* Print basic data */
+      printf("%-20zu %03u %32.32s ( ", e->tstamp, e->processor_id, name);
+
+      /* Execute script and print results */
+      error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
+                                print_script_output);
+      if (error == -1) {
+        return -1;
+      }
+
+      printf(")\n");
+    } else {
+      printf("%-20zu %03u %32.32s\n", e->tstamp, e->processor_id, name);
+    }
+  }
+
+  return 0;
+}
+
+static int
+dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, uint32_t count)
+{
+  int error;
+  char *name;
+  struct ipft_event *e;
+
+  uint32_t indent = 0;
+  for (uint32_t i = 0; i < count; i++) {
+    error = symsdb_get_addr2sym(out->base.sdb, e->faddr, &name);
+    if (error == -1) {
+      fprintf(stderr, "Failed to resolve the symbol from address\n");
+      return -1;
+    }
+
+    e = earray[i];
+
+    char s[64] = {0};
+    if (!e->is_return) {
+      indent++;
+
+      if (sprintf(s, "%-*s%s() {", indent * 2, "", name) != 2) {
+        fprintf(stderr, "sprintf failed\n");
+        return -1;
+      }
+
+      if (out->base.script != NULL) {
+        /* Print basic data */
+        printf("%-20zu %03u %-64.64s ( ", e->tstamp, e->processor_id, s);
+
+        /* Execute script and print results */
+        error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
+                                  print_script_output);
+        if (error == -1) {
+          return -1;
+        }
+
+        printf(")\n");
+      } else {
+        printf("%-20zu %03u %-*s%-64.64s\n", e->tstamp, e->processor_id, indent * 2, "", s);
+      }
+    } else {
+      sprintf(s, "%-*s}", indent * 2, "");
+
+      if (out->base.script != NULL) {
+        /* Print basic data */
+        printf("%-20zu %03u %-64.64s ( ", e->tstamp, e->processor_id, s);
+
+        /* Execute script and print results */
+        error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
+                                  print_script_output);
+        if (error == -1) {
+          return -1;
+        }
+
+        printf(")\n");
+      } else {
+        printf("%-20zu %03u %-64.64s\n", e->tstamp, e->processor_id, s);
+      }
+
+      indent--;
+    }
+  }
+
+  return 0;
+}
+
+static int
+aggregate_output_post_trace(struct ipft_output *_out)
+{
+  int error;
   klist_t(trace_list) * l;
   kliter_t(trace_list) * iter;
-  struct ipft_event *e, **earray;
+  struct ipft_event **earray;
   struct aggregate_output *out = (struct aggregate_output *)_out;
 
   printf("\n");
@@ -126,31 +228,21 @@ aggregate_output_post_trace(struct ipft_output *_out)
        */
       qsort(earray, count, sizeof(*earray), compare_tstamp);
 
-      for (uint32_t i = 0; i < count; i++) {
-        e = earray[i];
-
-        error = symsdb_get_addr2sym(out->base.sdb, e->faddr, &name);
-        if (error == -1) {
-          fprintf(stderr, "Failed to resolve the symbol from address\n");
-          free(earray);
+      if (strcmp(out->base.tracer, "function") == 0) {
+        error = dump_function(out, earray, count);
+        if (error != 0) {
+          fprintf(stderr, "dump_function failed\n");
           return -1;
         }
-
-        if (out->base.script != NULL) {
-          /* Print basic data */
-          printf("%-20zu %03u %32.32s ( ", e->tstamp, e->processor_id, name);
-
-          /* Execute script and print results */
-          error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
-                                   print_script_output);
-          if (error == -1) {
-            return -1;
-          }
-
-          printf(")\n");
-        } else {
-          printf("%-20zu %03u %32.32s\n", e->tstamp, e->processor_id, name);
+      } else if (strcmp(out->base.tracer, "function_graph") == 0) {
+        error = dump_function_graph(out, earray, count);
+        if (error != 0) {
+          fprintf(stderr, "dump_function_graph failed\n");
+          return -1;
         }
+      } else {
+        fprintf(stderr, "Unexpected tracer type %s\n", out->base.tracer);
+        return -1;
       }
 
       free(earray);)
