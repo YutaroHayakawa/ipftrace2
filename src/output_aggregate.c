@@ -143,14 +143,6 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, ui
 
     char s[64] = {0};
     if (!e->is_return) {
-      /*
-       * When there is a mismatch between entry and exit trace, overflow
-       * happens.
-       */
-      if (indent != UINT32_MAX) {
-        indent++;
-      }
-
       sprintf(s, "%-*s%s() {", indent * 2, "", name);
 
       if (out->base.script != NULL) {
@@ -168,7 +160,23 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, ui
       } else {
         printf("%-20zu %03u %-64.64s\n", e->tstamp, e->processor_id, s);
       }
+
+      /*
+       * When there is a mismatch between entry and exit trace, overflow
+       * happens.
+       */
+      if (indent != UINT32_MAX) {
+        indent++;
+      }
     } else {
+      /*
+       * When there is a mismatch between entry and exit trace, underflow
+       * happens.
+       */
+      if (indent != 0) {
+        indent--;
+      }
+
       sprintf(s, "%-*s}", indent * 2, "");
 
       if (out->base.script != NULL) {
@@ -185,14 +193,6 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, ui
         printf(")\n");
       } else {
         printf("%-20zu %03u %-64.64s\n", e->tstamp, e->processor_id, s);
-      }
-
-      /*
-       * When there is a mismatch between entry and exit trace, underflow
-       * happens.
-       */
-      if (indent != 0) {
-        indent--;
       }
     }
   }
