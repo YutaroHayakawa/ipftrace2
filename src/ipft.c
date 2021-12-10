@@ -57,7 +57,7 @@ usage(void)
           "   , --no-set-rlimit                      Don't set rlimit\n"
           "\n"
           "OUTPUT-FORMAT := { aggregate, json }\n"
-          "TRACER-TYPE   := { function, function_graph}\n"
+          "TRACER-TYPE   := { function, function_graph (experimental) }\n"
           "\n");
 }
 
