@@ -32,8 +32,9 @@ json_output_on_event(struct ipft_output *_out, struct ipft_event *e)
   }
 
   printf("{\"packet_id\":\"%p\",\"timestamp\":%zu,\"processor_id\":%u,"
-         "\"function\":\"%s\"",
-         (void *)e->packet_id, e->tstamp, e->processor_id, name);
+         "\"function\":\"%s\",\"is_return\":%s",
+         (void *)e->packet_id, e->tstamp, e->processor_id, name,
+         e->is_return ? "true" : "false");
 
   if (out->base.script) {
     error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
