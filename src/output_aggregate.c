@@ -133,22 +133,25 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, ui
 
   uint32_t indent = 0;
   for (uint32_t i = 0; i < count; i++) {
+    e = earray[i];
+
     error = symsdb_get_addr2sym(out->base.sdb, e->faddr, &name);
     if (error == -1) {
       fprintf(stderr, "Failed to resolve the symbol from address\n");
       return -1;
     }
 
-    e = earray[i];
-
     char s[64] = {0};
     if (!e->is_return) {
-      indent++;
-
-      if (sprintf(s, "%-*s%s() {", indent * 2, "", name) != 2) {
-        fprintf(stderr, "sprintf failed\n");
-        return -1;
+      /*
+       * When there is a mismatch between entry and exit trace, overflow
+       * happens.
+       */
+      if (indent != UINT32_MAX) {
+        indent++;
       }
+
+      sprintf(s, "%-*s%s() {", indent * 2, "", name);
 
       if (out->base.script != NULL) {
         /* Print basic data */
@@ -163,7 +166,7 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, ui
 
         printf(")\n");
       } else {
-        printf("%-20zu %03u %-*s%-64.64s\n", e->tstamp, e->processor_id, indent * 2, "", s);
+        printf("%-20zu %03u %-64.64s\n", e->tstamp, e->processor_id, s);
       }
     } else {
       sprintf(s, "%-*s}", indent * 2, "");
@@ -184,7 +187,13 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, ui
         printf("%-20zu %03u %-64.64s\n", e->tstamp, e->processor_id, s);
       }
 
-      indent--;
+      /*
+       * When there is a mismatch between entry and exit trace, underflow
+       * happens.
+       */
+      if (indent != 0) {
+        indent--;
+      }
     }
   }
 
