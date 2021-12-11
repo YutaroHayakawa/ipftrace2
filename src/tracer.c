@@ -253,6 +253,11 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
   return 0;
 }
 
+/*
+ * We need to carefully make sure tmpfiles we make in below functions
+ * are unlinked. Otherwise, we'll leak the tmpfiles in user's /tmp.
+ */
+
 static int
 create_tmpfile_from_image(int *fdp, char **namep, uint8_t *image,
                           size_t image_size)
@@ -274,13 +279,18 @@ create_tmpfile_from_image(int *fdp, char **namep, uint8_t *image,
 
   if (write(fd, image, image_size) == -1) {
     fprintf(stderr, "Failed to write image to tmpfile\n");
-    return -1;
+    goto err0;
   }
 
   *fdp = fd;
   *namep = name;
 
   return 0;
+
+err0:
+  close(fd);
+  unlink(name);
+  return -1;
 }
 
 static int
@@ -289,8 +299,8 @@ do_link(char **namep, uint8_t *target_image, size_t target_image_size,
 {
   char *name;
   struct bpf_linker *linker;
-  int error, target_fd, module_fd;
   char *target_name, *module_name;
+  int error = -1, target_fd, module_fd;
 
   error = create_tmpfile_from_image(&target_fd, &target_name, target_image,
                                     target_image_size);
@@ -303,7 +313,7 @@ do_link(char **namep, uint8_t *target_image, size_t target_image_size,
                                     module_image_size);
   if (error == -1) {
     fprintf(stderr, "create_tmpfile_from_image for module image failed\n");
-    return -1;
+    goto err0;
   }
 
   struct bpf_linker_opts lopts = {.sz = sizeof(lopts)};
@@ -313,7 +323,7 @@ do_link(char **namep, uint8_t *target_image, size_t target_image_size,
   linker = bpf_linker__new(name, &lopts);
   if (linker == NULL) {
     fprintf(stderr, "bpf_linker__create failed\n");
-    return -1;
+    goto err1;
   }
 
   struct bpf_linker_file_opts fopts = {.sz = sizeof(fopts)};
@@ -321,33 +331,33 @@ do_link(char **namep, uint8_t *target_image, size_t target_image_size,
   error = bpf_linker__add_file(linker, target_name, &fopts);
   if (error == -1) {
     fprintf(stderr, "bpf_linker__add_file failed\n");
-    return -1;
+    goto err2;
   }
 
   error = bpf_linker__add_file(linker, module_name, &fopts);
   if (error == -1) {
     fprintf(stderr, "bpf_linker__add_file failed\n");
-    return -1;
+    goto err2;
   }
 
   error = bpf_linker__finalize(linker);
   if (error == -1) {
     fprintf(stderr, "bpf_linker__finalize failed\n");
-    return -1;
+    goto err2;
   }
 
-  bpf_linker__free(linker);
-
-  close(target_fd);
-  close(module_fd);
-  unlink(target_name);
-  unlink(module_name);
-  free(target_name);
-  free(module_name);
-
+  error = 0;
   *namep = name;
 
-  return 0;
+err2:
+  bpf_linker__free(linker);
+err1:
+  close(module_fd);
+  unlink(module_name);
+err0:
+  close(target_fd);
+  unlink(target_name);
+  return error;
 }
 
 static int
