@@ -2,6 +2,8 @@
 
 `ipftrace2` is a tool which allows you to trace the journey of packets inside the Linux kernel. It is similar to the `ftrace` in some sense but, you can trace **which flow have gone through which functions** inside the kernel which is usually more important information for the network people than **which functions are called** information provided by `ftrace`.
 
+![demo](img/demo.gif)
+
 ## Requirements
 
 - Architecture: x86_64
