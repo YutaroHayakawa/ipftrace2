@@ -56,7 +56,7 @@ struct example_info {
  * https://github.com/torvalds/linux/commit/e5069b9c23b3857db986c58801bebe450cff3392
  */
 __hidden int
-module(struct pt_regs *ctx, struct sk_buff *skb, uint8_t data[64])
+module(void *ctx, struct sk_buff *skb, uint8_t data[64])
 {
   struct example_info *info = (struct example_info *)data;
 

@@ -1,4 +1,4 @@
-# ipftrace2 Packet Marking Cheat Sheet
+# ipftrace2 Packet Marking Tips
 
 Marking the packet is what you'll need to do first when you use `ipftrace2` . This document is a chat sheet that collects the variety of ways to mark the packet.
 
