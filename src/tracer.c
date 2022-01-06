@@ -143,8 +143,10 @@ attach_ftrace(struct ipft_tracer *t)
        * Don't keep fd to anywhere since we can close it automatically
        * with process exit.
        */
-      entry_fd = bpf_raw_tracepoint_open(NULL, bpf_program__nth_fd(entry_prog, j));
-      exit_fd = bpf_raw_tracepoint_open(NULL, bpf_program__nth_fd(exit_prog, j));
+      entry_fd =
+          bpf_raw_tracepoint_open(NULL, bpf_program__nth_fd(entry_prog, j));
+      exit_fd =
+          bpf_raw_tracepoint_open(NULL, bpf_program__nth_fd(exit_prog, j));
       if (entry_fd < 0 || exit_fd < 0) {
         fprintf(stderr, "bpf_raw_tracepoint_open failed\n");
         return -1;
@@ -152,10 +154,12 @@ attach_ftrace(struct ipft_tracer *t)
 
       attach_stat.succeeded++;
 
-      fprintf(stderr,
-              "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
-              "%zu)",
-              attach_stat.total, attach_stat.succeeded, attach_stat.failed, attach_stat.filtered);
+      fprintf(
+          stderr,
+          "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
+          "%zu)",
+          attach_stat.total, attach_stat.succeeded, attach_stat.failed,
+          attach_stat.filtered);
       fflush(stderr);
     }
   }
@@ -385,9 +389,8 @@ get_default_module_image(uint8_t **imagep, size_t *image_sizep)
 }
 
 static int
-ftrace_prep(struct bpf_program *prog, int n,
-    struct bpf_insn *insns, int insns_cnt,
-    struct bpf_prog_prep_result *res)
+ftrace_prep(struct bpf_program *prog, int n, struct bpf_insn *insns,
+            int insns_cnt, struct bpf_prog_prep_result *res)
 {
   const char *sym;
   int error, skb_pos;
@@ -496,7 +499,7 @@ ftrace_setup_prep(struct bpf_object *bpf, struct ipft_tracer *t)
         fprintf(stderr, "bpf_program__set_autoload failed\n");
         return -1;
       }
-      
+
       continue;
     }
 
@@ -522,8 +525,8 @@ ftrace_setup_prep(struct bpf_object *bpf, struct ipft_tracer *t)
 }
 
 static int
-bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
-           char *tracer, struct ipft_tracer *t)
+bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask, char *tracer,
+           struct ipft_tracer *t)
 {
   int error;
   char *name;
@@ -686,7 +689,8 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = output_create(&t->out, opt->output_type, t->sdb, t->script, opt->tracer);
+  error =
+      output_create(&t->out, opt->output_type, t->sdb, t->script, opt->tracer);
   if (error != 0) {
     fprintf(stderr, "output_create failed\n");
     return -1;

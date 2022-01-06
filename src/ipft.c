@@ -48,9 +48,12 @@ usage(void)
           " -s, --script             [PATH]          Path to extension script\n"
           " -t, --tracer             [TRACER-TYPE]   Specify tracer type\n"
           " -v, --verbose                            Turn on debug message\n"
-          "   , --perf-page-count    [NUMBER]        See page_count of perf_event_open(2) man page (default: 8)\n"
-          "   , --perf-sample-period [NUMBER]        See sample_period of perf_event_open(2) man page (default: 1)\n"
-          "   , --perf-wakeup-events [NUMBER]        See wakeup_events of perf_event_open(2) man page (default: 1)\n"
+          "   , --perf-page-count    [NUMBER]        See page_count of "
+          "perf_event_open(2) man page (default: 8)\n"
+          "   , --perf-sample-period [NUMBER]        See sample_period of "
+          "perf_event_open(2) man page (default: 1)\n"
+          "   , --perf-wakeup-events [NUMBER]        See wakeup_events of "
+          "perf_event_open(2) man page (default: 1)\n"
           "   , --no-set-rlimit                      Don't set rlimit\n"
           "\n"
           "OUTPUT-FORMAT := { aggregate, json }\n"
@@ -218,7 +221,8 @@ main(int argc, char **argv)
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "hlm:o:r:s:t:v", options, &optind)) != -1) {
+  while ((c = getopt_long(argc, argv, "hlm:o:r:s:t:v", options, &optind)) !=
+         -1) {
     switch (c) {
     case 'l':
       list = true;

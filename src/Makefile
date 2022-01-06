@@ -73,5 +73,9 @@ null_module.bpf.o: null_module.bpf.c
 null_module.bpf.o.h: null_module.bpf.o 
 	xxd -i null_module.bpf.o > null_module.bpf.o.h
 
+format:
+	clang-format -i *.c
+	clang-format -i *.h
+
 clean:
 	- rm -f $(OBJS) $(BPF_OBJS) $(BPF_HEADERS) ipft 

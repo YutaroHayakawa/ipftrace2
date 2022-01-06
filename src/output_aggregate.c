@@ -89,7 +89,8 @@ print_script_output(const char *k, size_t klen, const char *v, size_t vlen)
 }
 
 static int
-dump_function(struct aggregate_output *out, struct ipft_event **earray, uint32_t count)
+dump_function(struct aggregate_output *out, struct ipft_event **earray,
+              uint32_t count)
 {
   int error;
   char *name;
@@ -110,7 +111,7 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray, uint32_t
 
       /* Execute script and print results */
       error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
-                                print_script_output);
+                               print_script_output);
       if (error == -1) {
         return -1;
       }
@@ -125,7 +126,8 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray, uint32_t
 }
 
 static int
-dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, uint32_t count)
+dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
+                    uint32_t count)
 {
   int error;
   char *name;
@@ -151,7 +153,7 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, ui
 
         /* Execute script and print results */
         error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
-                                  print_script_output);
+                                 print_script_output);
         if (error == -1) {
           return -1;
         }
@@ -185,7 +187,7 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray, ui
 
         /* Execute script and print results */
         error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
-                                  print_script_output);
+                                 print_script_output);
         if (error == -1) {
           return -1;
         }
