@@ -156,9 +156,9 @@ Options:
  -s, --script             [PATH]          Path to extension script
  -t, --tracer             [TRACER-TYPE]   Specify tracer type
  -v, --verbose                            Turn on debug message
-   , --perf-page-count    [NUMBER]        Number of pages to use with perf (default: 8)
-   , --perf-sample-period [NUMBER]        Number of pages to use with perf (default: 1)
-   , --perf-wakeup-events [NUMBER]        Number of pages to use with perf (default: 1)
+   , --perf-page-count    [NUMBER]        See page_count of perf_event_open(2) man page (default: 8)
+   , --perf-sample-period [NUMBER]        See sample_period of perf_event_open(2) man page (default: 1)
+   , --perf-wakeup-events [NUMBER]        See wakeup_events of perf_event_open(2) man page (default: 1)
    , --no-set-rlimit                      Don't set rlimit
 
 OUTPUT-FORMAT := { aggregate, json }
