@@ -27,6 +27,16 @@ script_is_function(lua_State *L, char *name)
 }
 
 static bool
+script_is_string(lua_State *L, char *name)
+{
+  bool ret;
+  lua_getglobal(L, name);
+  ret = lua_isstring(L, -1);
+  lua_pop(L, 1);
+  return ret;
+}
+
+static bool
 script_has_init(lua_State *L)
 {
   return script_is_function(L, "init");
@@ -39,15 +49,15 @@ script_has_fini(lua_State *L)
 }
 
 static bool
-script_has_dump(lua_State *L)
+script_has_decode(lua_State *L)
 {
-  return script_is_function(L, "dump");
+  return script_is_function(L, "decode");
 }
 
 static bool
-script_has_emit(lua_State *L)
+script_has_program(lua_State *L)
 {
-  return script_is_function(L, "emit");
+  return script_is_string(L, "program");
 }
 
 static lua_Integer
@@ -138,19 +148,18 @@ script_exec_fini(struct ipft_script *script)
 }
 
 int
-script_exec_emit(struct ipft_script *script, uint8_t **imagep,
-                 size_t *image_sizep)
+script_get_program(struct ipft_script *script, uint8_t **imagep,
+                   size_t *image_sizep)
 {
   uint8_t *image;
   const char *tmp;
   size_t image_size;
 
-  if (!script_has_emit(script->L)) {
+  if (!script_has_program(script->L)) {
     return 0;
   }
 
-  lua_getglobal(script->L, "emit");
-  lua_call(script->L, 0, 1);
+  lua_getglobal(script->L, "program");
 
   tmp = lua_tolstring(script->L, -1, &image_size);
   if (tmp == NULL) {
@@ -175,18 +184,18 @@ script_exec_emit(struct ipft_script *script, uint8_t **imagep,
 }
 
 int
-script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len,
-                 int (*cb)(const char *, size_t, const char *, size_t))
+script_exec_decode(struct ipft_script *script, uint8_t *data, size_t len,
+                   int (*cb)(const char *, size_t, const char *, size_t))
 {
   int error;
   lua_State *L = script->L;
 
-  if (!script_has_dump(L)) {
+  if (!script_has_decode(L)) {
     return 0;
   }
 
   /* A table user returned will be put on top of Lua stack */
-  lua_getglobal(L, "dump");
+  lua_getglobal(L, "decode");
   lua_pushlstring(L, (char *)data, len);
   lua_call(L, 1, 1);
 

@@ -80,10 +80,10 @@ int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);
 
 int script_create(struct ipft_script **scriptp, const char *path);
-int script_exec_emit(struct ipft_script *script, uint8_t **imagep,
-                     size_t *image_sizep);
-int script_exec_dump(struct ipft_script *script, uint8_t *data, size_t len,
-                     int (*cb)(const char *, size_t, const char *, size_t));
+int script_get_program(struct ipft_script *script, uint8_t **imagep,
+                       size_t *image_sizep);
+int script_exec_decode(struct ipft_script *script, uint8_t *data, size_t len,
+                       int (*cb)(const char *, size_t, const char *, size_t));
 void script_exec_fini(struct ipft_script *script);
 
 int output_create(struct ipft_output **outp, const char *type,

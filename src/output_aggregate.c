@@ -110,8 +110,8 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray,
       printf("%-20zu %03u %32.32s ( ", e->tstamp, e->processor_id, name);
 
       /* Execute script and print results */
-      error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
-                               print_script_output);
+      error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
+                                 print_script_output);
       if (error == -1) {
         return -1;
       }
@@ -152,8 +152,8 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
         printf("%-20zu %03u %-64.64s ( ", e->tstamp, e->processor_id, s);
 
         /* Execute script and print results */
-        error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
-                                 print_script_output);
+        error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
+                                   print_script_output);
         if (error == -1) {
           return -1;
         }
@@ -186,8 +186,8 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
         printf("%-20zu %03u %-64.64s ( ", e->tstamp, e->processor_id, s);
 
         /* Execute script and print results */
-        error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
-                                 print_script_output);
+        error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
+                                   print_script_output);
         if (error == -1) {
           return -1;
         }

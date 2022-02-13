@@ -542,9 +542,9 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask, char *tracer,
   }
 
   if (t->script != NULL) {
-    error = script_exec_emit(t->script, &module_image, &module_image_size);
+    error = script_get_program(t->script, &module_image, &module_image_size);
     if (error != 0) {
-      fprintf(stderr, "script_exec_emit failed\n");
+      fprintf(stderr, "script_get_program failed\n");
       return -1;
     }
   } else {

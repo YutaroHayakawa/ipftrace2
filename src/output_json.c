@@ -37,8 +37,8 @@ json_output_on_event(struct ipft_output *_out, struct ipft_event *e)
          e->is_return ? "true" : "false");
 
   if (out->base.script) {
-    error = script_exec_dump(out->base.script, e->data, sizeof(e->data),
-                             print_script_output);
+    error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
+                               print_script_output);
     if (error == -1) {
       return -1;
     }
