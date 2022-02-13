@@ -445,7 +445,7 @@ fill_sym2info(struct ipft_symsdb *sdb)
    * sysfs.
    */
   vmlinux_btf = libbpf_find_kernel_btf();
-  if (vmlinux_btf == NULL) {
+  if (libbpf_get_error(vmlinux_btf) != 0) {
     fprintf(stderr, "libbpf_find_kernel_btf failed\n");
     return -1;
   }
