@@ -34,7 +34,7 @@ jobs:
 
       - name: Build static binary with Docker
         run: |
-          sudo ./scripts/build_static.sh
+          sudo ./scripts/make.sh
           cd src && tar cfvz ipftrace2_amd64.tar.gz ipft
 
       - name: Publish binary
