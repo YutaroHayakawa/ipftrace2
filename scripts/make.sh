@@ -4,7 +4,10 @@
 
 TARGET=""
 ROOT=$(pwd)
-VERSION=$(git describe --tags --abbrev=0)
+
+if [ -z "$VERSION" ]; then
+    VERSION=$(git describe --tags --abbrev=0)
+fi
 
 if [ -z "$DOCKER_IMAGE" ]; then
     DOCKER_IMAGE="ghcr.io/yutarohayakawa/ipftrace2-builder:$VERSION"
