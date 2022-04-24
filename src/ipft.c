@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include <sys/resource.h>
 
 #include <bpf/libbpf.h>
@@ -26,6 +27,8 @@ static struct option options[] = {
     {"perf-sample-period", required_argument, 0, '0'},
     {"perf-wakeup-events", required_argument, 0, '0'},
     {"no-set-rlimit", no_argument, 0, '0'},
+    {"enable-probe-server", no_argument, 0, '0'},
+    {"probe-server-port", required_argument, 0, '0'},
     {NULL, 0, 0, 0},
 };
 
@@ -55,6 +58,8 @@ usage(void)
           "   , --perf-wakeup-events [NUMBER]        See wakeup_events of "
           "perf_event_open(2) man page (default: 1)\n"
           "   , --no-set-rlimit                      Don't set rlimit\n"
+          "   , --enable-probe-server                Enable probe server\n"
+          "   , --probe-server-port                  Set probe server port\n"
           "\n"
           "OUTPUT-FORMAT := { aggregate, json }\n"
           "TRACER-TYPE   := { function, function_graph (experimental) }\n"
@@ -74,6 +79,8 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->script = NULL;
   opt->tracer = "function";
   opt->verbose = false;
+  opt->enable_probe_server = false;
+  opt->probe_server_port = 13720;
 }
 
 static void
@@ -89,6 +96,9 @@ opt_dump(struct ipft_tracer_opt *opt)
   fprintf(stderr, "perf_page_cnt      : %zu\n", opt->perf_page_cnt);
   fprintf(stderr, "perf_sample_period : %zu\n", opt->perf_sample_period);
   fprintf(stderr, "perf_wakeup_events : %u\n", opt->perf_wakeup_events);
+  if (opt->enable_probe_server) {
+    fprintf(stderr, "probe_server_port  : %u\n", opt->probe_server_port);
+  }
   fprintf(stderr, "============ End Options ============\n");
 }
 
@@ -270,6 +280,16 @@ main(int argc, char **argv)
 
       if (strcmp(optname, "no-set-rlimit") == 0) {
         set_rlimit = false;
+        break;
+      }
+
+      if (strcmp(optname, "enable-probe-server") == 0) {
+        opt.enable_probe_server = true;
+        break;
+      }
+
+      if (strcmp(optname, "probe-server-port") == 0) {
+        opt.probe_server_port = atoi(optarg);
         break;
       }
 

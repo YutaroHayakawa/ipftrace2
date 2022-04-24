@@ -50,6 +50,8 @@ struct ipft_tracer_opt {
   uint64_t perf_sample_period;
   uint32_t perf_wakeup_events;
   bool verbose;
+  bool enable_probe_server;
+  uint16_t probe_server_port;
 };
 
 struct ipft_syminfo {

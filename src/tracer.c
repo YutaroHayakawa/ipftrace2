@@ -3,6 +3,12 @@
 #include <signal.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <pthread.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/ip.h>
+#include <linux/types.h>
 
 #include <gelf.h>
 #include <libelf.h>
@@ -607,16 +613,72 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask, char *tracer,
 static bool end = false;
 
 static void
-handle_sigint(__unused int signum)
+handle_signal(__unused int signum)
 {
   end = true;
   signal(SIGINT, SIG_DFL);
+  signal(SIGTERM, SIG_DFL);
+}
+
+static void *
+handle_tcp_probe(void *arg)
+{
+  int error, lsock, csock;
+  struct ipft_tracer_opt *opt = (struct ipft_tracer_opt *)arg;
+
+  lsock = socket(AF_INET, SOCK_STREAM, 0);
+  if (lsock == -1) {
+    fprintf(stderr, "socket failed: %s\n", strerror(errno));
+    pthread_exit(arg);
+  }
+
+  error = setsockopt(lsock, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
+  if (error == -1) {
+    fprintf(stderr, "setsockopt failed: %s\n", strerror(errno));
+    pthread_exit(arg);
+  }
+
+  struct sockaddr_in laddr = {
+      .sin_family = AF_INET,
+      .sin_addr.s_addr = inet_addr("0.0.0.0"),
+      .sin_port = htons(opt->probe_server_port),
+  };
+
+  error = bind(lsock, (struct sockaddr *)&laddr, sizeof(laddr));
+  if (error == -1) {
+    fprintf(stderr, "bind failed: %s\n", strerror(errno));
+    pthread_exit(arg);
+  }
+
+  error = listen(lsock, 100);
+  if (error == -1) {
+    fprintf(stderr, "listen failed: %s\n", strerror(errno));
+    pthread_exit(arg);
+  }
+
+  while (!end) {
+    struct sockaddr_in caddr = {};
+    socklen_t caddr_len = sizeof(caddr);
+
+    csock = accept(lsock, (struct sockaddr *)&caddr, &caddr_len);
+    if (csock == -1) {
+      fprintf(stderr, "accept failed: %s\n", strerror(errno));
+      continue;
+    }
+
+    close(csock);
+  }
+
+  close(lsock);
+
+  return arg;
 }
 
 int
 tracer_run(struct ipft_tracer *t)
 {
   int error;
+  pthread_t thread;
 
   error = attach_all(t);
   if (error) {
@@ -626,11 +688,26 @@ tracer_run(struct ipft_tracer *t)
 
   fprintf(stderr, "Trace ready!\n");
 
-  signal(SIGINT, handle_sigint);
+  signal(SIGINT, handle_signal);
+  signal(SIGTERM, handle_signal);
+
+  if (t->opt->enable_probe_server) {
+    error = pthread_create(&thread, NULL, handle_tcp_probe, (void *)t->opt);
+    if (error == -1) {
+      fprintf(stderr, "pthread_create failed: %s\n", strerror(errno));
+      return -1;
+    }
+
+    error = pthread_detach(thread);
+    if (error == -1) {
+      fprintf(stderr, "pthread_detach failed: %s\n", strerror(errno));
+      return -1;
+    }
+  }
 
   while (!end) {
     if ((error = perf_buffer__poll(t->pb, 1000)) < 0) {
-      /* perf_buffer__poll cancelled with SIGINT */
+      /* perf_buffer__poll cancelled with signal */
       if (end) {
         break;
       }
