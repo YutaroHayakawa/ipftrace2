@@ -165,6 +165,60 @@ attach_ftrace(struct ipft_tracer *t)
 }
 
 static int
+attach_kprobe_multi(struct ipft_tracer *t)
+{
+  int error;
+
+  for (int i = 0; i < MAX_SKB_POS; i++) {
+    char name[32];
+    struct bpf_link *link;
+    struct bpf_program *prog;
+    struct bpf_kprobe_multi_opts opts = {};
+    int nsyms = symsdb_get_pos2syms_total(t->sdb, i);
+
+    memset(name, 0, sizeof(name));
+
+    if (sprintf(name, "ipft_main%d", i + 1) < 0) {
+      fprintf(stderr, "sprintf failed\n");
+      return -1;
+    }
+
+    prog = bpf_object__find_program_by_name(t->bpf, name);
+    if (prog == NULL) {
+      fprintf(stderr, "bpf_object__find_program_by_name failed\n");
+      return -1;
+    }
+
+    opts.syms = calloc(sizeof(char *), nsyms);
+    if (opts.syms == NULL) {
+      fprintf(stderr, "calloc failed\n");
+      return -1;
+    }
+
+    for (int j = 0; j < nsyms; j++) {
+      const char *sym = symsdb_pos2syms_get(t->sdb, i, j);
+      if (!regex_match(t->re, sym)) {
+        attach_stat.filtered++;
+      } else {
+        attach_stat.succeeded++;
+        opts.syms[opts.cnt] = sym;
+        opts.cnt++;
+      }
+    }
+
+    link = bpf_program__attach_kprobe_multi_opts(prog, NULL, &opts);
+
+    error = libbpf_get_error(link);
+    if (error != 0) {
+      fprintf(stderr, "bpf_program__attach_kprobe_multi_opts failed\n");
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+static int
 attach_all(struct ipft_tracer *t)
 {
   int error;
@@ -228,22 +282,22 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
                    uint32_t perf_wakeup_events)
 {
   struct perf_buffer *pb;
-  struct perf_event_attr pe_attr = {0};
-  struct perf_buffer_raw_opts pb_opts = {0};
 
-  pe_attr.type = PERF_TYPE_SOFTWARE;
-  pe_attr.config = PERF_COUNT_SW_BPF_OUTPUT;
-  pe_attr.sample_period = perf_sample_period;
-  pe_attr.sample_type = PERF_SAMPLE_RAW;
-  pe_attr.wakeup_events = perf_wakeup_events;
+  struct perf_buffer_raw_opts pb_opts = {
+    .sz = sizeof(pb_opts),
+    .cpu_cnt = 0,
+  };
 
-  pb_opts.attr = &pe_attr;
-  pb_opts.event_cb = trace_cb;
-  pb_opts.ctx = t;
-  pb_opts.cpu_cnt = 0;
+  struct perf_event_attr pe_attr = {
+    .type = PERF_TYPE_SOFTWARE,
+    .config = PERF_COUNT_SW_BPF_OUTPUT,
+    .sample_period = perf_sample_period,
+    .sample_type = PERF_SAMPLE_RAW,
+    .wakeup_events = perf_wakeup_events,
+  };
 
   pb = perf_buffer__new_raw(bpf_object__find_map_fd_by_name(t->bpf, "events"),
-                            perf_page_cnt, &pb_opts);
+                            perf_page_cnt, &pe_attr, trace_cb, t, &pb_opts);
   if (pb == NULL) {
     fprintf(stderr, "perf_buffer__new_raw failed\n");
     return -1;
