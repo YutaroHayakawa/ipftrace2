@@ -390,7 +390,7 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
      * Find the type "struct sk_buff *" from function arguments
      * and record its position.
      */
-    for (uint16_t i = 0; i < btf_vlen(func_proto) && i < MAX_SKB_POS - 1; i++) {
+    for (uint16_t i = 0; i < btf_vlen(func_proto) && i < MAX_SKB_POS; i++) {
       t = btf__type_by_id(btf, params[i].type);
       if (!btf_is_ptr(t)) {
         continue;
@@ -406,7 +406,7 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
         continue;
       }
 
-      sinfo.skb_pos = i + 1;
+      sinfo.skb_pos = i;
 
       error = put_sym2info(sdb, func_name, &sinfo);
       if (error != -2 && error != 0) {

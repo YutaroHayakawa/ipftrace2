@@ -40,6 +40,7 @@ static struct {
 static int
 attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
 {
+  char name[32] = {0};
   struct bpf_link *link;
   struct bpf_program *prog;
   struct ipft_tracer *t = (struct ipft_tracer *)data;
@@ -49,25 +50,15 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
     return 0;
   }
 
-  switch (si->skb_pos) {
-  case 1:
-    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main1");
-    break;
-  case 2:
-    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main2");
-    break;
-  case 3:
-    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main3");
-    break;
-  case 4:
-    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main4");
-    break;
-  case 5:
-    prog = bpf_object__find_program_by_name(t->bpf, "ipft_main5");
-    break;
-  default:
-    fprintf(stderr, "Unsupported skb_pos %d\n", si->skb_pos);
-    break;
+  if (sprintf(name, "ipft_main%d", si->skb_pos) < 0) {
+    fprintf(stderr, "sprintf failed\n");
+    return -1;
+  }
+
+  prog = bpf_object__find_program_by_name(t->bpf, name);
+  if (prog == NULL) {
+    fprintf(stderr, "bpf_object__find_program_by_name failed\n");
+    return -1;
   }
 
   link = bpf_program__attach_kprobe(prog, false, sym);
@@ -113,7 +104,7 @@ attach_ftrace(struct ipft_tracer *t)
   for (int i = 0; i < MAX_SKB_POS; i++) {
     memset(name, 0, sizeof(name));
 
-    if (sprintf(name, "ipft_main%d", i + 1) < 0) {
+    if (sprintf(name, "ipft_main%d", i) < 0) {
       fprintf(stderr, "sprintf failed\n");
       return -1;
     }
@@ -126,7 +117,7 @@ attach_ftrace(struct ipft_tracer *t)
 
     memset(name, 0, sizeof(name));
 
-    if (sprintf(name, "ipft_main_return%d", i + 1) < 0) {
+    if (sprintf(name, "ipft_main_return%d", i) < 0) {
       fprintf(stderr, "sprintf failed\n");
       return -1;
     }
@@ -408,7 +399,7 @@ ftrace_prep(struct bpf_program *prog, int n, struct bpf_insn *insns,
     return -1;
   }
 
-  sym = symsdb_pos2syms_get(t->sdb, skb_pos - 1, n);
+  sym = symsdb_pos2syms_get(t->sdb, skb_pos, n);
 
   error = bpf_program__set_attach_target(prog, 0, sym);
   if (error == -1) {
@@ -440,7 +431,7 @@ ftrace_setup_prep(struct bpf_object *bpf, struct ipft_tracer *t)
    * generate the different variants of BPF programs for each functions while
    * we only maintain MAX_SKB_POS of BPF programs.
    */
-  for (int i = 1; i <= MAX_SKB_POS; i++) {
+  for (int i = 0; i < MAX_SKB_POS; i++) {
     int ninsts;
     struct bpf_program *entry_prog, *exit_prog;
 
@@ -492,7 +483,7 @@ ftrace_setup_prep(struct bpf_object *bpf, struct ipft_tracer *t)
      * Disable auto loading to not loading the unncesessary program and
      * skip setting up prep.
      */
-    ninsts = symsdb_get_pos2syms_total(t->sdb, i - 1);
+    ninsts = symsdb_get_pos2syms_total(t->sdb, i);
     if (ninsts == 0) {
       error = bpf_program__set_autoload(entry_prog, false);
       if (error < 0) {
