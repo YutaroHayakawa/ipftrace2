@@ -371,6 +371,12 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
         t = btf__type_by_id(btf, t->type);
       }
 
+      // Last argument is a variable length, ftrace cannot support it.
+      if (params[i].type == 0 && params[i].name_off == 0) {
+        abort = true;
+        break;
+      }
+
       /*
        * Depending on the version, the kernel doesn't allow us to
        * attach fentry/fexit program to functions takes struct/union
