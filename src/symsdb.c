@@ -89,7 +89,7 @@ put_sym2info(struct ipft_symsdb *sdb, const char *name,
 }
 
 int
-symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
+symsdb_get_sym2info(struct ipft_symsdb *sdb, const char *name,
                     struct ipft_syminfo **sinfop)
 {
   khint_t iter;
@@ -328,9 +328,9 @@ fill_addr2sym(struct ipft_symsdb *sdb)
 }
 
 static int
-btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
+btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
 {
-  int error;
+  int error, btf_fd = 0;
   struct ipft_syminfo sinfo;
   const struct btf_param *params;
   const char *func_name, *st_name;
@@ -406,7 +406,13 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
         continue;
       }
 
+      if (!is_vmlinux_btf) {
+        btf_fd = btf__fd(btf);
+      }
+
       sinfo.skb_pos = i;
+      sinfo.btf_fd = btf_fd;
+      sinfo.btf_id = id;
 
       error = put_sym2info(sdb, func_name, &sinfo);
       if (error != -2 && error != 0) {
@@ -432,25 +438,17 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf)
 static int
 fill_sym2info(struct ipft_symsdb *sdb)
 {
-  FTS *fts;
-  FTSENT *f;
   int error;
+  uint32_t id = 0;
   struct btf *btf, *vmlinux_btf;
-  char *const path_argv[] = {"/sys/kernel/btf", NULL};
 
-  /*
-   * First, explore the functions in vmlinux BTF.
-   * libbpf_find_kernel_btf supports finding the
-   * BTF from both of the ELF files on disk and
-   * sysfs.
-   */
-  vmlinux_btf = libbpf_find_kernel_btf();
+  vmlinux_btf = btf__load_vmlinux_btf();
   if (libbpf_get_error(vmlinux_btf) != 0) {
     fprintf(stderr, "libbpf_find_kernel_btf failed\n");
     return -1;
   }
 
-  error = btf_fill_sym2info(sdb, vmlinux_btf);
+  error = btf_fill_sym2info(sdb, vmlinux_btf, true);
   if (error == -1) {
     fprintf(stderr, "btf_fill_sym2info failed\n");
     return -1;
@@ -467,40 +465,39 @@ fill_sym2info(struct ipft_symsdb *sdb)
     return 0;
   }
 
-  /*
-   * Iterate over the files under /sys/kernel/btf to find
-   * kernel module BTFs.
-   */
-  fts = fts_open(path_argv, FTS_NOSTAT | FTS_LOGICAL, NULL);
-  if (fts == NULL) {
-    fprintf(stderr, "fts_open failed: %s\n", strerror(errno));
-    return -1;
-  }
+  while (true) {
+    int fd;
 
-  while ((f = fts_read(fts)) != NULL) {
-    switch (f->fts_info) {
-    case FTS_F:
-      if (strcmp(f->fts_name, "vmlinux") == 0) {
-        continue;
-      }
+    error = bpf_btf_get_next_id(id, &id);
+    if (error && errno == ENOENT) {
+      return 0;
+    }
 
-      btf = btf__parse_raw_split(f->fts_accpath, vmlinux_btf);
-      if (btf == NULL) {
-        fprintf(stderr, "btf__parse_raw failed\n");
-        return -1;
-      }
+    if (error) {
+      fprintf(stderr, "bpf_btf_get_next_id failed\n");
+      return -1;
+    }
 
-      error = btf_fill_sym2info(sdb, btf);
-      if (error == -1) {
-        fprintf(stderr, "btf_fill_sym2info failed\n");
-        return -1;
-      }
+    fd = bpf_btf_get_fd_by_id(id);
+    if (fd < 0) {
+      fprintf(stderr, "bpf_btf_get_fd_by_id failed\n");
+      return -1;
+    }
 
-      break;
+    btf = btf__load_from_kernel_by_id_split(id, vmlinux_btf);
+    if (btf == NULL) {
+      fprintf(stderr, "btf__load_from_kernel_by_id failed\n");
+      return -1;
+    }
+
+    btf__set_fd(btf, fd);
+
+    error = btf_fill_sym2info(sdb, btf, false);
+    if (error == -1) {
+      fprintf(stderr, "btf_fill_sym2info failed\n");
+      return -1;
     }
   }
-
-  fts_close(fts);
 
   return 0;
 }

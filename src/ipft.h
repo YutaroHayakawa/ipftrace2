@@ -56,6 +56,8 @@ struct ipft_tracer_opt {
 
 struct ipft_syminfo {
   int skb_pos;
+  uint32_t btf_fd;
+  uint32_t btf_id;
 };
 
 struct ipft_output {
@@ -68,7 +70,7 @@ struct ipft_output {
 
 int symsdb_create(struct ipft_symsdb **sdbp);
 size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
-int symsdb_get_sym2info(struct ipft_symsdb *sdb, char *name,
+int symsdb_get_sym2info(struct ipft_symsdb *sdb, const char *name,
                         struct ipft_syminfo **sinfop);
 int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp);
 int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
