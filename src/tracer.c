@@ -17,6 +17,7 @@
 
 #include "ipft.h"
 #include "ipft_kprobe.bpf.o.h"
+#include "ipft_kprobe_multi.bpf.o.h"
 #include "ipft_ftrace.bpf.o.h"
 #include "null_module.bpf.o.h"
 
@@ -89,6 +90,79 @@ attach_kprobe(struct ipft_tracer *t)
   error = symsdb_sym2info_foreach(t->sdb, attach_cb, t);
   if (error == -1) {
     return -1;
+  }
+
+  return 0;
+}
+
+static int
+attach_kprobe_multi(struct ipft_tracer *t)
+{
+  int error;
+
+  for (int i = 0; i < MAX_SKB_POS; i++) {
+    size_t cur = 0;
+    const char **syms;
+    char name[32] = {0};
+    struct bpf_link *link;
+    struct bpf_program *prog;
+
+    if (sprintf(name, "ipft_main%d", i) < 0) {
+      fprintf(stderr, "sprintf failed\n");
+      return -1;
+    }
+
+    prog = bpf_object__find_program_by_name(t->bpf, name);
+    if (prog == NULL) {
+      fprintf(stderr, "bpf_object__find_program_by_name failed\n");
+      return -1;
+    }
+
+    memset(name, 0, sizeof(name));
+
+    syms = calloc(symsdb_get_pos2syms_total(t->sdb, i), sizeof(char *));
+    if (syms == NULL) {
+      fprintf(stderr, "calloc failed\n");
+      return -1;
+    }
+
+    for (int j = 0; j < symsdb_get_pos2syms_total(t->sdb, i); j++) {
+      const char *sym = symsdb_pos2syms_get(t->sdb, i, j);
+
+      if (!regex_match(t->re, sym)) {
+        attach_stat.filtered++;
+        continue;
+      }
+
+      syms[cur++] = sym;
+    }
+
+    struct bpf_kprobe_multi_opts opts = {
+        .sz = sizeof(opts),
+        .syms = syms,
+        .cnt = cur,
+    };
+
+    link = bpf_program__attach_kprobe_multi_opts(prog, NULL, &opts);
+
+    error = libbpf_get_error(link);
+    if (error != 0) {
+      char errbuf[256] = {0};
+      libbpf_strerror(error, errbuf, 256);
+      fprintf(stderr, "bpf_program__attach_kprobe_multi_opts failed: %s\n",
+              errbuf);
+      attach_stat.failed += opts.cnt;
+    } else {
+      attach_stat.succeeded += opts.cnt;
+    }
+
+    fprintf(
+        stderr,
+        "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
+        "%zu)",
+        attach_stat.total, attach_stat.succeeded, attach_stat.failed,
+        attach_stat.filtered);
+    fflush(stderr);
   }
 
   return 0;
@@ -214,78 +288,29 @@ attach_ftrace(struct ipft_tracer *t)
 }
 
 static int
-attach_kprobe_multi(struct ipft_tracer *t)
-{
-  int error;
-
-  for (int i = 0; i < MAX_SKB_POS; i++) {
-    char name[32];
-    struct bpf_link *link;
-    struct bpf_program *prog;
-    struct bpf_kprobe_multi_opts opts = {};
-    int nsyms = symsdb_get_pos2syms_total(t->sdb, i);
-
-    memset(name, 0, sizeof(name));
-
-    if (sprintf(name, "ipft_main%d", i + 1) < 0) {
-      fprintf(stderr, "sprintf failed\n");
-      return -1;
-    }
-
-    prog = bpf_object__find_program_by_name(t->bpf, name);
-    if (prog == NULL) {
-      fprintf(stderr, "bpf_object__find_program_by_name failed\n");
-      return -1;
-    }
-
-    opts.syms = calloc(sizeof(char *), nsyms);
-    if (opts.syms == NULL) {
-      fprintf(stderr, "calloc failed\n");
-      return -1;
-    }
-
-    for (int j = 0; j < nsyms; j++) {
-      const char *sym = symsdb_pos2syms_get(t->sdb, i, j);
-      if (!regex_match(t->re, sym)) {
-        attach_stat.filtered++;
-      } else {
-        attach_stat.succeeded++;
-        opts.syms[opts.cnt] = sym;
-        opts.cnt++;
-      }
-    }
-
-    link = bpf_program__attach_kprobe_multi_opts(prog, NULL, &opts);
-
-    error = libbpf_get_error(link);
-    if (error != 0) {
-      fprintf(stderr, "bpf_program__attach_kprobe_multi_opts failed\n");
-      return -1;
-    }
-  }
-
-  return 0;
-}
-
-static int
 attach_all(struct ipft_tracer *t)
 {
   int error;
 
   attach_stat.total = symsdb_get_sym2info_total(t->sdb);
 
-  if (strcmp(t->opt->tracer, "function") == 0) {
+  if (strcmp(t->opt->backend, "kprobe") == 0) {
     error = attach_kprobe(t);
     if (error == -1) {
       return -1;
     }
-  } else if (strcmp(t->opt->tracer, "function_graph") == 0) {
+  } else if (strcmp(t->opt->backend, "kprobe-multi") == 0) {
+    error = attach_kprobe_multi(t);
+    if (error == -1) {
+      return -1;
+    }
+  } else if (strcmp(t->opt->backend, "ftrace") == 0) {
     error = attach_ftrace(t);
     if (error == -1) {
       return -1;
     }
   } else {
-    fprintf(stderr, "Unexpected tracer type %s\n", t->opt->tracer);
+    fprintf(stderr, "Unsupported backend %s\n", t->opt->backend);
     return -1;
   }
 
@@ -465,16 +490,19 @@ err0:
 }
 
 static int
-get_target_image(char *tracer, uint8_t **imagep, size_t *image_sizep)
+get_target_image(char *backend, uint8_t **imagep, size_t *image_sizep)
 {
-  if (strcmp(tracer, "function") == 0) {
+  if (strcmp(backend, "kprobe") == 0) {
     *imagep = ipft_kprobe_bpf_o;
     *image_sizep = ipft_kprobe_bpf_o_len;
-  } else if (strcmp(tracer, "function_graph") == 0) {
+  } else if (strcmp(backend, "kprobe-multi") == 0) {
+    *imagep = ipft_kprobe_multi_bpf_o;
+    *image_sizep = ipft_kprobe_multi_bpf_o_len;
+  } else if (strcmp(backend, "ftrace") == 0) {
     *imagep = ipft_ftrace_bpf_o;
     *image_sizep = ipft_ftrace_bpf_o_len;
   } else {
-    fprintf(stderr, "Unexpected tracer type %s\n", tracer);
+    fprintf(stderr, "Unsupported backend %s\n", backend);
     return -1;
   }
   return 0;
@@ -548,8 +576,8 @@ ftrace_set_init_target(struct bpf_object *bpf, struct ipft_tracer *t)
 }
 
 static int
-bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask, char *tracer,
-           struct ipft_tracer *t)
+bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
+           char *backend, struct ipft_tracer *t)
 {
   int error;
   char *name;
@@ -558,7 +586,7 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask, char *tracer,
   uint8_t *target_image, *module_image;
   size_t target_image_size, module_image_size;
 
-  error = get_target_image(tracer, &target_image, &target_image_size);
+  error = get_target_image(backend, &target_image, &target_image_size);
   if (error != 0) {
     fprintf(stderr, "get_target_image failed\n");
     return -1;
@@ -598,7 +626,7 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask, char *tracer,
 
   unlink(name);
 
-  if (strcmp(tracer, "function_graph") == 0) {
+  if (strcmp(backend, "ftrace") == 0) {
     error = ftrace_set_init_target(bpf, t);
     if (error == -1) {
       fprintf(stderr, "ftrace_setup_prep failed\n");
@@ -771,7 +799,7 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = bpf_create(&t->bpf, opt->mark, opt->mask, opt->tracer, t);
+  error = bpf_create(&t->bpf, opt->mark, opt->mask, opt->backend, t);
   if (error == -1) {
     fprintf(stderr, "bpf_create failed\n");
     return -1;

@@ -40,6 +40,7 @@ struct ipft_trace_config {
 };
 
 struct ipft_tracer_opt {
+  char *backend;
   uint32_t mark;
   uint32_t mask;
   char *regex;

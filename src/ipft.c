@@ -7,14 +7,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/resource.h>
+#include <linux/filter.h>
 
+#include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
 #include "ipft.h"
 
 static struct option options[] = {
+    {"backend", required_argument, 0, 'b'},
     {"help", no_argument, 0, 'h'},
     {"list", no_argument, 0, 'l'},
     {"mark", required_argument, 0, 'm'},
@@ -39,6 +43,7 @@ usage(void)
           "Usage: ipft [OPTIONS]\n"
           "\n"
           "Options:\n"
+          " -b, --backend            [BACKEND]       Specify trace backend\n"
           " -h, --help                               Show this text\n"
           " -l, --list                               List functions\n"
           " -m, --mark               [NUMBER]        Trace the packet marked "
@@ -61,6 +66,7 @@ usage(void)
           "   , --enable-probe-server                Enable probe server\n"
           "   , --probe-server-port                  Set probe server port\n"
           "\n"
+          "BACKEND       := { kprobe, ftrace, kprobe-multi }"
           "OUTPUT-FORMAT := { aggregate, json }\n"
           "TRACER-TYPE   := { function, function_graph (experimental) }\n"
           "\n");
@@ -69,6 +75,7 @@ usage(void)
 static void
 opt_init(struct ipft_tracer_opt *opt)
 {
+  opt->backend = NULL;
   opt->mark = 0;
   opt->mask = 0xffffffff;
   opt->output_type = "aggregate";
@@ -87,6 +94,7 @@ static void
 opt_dump(struct ipft_tracer_opt *opt)
 {
   fprintf(stderr, "============   Options   ============\n");
+  fprintf(stderr, "backend            : %s\n", opt->backend);
   fprintf(stderr, "mark               : 0x%x\n", opt->mark);
   fprintf(stderr, "mask               : 0x%x\n", opt->mask);
   fprintf(stderr, "regex              : %s\n", opt->regex);
@@ -112,6 +120,13 @@ opt_validate(struct ipft_tracer_opt *opt, bool list)
 
   if (!list && opt->mask == 0) {
     fprintf(stderr, "Masking by 0 is not allowed\n");
+    return false;
+  }
+
+  if (strcmp(opt->backend, "kprobe") != 0 &&
+      strcmp(opt->backend, "ftrace") != 0 &&
+      strcmp(opt->backend, "kprobe-multi") != 0) {
+    fprintf(stderr, "Invalid trace backend %s\n", opt->backend);
     return false;
   }
 
@@ -213,6 +228,118 @@ do_set_rlimit(bool verbose)
 }
 
 static int
+probe_kprobe_multi(void)
+{
+  int fd;
+
+  struct bpf_insn insns[] = {
+      BPF_MOV64_IMM(BPF_REG_0, 0),
+      BPF_EXIT_INSN(),
+  };
+
+  struct bpf_prog_load_opts popts = {
+      .sz = sizeof(popts),
+      .expected_attach_type = BPF_TRACE_KPROBE_MULTI,
+  };
+
+  /*
+   * Actually, this load always succeeds regardless of the kernel support of
+   * BPF_PROG_TYPE_KPROBE, because kernel doesn't check expected_attach_type
+   * for BPF_PROG_TYPE_KPROBE. Thus, we need to attach program to probe support.
+   */
+  fd = bpf_prog_load(BPF_PROG_TYPE_KPROBE, NULL, "GPL", insns, 2, &popts);
+  if (fd < 0) {
+    return 0;
+  }
+
+  const char *syms[] = {"__kfree_skb"};
+
+  struct bpf_link_create_opts lopts = {
+      .sz = sizeof(lopts),
+      .kprobe_multi =
+          {
+              .cnt = 1,
+              .syms = syms,
+          },
+  };
+
+  fd = bpf_link_create(fd, 0, BPF_TRACE_KPROBE_MULTI, &lopts);
+  if (fd < 0) {
+    char buf[1024] = {0};
+    libbpf_strerror(fd, buf, 1024);
+    printf("%s\n", buf);
+    return 0;
+  }
+
+  return 1;
+}
+
+static int
+probe_fexit(void)
+{
+  int fd;
+  char buf[4096];
+
+  struct bpf_insn insns[] = {
+      BPF_MOV64_IMM(BPF_REG_0, 0),
+      BPF_EXIT_INSN(),
+  };
+
+  struct bpf_prog_load_opts opts = {
+      .sz = sizeof(opts),
+      .log_buf = buf,
+      .log_size = sizeof(buf),
+      .log_level = 1,
+      .expected_attach_type = BPF_TRACE_FEXIT,
+      .attach_btf_id = 1,
+  };
+
+  fd = bpf_prog_load(BPF_PROG_TYPE_TRACING, NULL, "GPL", insns, 2, &opts);
+  if (fd >= 0) {
+    close(fd);
+    return 1;
+  }
+
+  if (strstr(buf, "attach_btf_id 1 is not a function")) {
+    return 1;
+  }
+
+  return 0;
+}
+
+static int
+select_trace_backend(const char *tracer, char **backendp)
+{
+  int has_kprobe = libbpf_probe_bpf_prog_type(BPF_PROG_TYPE_KPROBE, NULL);
+  bool has_kprobe_multi = probe_kprobe_multi();
+  int has_fentry = libbpf_probe_bpf_prog_type(BPF_PROG_TYPE_TRACING, NULL);
+  bool has_fexit = probe_fexit();
+
+  if (strcmp(tracer, "function") == 0) {
+    if (has_kprobe_multi) {
+      *backendp = "kprobe-multi";
+    } else if (has_kprobe) {
+      *backendp = "kprobe";
+    } else {
+      fprintf(stderr, "No available backend for function tracer\n");
+      return -1;
+    }
+  } else if (strcmp(tracer, "function_graph") == 0) {
+    if (has_fentry && has_fexit) {
+      *backendp = "ftrace";
+    } else {
+      fprintf(stderr, "No available backend for function_graph tracer\n");
+      return -1;
+    }
+  } else {
+    fprintf(stderr, "Unsupported tracer %s\n", tracer);
+    return -1;
+  }
+
+  return 0;
+}
+
+static int
 debug_print(__unused enum libbpf_print_level level, const char *fmt, va_list ap)
 {
   return vfprintf(stderr, fmt, ap);
@@ -231,9 +358,12 @@ main(int argc, char **argv)
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "hlm:o:r:s:t:v", options, &optind)) !=
+  while ((c = getopt_long(argc, argv, "b:hlm:o:r:s:t:v", options, &optind)) !=
          -1) {
     switch (c) {
+    case 'b':
+      opt.backend = strdup(optarg);
+      break;
     case 'l':
       list = true;
       break;
@@ -300,6 +430,22 @@ main(int argc, char **argv)
     }
   }
 
+  if (set_rlimit) {
+    error = do_set_rlimit(opt.verbose);
+    if (error == -1) {
+      fprintf(stderr, "do_set_rlimit failed\n");
+      return -1;
+    }
+  }
+
+  if (opt.backend == NULL) {
+    error = select_trace_backend(opt.tracer, &opt.backend);
+    if (error == -1) {
+      fprintf(stderr, "select_trace_backend failed\n");
+      return -1;
+    }
+  }
+
   if (!opt_validate(&opt, list)) {
     usage();
     goto end;
@@ -315,14 +461,6 @@ main(int argc, char **argv)
     libbpf_set_print(debug_print);
     /* Print out all options user provided */
     opt_dump(&opt);
-  }
-
-  if (set_rlimit) {
-    error = do_set_rlimit(opt.verbose);
-    if (error == -1) {
-      fprintf(stderr, "do_set_rlimit failed\n");
-      return -1;
-    }
   }
 
   error = tracer_create(&t, &opt);

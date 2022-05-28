@@ -44,6 +44,12 @@ symsdb_pos2syms_get(struct ipft_symsdb *sdb, int pos, int idx)
   return kv_A(sdb->pos2syms[pos], idx);
 }
 
+const char **
+symsdb_pos2syms_get_array(struct ipft_symsdb *sdb, int pos)
+{
+  return sdb->pos2syms[pos].a;
+}
+
 int
 symsdb_get_pos2syms_total(struct ipft_symsdb *sdb, int pos)
 {
