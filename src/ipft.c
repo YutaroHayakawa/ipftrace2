@@ -65,7 +65,7 @@ usage(void)
           "   , --enable-probe-server                Enable probe server\n"
           "   , --probe-server-port                  Set probe server port\n"
           "\n"
-          "BACKEND       := { kprobe, ftrace, kprobe-multi }"
+          "BACKEND       := { kprobe, ftrace, kprobe-multi }\n"
           "OUTPUT-FORMAT := { aggregate, json }\n"
           "TRACER-TYPE   := { function, function_graph (experimental) }\n"
           "\n");
