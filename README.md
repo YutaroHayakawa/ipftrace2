@@ -26,7 +26,7 @@
 ipftrace2 is a single-binary application. You don't have to install any dependencies.
 
 ```
-curl -OL https://github.com/YutaroHayakawa/ipftrace2/releases/download/v0.5.1/ipftrace2_amd64.tar.gz
+curl -OL https://github.com/YutaroHayakawa/ipftrace2/releases/download/v0.6.0/ipftrace2_amd64.tar.gz
 tar xvf ipftrace2_amd64.tar.gz
 sudo cp ipft /usr/local/bin/ipft
 ```
@@ -147,6 +147,7 @@ $ sudo ipft -m 0xdeadbeef -s script.lua -o json
 Usage: ipft [OPTIONS]
 
 Options:
+ -b, --backend            [BACKEND]       Specify trace backend
  -h, --help                               Show this text
  -l, --list                               List functions
  -m, --mark               [NUMBER]        Trace the packet marked with <mark> [required]
@@ -160,7 +161,10 @@ Options:
    , --perf-sample-period [NUMBER]        See sample_period of perf_event_open(2) man page (default: 1)
    , --perf-wakeup-events [NUMBER]        See wakeup_events of perf_event_open(2) man page (default: 1)
    , --no-set-rlimit                      Don't set rlimit
+   , --enable-probe-server                Enable probe server
+   , --probe-server-port                  Set probe server port
 
+BACKEND       := { kprobe, ftrace, kprobe-multi }
 OUTPUT-FORMAT := { aggregate, json }
 TRACER-TYPE   := { function, function_graph (experimental) }
 ```
