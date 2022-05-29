@@ -158,7 +158,7 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
 
   if (!regex_match(t->re, sym)) {
     attach_stat.filtered++;
-    return 0;
+    goto out;
   }
 
   if (sprintf(name, "ipft_main%d", si->skb_pos) < 0) {
@@ -174,13 +174,16 @@ attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
 
   link = bpf_program__attach_kprobe(prog, false, sym);
   if (link == NULL) {
+    if (t->opt->verbose) {
+      fprintf(stderr, "Attach kprobe failed for %s\n", sym);
+    }
     attach_stat.failed++;
-    fprintf(stderr, "Attach kprobe failed for %s\n", sym);
-    return -1;
+    goto out;
   }
 
   attach_stat.succeeded++;
 
+out:
   fprintf(
       stderr,
       "\rAttaching program (total %zu, succeeded %zu, failed %zu, filtered: "
@@ -257,10 +260,10 @@ attach_kprobe_multi(struct ipft_tracer *t)
 
     error = libbpf_get_error(link);
     if (error != 0) {
-      char errbuf[256] = {0};
-      libbpf_strerror(error, errbuf, 256);
-      fprintf(stderr, "bpf_program__attach_kprobe_multi_opts failed: %s\n",
-              errbuf);
+      if (t->opt->verbose) {
+        fprintf(stderr, "bpf_program__attach_kprobe_multi_opts failed: %s\n",
+                libbpf_error_string(error));
+      }
       attach_stat.failed += opts.cnt;
     } else {
       attach_stat.succeeded += opts.cnt;
@@ -336,7 +339,7 @@ attach_ftrace(struct ipft_tracer *t)
 
       if (!regex_match(t->re, sym)) {
         attach_stat.filtered++;
-        continue;
+        goto out;
       }
 
       error = symsdb_get_sym2info(t->sdb, sym, &sinfo);
@@ -355,8 +358,12 @@ attach_ftrace(struct ipft_tracer *t)
       entry_fd = bpf_prog_load(BPF_PROG_TYPE_TRACING, NULL, "GPL", entry_insns,
                                entry_size, &opts);
       if (error == -1) {
-        fprintf(stderr, "bpf_prog_load for %s entry failed\n%s", sym, log_buf);
-        return -1;
+        if (t->opt->verbose) {
+          fprintf(stderr, "bpf_prog_load for %s entry failed\n%s", sym,
+                  log_buf);
+        }
+        attach_stat.failed++;
+        goto out;
       }
 
       opts.expected_attach_type = BPF_TRACE_FEXIT;
@@ -364,26 +371,36 @@ attach_ftrace(struct ipft_tracer *t)
       exit_fd = bpf_prog_load(BPF_PROG_TYPE_TRACING, NULL, "GPL", exit_insns,
                               exit_size, &opts);
       if (error == -1) {
-        fprintf(stderr, "bpf_prog_load for %s exit failed\n%s", sym, log_buf);
-        return -1;
+        if (t->opt->verbose) {
+          fprintf(stderr, "bpf_prog_load for %s exit failed\n%s", sym, log_buf);
+        }
+        attach_stat.failed++;
+        goto out;
       }
 
       entry_tp_fd = bpf_raw_tracepoint_open(NULL, entry_fd);
       if (entry_tp_fd < 0) {
-        fprintf(stderr, "bpf_raw_tracepoint_open for %s entry failed: %s\n",
-                sym, strerror(errno));
-        return -1;
+        if (t->opt->verbose) {
+          fprintf(stderr, "bpf_raw_tracepoint_open for %s entry failed: %s\n",
+                  sym, libbpf_error_string(entry_tp_fd));
+        }
+        attach_stat.failed++;
+        goto out;
       }
 
       exit_tp_fd = bpf_raw_tracepoint_open(NULL, exit_fd);
       if (exit_tp_fd < 0) {
-        fprintf(stderr, "bpf_raw_tracepoint_open for %s exit failed: %s\n", sym,
-                strerror(errno));
-        return -1;
+        if (t->opt->verbose) {
+          fprintf(stderr, "bpf_raw_tracepoint_open for %s exit failed: %s\n",
+                  sym, libbpf_error_string(entry_tp_fd));
+        }
+        attach_stat.failed++;
+        goto out;
       }
 
       attach_stat.succeeded++;
 
+    out:
       fprintf(
           stderr,
           "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "

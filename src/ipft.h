@@ -141,3 +141,4 @@ int tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt);
 int tracer_run(struct ipft_tracer *t);
 int list_functions(struct ipft_tracer_opt *opt);
 int probe_kprobe_multi(void);
+char *libbpf_error_string(int error);

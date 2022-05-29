@@ -103,3 +103,12 @@ probe_kprobe_multi(void)
 
   return 1;
 }
+
+char *
+libbpf_error_string(int error)
+{
+  static char buf[4096]; // not thread safe
+  memset(buf, 0, sizeof(buf));
+  libbpf_strerror(error, buf, sizeof(buf));
+  return buf;
+}
