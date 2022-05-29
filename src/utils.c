@@ -37,7 +37,12 @@ list_functions(struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = symsdb_create(&sdb);
+  struct ipft_symsdb_opt sdb_opt = {
+      .max_args = get_max_args_for_backend(opt->backend),
+      .max_skb_pos = get_max_skb_pos_for_backend(opt->backend),
+  };
+
+  error = symsdb_create(&sdb, &sdb_opt);
   if (error == -1) {
     fprintf(stderr, "Failed to initialize symsdb\n");
     return -1;

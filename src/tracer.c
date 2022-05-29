@@ -111,6 +111,36 @@ select_backend_for_tracer(enum ipft_tracers tracer)
   return IPFT_BACKEND_UNSPEC;
 }
 
+int
+get_max_args_for_backend(enum ipft_backends backend)
+{
+  switch (backend) {
+  case IPFT_BACKEND_KPROBE:
+  case IPFT_BACKEND_KPROBE_MULTI:
+    return KPROBE_MAX_ARGS;
+  case IPFT_BACKEND_FTRACE:
+    return FTRACE_MAX_ARGS;
+  default:
+    // Shouldn't reach to here
+    return 0;
+  }
+}
+
+int
+get_max_skb_pos_for_backend(enum ipft_backends backend)
+{
+  switch (backend) {
+  case IPFT_BACKEND_KPROBE:
+  case IPFT_BACKEND_KPROBE_MULTI:
+    return KPROBE_MAX_SKB_POS;
+  case IPFT_BACKEND_FTRACE:
+    return FTRACE_MAX_SKB_POS;
+  default:
+    // Shouldn't reach to here
+    return 0;
+  }
+}
+
 static struct {
   size_t total;
   size_t succeeded;
@@ -180,7 +210,7 @@ attach_kprobe_multi(struct ipft_tracer *t)
 {
   int error;
 
-  for (int i = 0; i < MAX_SKB_POS; i++) {
+  for (int i = 0; i < KPROBE_MAX_SKB_POS; i++) {
     size_t cur = 0;
     const char **syms;
     char name[32] = {0};
@@ -260,7 +290,7 @@ attach_ftrace(struct ipft_tracer *t)
     return -1;
   }
 
-  for (int i = 0; i < MAX_SKB_POS; i++) {
+  for (int i = 0; i < FTRACE_MAX_SKB_POS; i++) {
     char name[32];
     int entry_fd, exit_fd;
     size_t entry_size, exit_size;
@@ -611,7 +641,7 @@ ftrace_set_init_target(struct bpf_object *bpf, struct ipft_tracer *t)
   int error;
   char name[32];
 
-  for (int i = 0; i < MAX_SKB_POS; i++) {
+  for (int i = 0; i < FTRACE_MAX_SKB_POS; i++) {
     const char *sym;
     struct bpf_program *entry_prog, *exit_prog;
 
@@ -641,8 +671,9 @@ ftrace_set_init_target(struct bpf_object *bpf, struct ipft_tracer *t)
       return -1;
     }
 
-    sym = symsdb_pos2syms_get(t->sdb, i, 0);
-    if (sym == NULL) {
+    if (symsdb_get_pos2syms_total(t->sdb, i) != 0) {
+      sym = symsdb_pos2syms_get(t->sdb, i, 0);
+    } else {
       bpf_program__set_autoload(entry_prog, false);
       bpf_program__set_autoload(exit_prog, false);
       continue;
@@ -907,7 +938,12 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
 
   t->opt = opt;
 
-  error = symsdb_create(&t->sdb);
+  struct ipft_symsdb_opt sdb_opt = {
+      .max_args = get_max_args_for_backend(opt->backend),
+      .max_skb_pos = get_max_skb_pos_for_backend(opt->backend),
+  };
+
+  error = symsdb_create(&t->sdb, &sdb_opt);
   if (error != 0) {
     fprintf(stderr, "symsdb_create failed\n");
     return -1;

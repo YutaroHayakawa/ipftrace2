@@ -1,6 +1,7 @@
 #pragma once
 #include <stddef.h>
 #include <stdint.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <linux/perf_event.h>
 
@@ -11,7 +12,10 @@
 /*
  * Max skb position in the function parameters
  */
-#define MAX_SKB_POS 5
+#define KPROBE_MAX_SKB_POS 5
+#define FTRACE_MAX_SKB_POS 12
+#define KPROBE_MAX_ARGS INT_MAX // no limit
+#define FTRACE_MAX_ARGS 12
 
 /*
  * Max recursion level
@@ -74,6 +78,11 @@ struct ipft_tracer_opt {
   uint16_t probe_server_port;
 };
 
+struct ipft_symsdb_opt {
+  int max_args;
+  int max_skb_pos;
+};
+
 struct ipft_syminfo {
   int skb_pos;
   uint32_t btf_fd;
@@ -93,8 +102,10 @@ const char *get_tracer_name_by_id(enum ipft_tracers tracer);
 enum ipft_backends get_backend_id_by_name(const char *name);
 const char *get_backend_name_by_id(enum ipft_backends backend);
 enum ipft_backends select_backend_for_tracer(enum ipft_tracers tracer);
+int get_max_args_for_backend(enum ipft_backends backend);
+int get_max_skb_pos_for_backend(enum ipft_backends backend);
 
-int symsdb_create(struct ipft_symsdb **sdbp);
+int symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt);
 size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
 int symsdb_get_sym2info(struct ipft_symsdb *sdb, const char *name,
                         struct ipft_syminfo **sinfop);

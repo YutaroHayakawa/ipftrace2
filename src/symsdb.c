@@ -26,10 +26,11 @@ KHASH_MAP_INIT_INT64(addr2sym, char *)
 KHASH_MAP_INIT_STR(availfuncs, int)
 
 struct ipft_symsdb {
+  struct ipft_symsdb_opt *opt;
   khash_t(sym2info) * sym2info;
   khash_t(addr2sym) * addr2sym;
   khash_t(availfuncs) * availfuncs;
-  kvec_t(const char *) pos2syms[MAX_SKB_POS];
+  kvec_t(const char *) * pos2syms;
 };
 
 static void
@@ -360,9 +361,10 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
     params = btf_params(func_proto);
 
     /*
-     * Function takes more than MAX_SKB_POS shouldn't be traced
+     * We need this check because frace program cannot be attached to
+     * the function takes more than max_args arguments.
      */
-    if (btf_vlen(func_proto) > MAX_SKB_POS) {
+    if (btf_vlen(func_proto) > sdb->opt->max_args) {
       continue;
     }
 
@@ -402,7 +404,8 @@ btf_fill_sym2info(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
      * Find the type "struct sk_buff *" from function arguments
      * and record its position.
      */
-    for (uint16_t i = 0; i < btf_vlen(func_proto) && i < MAX_SKB_POS; i++) {
+    for (uint16_t i = 0; i < btf_vlen(func_proto) && i < sdb->opt->max_skb_pos;
+         i++) {
       t = btf__type_by_id(btf, params[i].type);
       if (!btf_is_ptr(t)) {
         continue;
@@ -515,7 +518,7 @@ fill_sym2info(struct ipft_symsdb *sdb)
 }
 
 int
-symsdb_create(struct ipft_symsdb **sdbp)
+symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt)
 {
   int error;
   struct ipft_symsdb *sdb;
@@ -526,7 +529,15 @@ symsdb_create(struct ipft_symsdb **sdbp)
     return -1;
   }
 
-  for (int i = 0; i < MAX_SKB_POS; i++) {
+  sdb->opt = opt;
+
+  sdb->pos2syms = calloc(opt->max_skb_pos, sizeof(*sdb->pos2syms));
+  if (sdb->pos2syms == NULL) {
+    perror("calloc");
+    return -1;
+  }
+
+  for (int i = 0; i < opt->max_skb_pos; i++) {
     kv_init(sdb->pos2syms[i]);
   }
 

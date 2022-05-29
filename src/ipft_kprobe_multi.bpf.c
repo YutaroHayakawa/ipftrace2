@@ -12,15 +12,12 @@ get_func_ip(void *ctx)
   return bpf_get_func_ip(ctx);
 }
 
-#define ipft_main(skb_pos, parm_pos) \
-SEC("kprobe.multi/ipft_main" #skb_pos) int ipft_main##skb_pos(struct pt_regs *ctx) \
-{ \
-  struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM##parm_pos(ctx); \
-  return ipft_body(ctx, skb, 0); \
-}
+#define ipft_main(skb_pos, parm_pos)                                           \
+  SEC("kprobe.multi/ipft_main" #skb_pos)                                       \
+  int ipft_main##skb_pos(struct pt_regs *ctx)                                  \
+  {                                                                            \
+    struct sk_buff *skb = (struct sk_buff *)PT_REGS_PARM##parm_pos(ctx);       \
+    return ipft_body(ctx, skb, 0);                                             \
+  }
 
-ipft_main(0, 1)
-ipft_main(1, 2)
-ipft_main(2, 3)
-ipft_main(3, 4)
-ipft_main(4, 5)
+ipft_main(0, 1) ipft_main(1, 2) ipft_main(2, 3) ipft_main(3, 4) ipft_main(4, 5)
