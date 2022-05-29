@@ -31,6 +31,86 @@ struct ipft_tracer {
   struct perf_buffer *pb;
 };
 
+enum ipft_tracers
+get_tracer_id_by_name(const char *name)
+{
+  if (strcmp(name, "function") == 0) {
+    return IPFT_TRACER_FUNCTION;
+  }
+
+  if (strcmp(name, "function_graph") == 0) {
+    return IPFT_TRACER_FUNCTION_GRAPH;
+  }
+
+  return IPFT_TRACER_UNSPEC;
+}
+
+const char*
+get_tracer_name_by_id(enum ipft_tracers id)
+{
+  switch (id) {
+  case IPFT_TRACER_FUNCTION:
+    return "function";
+  case IPFT_TRACER_FUNCTION_GRAPH:
+    return "function_graph";
+  default:
+    return NULL;
+  }
+}
+
+enum ipft_backends
+get_backend_id_by_name(const char *name)
+{
+  if (strcmp(name, "kprobe") == 0) {
+    return IPFT_BACKEND_KPROBE;
+  }
+
+  if (strcmp(name, "ftrace") == 0) {
+    return IPFT_BACKEND_FTRACE;
+  }
+
+  if (strcmp(name, "kprobe-multi") == 0) {
+    return IPFT_BACKEND_KPROBE_MULTI;
+  }
+
+  return IPFT_BACKEND_UNSPEC;
+}
+
+const char*
+get_backend_name_by_id(enum ipft_backends id)
+{
+  switch (id) {
+  case IPFT_BACKEND_KPROBE:
+    return "kprobe";
+  case IPFT_BACKEND_FTRACE:
+    return "ftrace";
+  case IPFT_BACKEND_KPROBE_MULTI:
+    return "kprobe-multi";
+  default:
+    return NULL;
+  }
+}
+
+enum ipft_backends
+select_backend_for_tracer(enum ipft_tracers tracer)
+{
+  bool has_kprobe_multi = probe_kprobe_multi();
+
+  if (tracer == IPFT_TRACER_FUNCTION) {
+    if (has_kprobe_multi) {
+      return IPFT_BACKEND_KPROBE_MULTI;
+    } else {
+      return IPFT_BACKEND_KPROBE;
+    }
+  }
+
+  if (tracer == IPFT_TRACER_FUNCTION_GRAPH) {
+    return IPFT_BACKEND_FTRACE;
+  }
+
+  return IPFT_BACKEND_UNSPEC;
+}
+
 static struct {
   size_t total;
   size_t succeeded;
@@ -294,23 +374,27 @@ attach_all(struct ipft_tracer *t)
 
   attach_stat.total = symsdb_get_sym2info_total(t->sdb);
 
-  if (strcmp(t->opt->backend, "kprobe") == 0) {
+  switch (t->opt->backend) {
+  case IPFT_BACKEND_KPROBE:
     error = attach_kprobe(t);
     if (error == -1) {
       return -1;
     }
-  } else if (strcmp(t->opt->backend, "kprobe-multi") == 0) {
-    error = attach_kprobe_multi(t);
-    if (error == -1) {
-      return -1;
-    }
-  } else if (strcmp(t->opt->backend, "ftrace") == 0) {
+    break;
+  case IPFT_BACKEND_FTRACE:
     error = attach_ftrace(t);
     if (error == -1) {
       return -1;
     }
-  } else {
-    fprintf(stderr, "Unsupported backend %s\n", t->opt->backend);
+    break;
+  case IPFT_BACKEND_KPROBE_MULTI:
+    error = attach_kprobe_multi(t);
+    if (error == -1) {
+      return -1;
+    }
+    break;
+  default:
+    fprintf(stderr, "Unknown backend ID %d\n", t->opt->backend);
     return -1;
   }
 
@@ -490,19 +574,23 @@ err0:
 }
 
 static int
-get_target_image(char *backend, uint8_t **imagep, size_t *image_sizep)
+get_target_image(enum ipft_backends backend, uint8_t **imagep, size_t *image_sizep)
 {
-  if (strcmp(backend, "kprobe") == 0) {
+  switch (backend) {
+  case IPFT_BACKEND_KPROBE:
     *imagep = ipft_kprobe_bpf_o;
     *image_sizep = ipft_kprobe_bpf_o_len;
-  } else if (strcmp(backend, "kprobe-multi") == 0) {
-    *imagep = ipft_kprobe_multi_bpf_o;
-    *image_sizep = ipft_kprobe_multi_bpf_o_len;
-  } else if (strcmp(backend, "ftrace") == 0) {
+    break;
+  case IPFT_BACKEND_FTRACE:
     *imagep = ipft_ftrace_bpf_o;
     *image_sizep = ipft_ftrace_bpf_o_len;
-  } else {
-    fprintf(stderr, "Unsupported backend %s\n", backend);
+    break;
+  case IPFT_BACKEND_KPROBE_MULTI:
+    *imagep = ipft_kprobe_multi_bpf_o;
+    *image_sizep = ipft_kprobe_multi_bpf_o_len;
+    break;
+  default:
+    fprintf(stderr, "Unsupported backend ID %d\n", backend);
     return -1;
   }
   return 0;
@@ -577,7 +665,7 @@ ftrace_set_init_target(struct bpf_object *bpf, struct ipft_tracer *t)
 
 static int
 bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
-           char *backend, struct ipft_tracer *t)
+           enum ipft_backends backend, struct ipft_tracer *t)
 {
   int error;
   char *name;
@@ -626,7 +714,7 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
 
   unlink(name);
 
-  if (strcmp(backend, "ftrace") == 0) {
+  if (backend == IPFT_BACKEND_FTRACE) {
     error = ftrace_set_init_target(bpf, t);
     if (error == -1) {
       fprintf(stderr, "ftrace_setup_prep failed\n");
@@ -773,11 +861,42 @@ tracer_run(struct ipft_tracer *t)
   return 0;
 }
 
+static bool
+opt_validate(struct ipft_tracer_opt *opt)
+{
+  if (opt->backend == IPFT_BACKEND_UNSPEC) {
+    fprintf(stderr, "Backend unspecified\n");
+    return false;
+  }
+
+  if (opt->mark == 0 || opt->mask == 0) {
+    fprintf(stderr, "mark/mask can't be zero\n");
+    return false;
+  }
+
+  if (opt->tracer == IPFT_TRACER_UNSPEC) {
+    fprintf(stderr, "Tracer unspecified\n");
+    return false;
+  }
+
+  if (opt->perf_page_cnt == 0) {
+    fprintf(stderr, "perf_page_count should be at least 1\n");
+    return false;
+  }
+
+  return true;
+}
+
 int
 tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
 {
   int error;
   struct ipft_tracer *t;
+
+  if (!opt_validate(opt)) {
+    fprintf(stderr, "Invalid option specified\n");
+    return -1;
+  }
 
   t = calloc(1, sizeof(*t));
   if (t == NULL) {

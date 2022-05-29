@@ -39,13 +39,26 @@ struct ipft_trace_config {
   uint32_t mask;
 };
 
+enum ipft_tracers {
+  IPFT_TRACER_UNSPEC,
+  IPFT_TRACER_FUNCTION,
+  IPFT_TRACER_FUNCTION_GRAPH,
+};
+
+enum ipft_backends {
+  IPFT_BACKEND_UNSPEC,
+  IPFT_BACKEND_KPROBE,
+  IPFT_BACKEND_FTRACE,
+  IPFT_BACKEND_KPROBE_MULTI,
+};
+
 struct ipft_tracer_opt {
-  char *backend;
+  enum ipft_tracers tracer;
+  enum ipft_backends backend;
   uint32_t mark;
   uint32_t mask;
   char *regex;
   char *script;
-  char *tracer;
   char *output_type;
   size_t perf_page_cnt;
   uint64_t perf_sample_period;
@@ -62,12 +75,18 @@ struct ipft_syminfo {
 };
 
 struct ipft_output {
-  char *tracer;
+  enum ipft_tracers tracer;
   struct ipft_symsdb *sdb;
   struct ipft_script *script;
   int (*on_event)(struct ipft_output *, struct ipft_event *);
   int (*post_trace)(struct ipft_output *);
 };
+
+enum ipft_tracers get_tracer_id_by_name(const char *name);
+const char *get_tracer_name_by_id(enum ipft_tracers tracer);
+enum ipft_backends get_backend_id_by_name(const char *name);
+const char *get_backend_name_by_id(enum ipft_backends backend);
+enum ipft_backends select_backend_for_tracer(enum ipft_tracers tracer);
 
 int symsdb_create(struct ipft_symsdb **sdbp);
 size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
@@ -93,7 +112,7 @@ void script_exec_fini(struct ipft_script *script);
 
 int output_create(struct ipft_output **outp, const char *type,
                   struct ipft_symsdb *sdb, struct ipft_script *script,
-                  char *tracer);
+                  enum ipft_tracers tracer);
 int aggregate_output_create(struct ipft_output **outp);
 int json_output_create(struct ipft_output **outp);
 int output_on_trace(struct ipft_output *out, struct ipft_event *e);
@@ -102,3 +121,4 @@ int output_post_trace(struct ipft_output *out);
 int tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt);
 int tracer_run(struct ipft_tracer *t);
 int list_functions(struct ipft_tracer_opt *opt);
+int probe_kprobe_multi(void);

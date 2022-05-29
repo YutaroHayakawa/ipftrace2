@@ -6,7 +6,8 @@
 
 int
 output_create(struct ipft_output **outp, const char *type,
-              struct ipft_symsdb *sdb, struct ipft_script *script, char *tracer)
+              struct ipft_symsdb *sdb, struct ipft_script *script,
+              enum ipft_tracers tracer)
 {
   int error;
   struct ipft_output *out;

@@ -239,20 +239,20 @@ aggregate_output_post_trace(struct ipft_output *_out)
        */
       qsort(earray, count, sizeof(*earray), compare_tstamp);
 
-      if (strcmp(out->base.tracer, "function") == 0) {
+      if (out->base.tracer == IPFT_TRACER_FUNCTION) {
         error = dump_function(out, earray, count);
         if (error != 0) {
           fprintf(stderr, "dump_function failed\n");
           return -1;
         }
-      } else if (strcmp(out->base.tracer, "function_graph") == 0) {
+      } else if (out->base.tracer == IPFT_TRACER_FUNCTION_GRAPH) {
         error = dump_function_graph(out, earray, count);
         if (error != 0) {
           fprintf(stderr, "dump_function_graph failed\n");
           return -1;
         }
       } else {
-        fprintf(stderr, "Unexpected tracer type %s\n", out->base.tracer);
+        fprintf(stderr, "Unexpected tracer ID %d\n", out->base.tracer);
         return -1;
       }
 
