@@ -4,20 +4,50 @@
 
 #include "ipft.h"
 
+const char *
+get_output_name_by_id(enum ipft_outputs id)
+{
+  switch (id) {
+  case IPFT_OUTPUT_AGGREGATE:
+    return "aggregate";
+  case IPFT_OUTPUT_JSON:
+    return "json";
+  default:
+    return NULL;
+  }
+}
+
+enum ipft_outputs
+get_output_id_by_name(const char *name)
+{
+  if (strcmp(name, "aggregate") == 0) {
+    return IPFT_OUTPUT_AGGREGATE;
+  }
+
+  if (strcmp(name, "json") == 0) {
+    return IPFT_OUTPUT_JSON;
+  }
+
+  return IPFT_OUTPUT_UNSPEC;
+}
+
 int
-output_create(struct ipft_output **outp, const char *type,
+output_create(struct ipft_output **outp, enum ipft_outputs output,
               struct ipft_symsdb *sdb, struct ipft_script *script,
               enum ipft_tracers tracer)
 {
   int error;
   struct ipft_output *out;
 
-  if (strcmp(type, "aggregate") == 0) {
+  switch (output) {
+  case IPFT_OUTPUT_AGGREGATE:
     error = aggregate_output_create(&out);
-  } else if (strcmp(type, "json") == 0) {
+    break;
+  case IPFT_OUTPUT_JSON:
     error = json_output_create(&out);
-  } else {
-    fprintf(stderr, "Unsupported output type %s\n", type);
+    break;
+  default:
+    fprintf(stderr, "Unsupported output ID %d\n", output);
     return -1;
   }
 

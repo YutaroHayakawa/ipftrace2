@@ -52,6 +52,12 @@ enum ipft_backends {
   IPFT_BACKEND_KPROBE_MULTI,
 };
 
+enum ipft_outputs {
+  IPFT_OUTPUT_UNSPEC,
+  IPFT_OUTPUT_AGGREGATE,
+  IPFT_OUTPUT_JSON,
+};
+
 struct ipft_tracer_opt {
   enum ipft_tracers tracer;
   enum ipft_backends backend;
@@ -59,7 +65,7 @@ struct ipft_tracer_opt {
   uint32_t mask;
   char *regex;
   char *script;
-  char *output_type;
+  enum ipft_outputs output;
   size_t perf_page_cnt;
   uint64_t perf_sample_period;
   uint32_t perf_wakeup_events;
@@ -110,7 +116,9 @@ int script_exec_decode(struct ipft_script *script, uint8_t *data, size_t len,
                        int (*cb)(const char *, size_t, const char *, size_t));
 void script_exec_fini(struct ipft_script *script);
 
-int output_create(struct ipft_output **outp, const char *type,
+const char *get_output_name_by_id(enum ipft_outputs id);
+enum ipft_outputs get_output_id_by_name(const char *name);
+int output_create(struct ipft_output **outp, enum ipft_outputs output,
                   struct ipft_symsdb *sdb, struct ipft_script *script,
                   enum ipft_tracers tracer);
 int aggregate_output_create(struct ipft_output **outp);

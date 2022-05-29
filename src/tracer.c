@@ -45,7 +45,7 @@ get_tracer_id_by_name(const char *name)
   return IPFT_TRACER_UNSPEC;
 }
 
-const char*
+const char *
 get_tracer_name_by_id(enum ipft_tracers id)
 {
   switch (id) {
@@ -76,7 +76,7 @@ get_backend_id_by_name(const char *name)
   return IPFT_BACKEND_UNSPEC;
 }
 
-const char*
+const char *
 get_backend_name_by_id(enum ipft_backends id)
 {
   switch (id) {
@@ -574,7 +574,8 @@ err0:
 }
 
 static int
-get_target_image(enum ipft_backends backend, uint8_t **imagep, size_t *image_sizep)
+get_target_image(enum ipft_backends backend, uint8_t **imagep,
+                 size_t *image_sizep)
 {
   switch (backend) {
   case IPFT_BACKEND_KPROBE:
@@ -930,8 +931,7 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error =
-      output_create(&t->out, opt->output_type, t->sdb, t->script, opt->tracer);
+  error = output_create(&t->out, opt->output, t->sdb, t->script, opt->tracer);
   if (error != 0) {
     fprintf(stderr, "output_create failed\n");
     return -1;

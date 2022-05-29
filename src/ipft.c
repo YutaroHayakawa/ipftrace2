@@ -77,7 +77,7 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->backend = IPFT_BACKEND_UNSPEC;
   opt->mark = 0;
   opt->mask = 0xffffffff;
-  opt->output_type = "aggregate";
+  opt->output = IPFT_OUTPUT_AGGREGATE;
   opt->perf_page_cnt = 8;
   opt->perf_sample_period = 1;
   opt->perf_wakeup_events = 1;
@@ -93,13 +93,16 @@ static void
 opt_dump(struct ipft_tracer_opt *opt)
 {
   fprintf(stderr, "============   Options   ============\n");
-  fprintf(stderr, "backend            : %s\n", get_backend_name_by_id(opt->backend));
+  fprintf(stderr, "backend            : %s\n",
+          get_backend_name_by_id(opt->backend));
   fprintf(stderr, "mark               : 0x%x\n", opt->mark);
   fprintf(stderr, "mask               : 0x%x\n", opt->mask);
   fprintf(stderr, "regex              : %s\n", opt->regex);
   fprintf(stderr, "script             : %s\n", opt->script);
-  fprintf(stderr, "tracer             : %s\n", get_tracer_name_by_id(opt->tracer));
-  fprintf(stderr, "output_type        : %s\n", opt->output_type);
+  fprintf(stderr, "tracer             : %s\n",
+          get_tracer_name_by_id(opt->tracer));
+  fprintf(stderr, "output             : %s\n",
+          get_output_name_by_id(opt->output));
   fprintf(stderr, "perf_page_cnt      : %zu\n", opt->perf_page_cnt);
   fprintf(stderr, "perf_sample_period : %zu\n", opt->perf_sample_period);
   fprintf(stderr, "perf_wakeup_events : %u\n", opt->perf_wakeup_events);
@@ -223,7 +226,12 @@ main(int argc, char **argv)
       opt.mark = strtoul(optarg, NULL, 0);
       break;
     case 'o':
-      opt.output_type = strdup(optarg);
+      opt.output = get_output_id_by_name(optarg);
+      if (opt.output == IPFT_OUTPUT_UNSPEC) {
+        fprintf(stderr, "Unknown output %s\n", optarg);
+        usage();
+        goto end;
+      }
       break;
     case 'r':
       opt.regex = strdup(optarg);
@@ -299,7 +307,7 @@ main(int argc, char **argv)
     opt.backend = select_backend_for_tracer(opt.tracer);
     if (opt.backend == IPFT_BACKEND_UNSPEC) {
       fprintf(stderr, "Couldn't find available backend for %s tracer\n",
-          get_tracer_name_by_id(opt.tracer));
+              get_tracer_name_by_id(opt.tracer));
       return -1;
     }
   }
