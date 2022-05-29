@@ -44,11 +44,13 @@ BPF_CFLAGS := \
 BPF_OBJS := \
   ipft_kprobe.bpf.o \
   ipft_ftrace.bpf.o \
+  ipft_kprobe_multi.bpf.o \
   null_module.bpf.o \
 
 BPF_HEADERS := \
   ipft_kprobe.bpf.o.h \
   ipft_ftrace.bpf.o.h \
+  ipft_kprobe_multi.bpf.o.h \
   null_module.bpf.o.h \
 
 ipft: $(OBJS)
@@ -66,6 +68,12 @@ ipft_ftrace.bpf.o: ipft_ftrace.bpf.c
 
 ipft_ftrace.bpf.o.h: ipft_ftrace.bpf.o
 	xxd -i ipft_ftrace.bpf.o > ipft_ftrace.bpf.o.h
+
+ipft_kprobe_multi.bpf.o: ipft_kprobe_multi.bpf.c
+	$(CLANG) $(BPF_CFLAGS) -c $^
+
+ipft_kprobe_multi.bpf.o.h: ipft_kprobe_multi.bpf.o
+	xxd -i ipft_kprobe_multi.bpf.o > ipft_kprobe_multi.bpf.o.h
 
 null_module.bpf.o: null_module.bpf.c
 	$(CLANG) $(BPF_CFLAGS) -c $^
