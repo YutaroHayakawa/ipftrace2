@@ -271,7 +271,7 @@ attach_kprobe_multi(struct ipft_tracer *t)
 
     fprintf(
         stderr,
-        "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
+        "\rAttaching program (total %zu, succeeded %zu, failed %zu, filtered: "
         "%zu)",
         attach_stat.total, attach_stat.succeeded, attach_stat.failed,
         attach_stat.filtered);
@@ -403,7 +403,7 @@ attach_ftrace(struct ipft_tracer *t)
     out:
       fprintf(
           stderr,
-          "\rAttaching program (total %zu, succeeded %zu, failed %zu filtered: "
+          "\rAttaching program (total %zu, succeeded %zu, failed %zu, filtered: "
           "%zu)",
           attach_stat.total, attach_stat.succeeded, attach_stat.failed,
           attach_stat.filtered);
@@ -420,6 +420,9 @@ attach_all(struct ipft_tracer *t)
   int error;
 
   attach_stat.total = symsdb_get_sym2info_total(t->sdb);
+
+  fprintf(stderr, "Attaching program (total %zu, succeeded 0, failed 0, filtered: 0)",
+      attach_stat.total);
 
   switch (t->opt->backend) {
   case IPFT_BACKEND_KPROBE:
