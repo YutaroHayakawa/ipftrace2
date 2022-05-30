@@ -95,9 +95,6 @@ probe_kprobe_multi(void)
 
   fd = bpf_link_create(fd, 0, BPF_TRACE_KPROBE_MULTI, &lopts);
   if (fd < 0) {
-    char buf[1024] = {0};
-    libbpf_strerror(fd, buf, 1024);
-    printf("%s\n", buf);
     return 0;
   }
 
