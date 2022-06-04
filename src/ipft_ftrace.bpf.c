@@ -1,4 +1,4 @@
-#include "ipft_common.bpf.h"
+#include "ipft_body.bpf.h"
 
 static __inline uint64_t
 get_func_ip(void *ctx)

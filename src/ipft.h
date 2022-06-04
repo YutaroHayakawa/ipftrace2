@@ -7,6 +7,8 @@
 
 #include <uapi/linux/bpf.h>
 
+#include "ipft_common.h"
+
 #define __unused __attribute__((unused))
 
 /*
@@ -26,22 +28,6 @@ struct ipft_symsdb;
 struct ipft_regex;
 struct ipft_script;
 struct ipft_tracer;
-
-struct ipft_event {
-  uint64_t packet_id;
-  uint64_t tstamp;
-  uint64_t faddr;
-  uint32_t processor_id;
-  uint8_t is_return;
-  uint8_t _pad[35]; // for future use
-  uint8_t data[64];
-  /* 128Bytes */
-} __attribute__((aligned(8)));
-
-struct ipft_trace_config {
-  uint32_t mark;
-  uint32_t mask;
-};
 
 enum ipft_tracers {
   IPFT_TRACER_UNSPEC,
