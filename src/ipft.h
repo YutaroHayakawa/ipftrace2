@@ -70,6 +70,7 @@ struct ipft_symsdb_opt {
 };
 
 struct ipft_sym {
+  uint64_t addr;
   char *symname;
   uint32_t btf_fd;
   uint32_t btf_id;

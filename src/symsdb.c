@@ -22,6 +22,7 @@
 #include "kvec.h"
 
 KHASH_MAP_INIT_INT64(addr2symname, char *)
+KHASH_MAP_INIT_STR(symname2addr, uint64_t)
 KHASH_MAP_INIT_STR(availfuncs, int)
 KHASH_SET_INIT_STR(funcsseen)
 
@@ -31,6 +32,7 @@ struct ipft_symsdb {
   khash_t(availfuncs) * availfuncs;
   kvec_t(struct ipft_sym *) * pos2syms;
   khash_t(addr2symname) * addr2symname;
+  khash_t(symname2addr) * symname2addr;
 };
 
 static int
@@ -114,6 +116,55 @@ symsdb_get_symname_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
   }
 
   *symnamep = kh_value(db, iter);
+
+  return 0;
+}
+
+static int
+put_symname2addr(struct ipft_symsdb *sdb, const char *symname, uint64_t addr)
+{
+  char *k;
+  int missing;
+  khint_t iter;
+  khash_t(symname2addr) * db;
+
+  k = strdup(symname);
+  if (k == NULL) {
+    fprintf(stderr, "strdup failed\n");
+    return -1;
+  }
+
+  db = ((struct ipft_symsdb *)sdb)->symname2addr;
+
+  iter = kh_put(symname2addr, db, k, &missing);
+  if (missing == -1) {
+    fprintf(stderr, "kh_put failed\n");
+    return -1;
+  } else if (!missing) {
+    free(k);
+  }
+
+  kh_value(db, iter) = addr;
+
+  return 0;
+}
+
+static int
+get_addr_by_symname(struct ipft_symsdb *sdb, char *symname,
+                           uint64_t *addrp)
+{
+  khint_t iter;
+  khash_t(symname2addr) * db;
+
+  db = ((struct ipft_symsdb *)sdb)->symname2addr;
+
+  iter = kh_get(symname2addr, db, symname);
+  if (iter == kh_end(db)) {
+    fprintf(stderr, "Failed to resolve func symbol name: %s\n", symname);
+    return -1;
+  }
+
+  *addrp = kh_value(db, iter);
 
   return 0;
 }
@@ -234,7 +285,7 @@ const unsigned long long kernel_addr_space = 0x0;
  * Record the mapping of kernel functions and their addresses
  */
 static int
-populate_addr2symname(struct ipft_symsdb *sdb)
+populate_addr2symname_and_symname2addr(struct ipft_symsdb *sdb)
 {
   FILE *f;
   int error;
@@ -296,6 +347,12 @@ populate_addr2symname(struct ipft_symsdb *sdb)
       fprintf(stderr, "put_addr2sym failed\n");
       return -1;
     }
+
+    error = put_symname2addr(sdb, symname, addr);
+    if (error == -1) {
+      fprintf(stderr, "put_symname2addr failed\n");
+      return -1;
+    }
   }
 
   fclose(f);
@@ -306,6 +363,7 @@ populate_addr2symname(struct ipft_symsdb *sdb)
 static int
 do_populate_syms(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
 {
+  uint64_t addr;
   struct ipft_sym sym;
   int error, btf_fd = 0;
   const struct btf_param *params;
@@ -404,6 +462,13 @@ do_populate_syms(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
         return -1;
       }
 
+      error = get_addr_by_symname(sdb, sym.symname, &addr);
+      if (error == -1) {
+        fprintf(stderr, "get_addr_by_symname failed\n");
+        return -1;
+      }
+
+      sym.addr = addr;
       sym.btf_fd = btf_fd;
       sym.btf_id = id;
 
@@ -529,7 +594,13 @@ symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt)
     return -1;
   }
 
-  error = populate_addr2symname(sdb);
+  sdb->symname2addr = kh_init(symname2addr);
+  if (sdb->symname2addr == NULL) {
+    fprintf(stderr, "kh_init failed\n");
+    return -1;
+  }
+
+  error = populate_addr2symname_and_symname2addr(sdb);
   if (error == -1) {
     fprintf(stderr, "populate_addr2symname failed\n");
     return -1;

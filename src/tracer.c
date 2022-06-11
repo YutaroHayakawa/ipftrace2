@@ -247,7 +247,7 @@ static int
 attach_kprobe_multi(struct ipft_tracer *t)
 {
   int error;
-  const char **symnames;
+  uint64_t *addrs;
   struct bpf_link *link;
   struct bpf_program *prog;
   struct ipft_sym *sym, **syms;
@@ -264,9 +264,9 @@ attach_kprobe_multi(struct ipft_tracer *t)
       return -1;
     }
 
-    symnames =
-        calloc(symsdb_get_syms_total_by_pos(t->sdb, i), sizeof(*symnames));
-    if (symnames == NULL) {
+    addrs =
+        calloc(symsdb_get_syms_total_by_pos(t->sdb, i), sizeof(*addrs));
+    if (addrs == NULL) {
       fprintf(stderr, "calloc failed\n");
       return -1;
     }
@@ -281,12 +281,12 @@ attach_kprobe_multi(struct ipft_tracer *t)
         continue;
       }
 
-      symnames[cur++] = sym->symname;
+      addrs[cur++] = sym->addr;
     }
 
     struct bpf_kprobe_multi_opts opts = {
         .sz = sizeof(opts),
-        .syms = symnames,
+        .addrs = addrs,
         .cnt = cur,
     };
 
