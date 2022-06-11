@@ -93,21 +93,21 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray,
               uint32_t count)
 {
   int error;
-  char *name;
+  char *symname;
   struct ipft_event *e;
 
   for (uint32_t i = 0; i < count; i++) {
     e = earray[i];
 
-    error = symsdb_get_addr2sym(out->base.sdb, e->faddr, &name);
+    error = symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
     if (error == -1) {
-      fprintf(stderr, "Failed to resolve the symbol from address\n");
+      fprintf(stderr, "symsdb_get_symname_by_addr failed\n");
       return -1;
     }
 
     if (out->base.script != NULL) {
       /* Print basic data */
-      printf("%-20zu %03u %32.32s ( ", e->tstamp, e->processor_id, name);
+      printf("%-20zu %03u %32.32s ( ", e->tstamp, e->processor_id, symname);
 
       /* Execute script and print results */
       error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
@@ -118,7 +118,7 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray,
 
       printf(")\n");
     } else {
-      printf("%-20zu %03u %32.32s\n", e->tstamp, e->processor_id, name);
+      printf("%-20zu %03u %32.32s\n", e->tstamp, e->processor_id, symname);
     }
   }
 
@@ -130,14 +130,14 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
                     uint32_t count)
 {
   int error;
-  char *name;
+  char *symname;
   struct ipft_event *e;
 
   uint32_t indent = 0;
   for (uint32_t i = 0; i < count; i++) {
     e = earray[i];
 
-    error = symsdb_get_addr2sym(out->base.sdb, e->faddr, &name);
+    error = symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
     if (error == -1) {
       fprintf(stderr, "Failed to resolve the symbol from address\n");
       return -1;
@@ -145,7 +145,7 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
 
     char s[64] = {0};
     if (!e->is_return) {
-      sprintf(s, "%-*s%s() {", indent * 2, "", name);
+      sprintf(s, "%-*s%s() {", indent * 2, "", symname);
 
       if (out->base.script != NULL) {
         /* Print basic data */

@@ -149,48 +149,43 @@ static struct {
 } attach_stat = {0};
 
 static int
-attach_cb(const char *sym, struct ipft_syminfo *si, void *data)
+get_prog_by_pos(struct bpf_object *bpf, int pos,
+                struct bpf_program **entry_prog, struct bpf_program **exit_prog)
 {
   char name[32] = {0};
-  struct bpf_link *link;
   struct bpf_program *prog;
-  struct ipft_tracer *t = (struct ipft_tracer *)data;
 
-  if (!regex_match(t->re, sym)) {
-    attach_stat.filtered++;
-    goto out;
-  }
-
-  if (sprintf(name, "ipft_main%d", si->skb_pos) < 0) {
+  if (sprintf(name, "ipft_main%d", pos) < 0) {
     fprintf(stderr, "sprintf failed\n");
     return -1;
   }
 
-  prog = bpf_object__find_program_by_name(t->bpf, name);
+  prog = bpf_object__find_program_by_name(bpf, name);
   if (prog == NULL) {
     fprintf(stderr, "bpf_object__find_program_by_name failed\n");
     return -1;
   }
 
-  link = bpf_program__attach_kprobe(prog, false, sym);
-  if (link == NULL) {
-    if (t->opt->verbose) {
-      fprintf(stderr, "Attach kprobe failed for %s\n", sym);
-    }
-    attach_stat.failed++;
-    goto out;
+  *entry_prog = prog;
+
+  if (exit_prog == NULL) {
+    return 0;
   }
 
-  attach_stat.succeeded++;
+  memset(name, 0, sizeof(name));
 
-out:
-  fprintf(
-      stderr,
-      "\rAttaching program (total %zu, succeeded %zu, failed %zu, filtered: "
-      "%zu)",
-      attach_stat.total, attach_stat.succeeded, attach_stat.failed,
-      attach_stat.filtered);
-  fflush(stderr);
+  if (sprintf(name, "ipft_main_return%d", pos) < 0) {
+    fprintf(stderr, "sprintf failed\n");
+    return -1;
+  }
+
+  prog = bpf_object__find_program_by_name(bpf, name);
+  if (prog == NULL) {
+    fprintf(stderr, "bpf_object__find_program_by_name failed\n");
+    return -1;
+  }
+
+  *exit_prog = prog;
 
   return 0;
 }
@@ -199,10 +194,50 @@ static int
 attach_kprobe(struct ipft_tracer *t)
 {
   int error;
+  struct bpf_link *link;
+  struct bpf_program *prog;
+  struct ipft_sym *sym, **syms;
 
-  error = symsdb_sym2info_foreach(t->sdb, attach_cb, t);
-  if (error == -1) {
-    return -1;
+  for (int i = 0; i < KPROBE_MAX_SKB_POS; i++) {
+    syms = symsdb_get_syms_by_pos(t->sdb, i);
+    if (syms == NULL) {
+      continue;
+    }
+
+    error = get_prog_by_pos(t->bpf, i, &prog, NULL);
+    if (error == -1) {
+      fprintf(stderr, "get_prog_by_pos failed\n");
+      return -1;
+    }
+
+    for (int j = 0; j < symsdb_get_syms_total_by_pos(t->sdb, i); j++) {
+      sym = syms[j];
+
+      if (!regex_match(t->re, sym->symname)) {
+        attach_stat.filtered++;
+        goto out;
+      }
+
+      link = bpf_program__attach_kprobe(prog, false, sym->symname);
+      if (link == NULL) {
+        if (t->opt->verbose) {
+          fprintf(stderr, "Attach kprobe failed for %s\n", sym->symname);
+        }
+        attach_stat.failed++;
+        goto out;
+      }
+
+      attach_stat.succeeded++;
+
+    out:
+      fprintf(stderr,
+              "\rAttaching program (total %zu, succeeded %zu, failed %zu, "
+              "filtered: "
+              "%zu)",
+              attach_stat.total, attach_stat.succeeded, attach_stat.failed,
+              attach_stat.filtered);
+      fflush(stderr);
+    }
   }
 
   return 0;
@@ -212,47 +247,46 @@ static int
 attach_kprobe_multi(struct ipft_tracer *t)
 {
   int error;
+  const char **symnames;
+  struct bpf_link *link;
+  struct bpf_program *prog;
+  struct ipft_sym *sym, **syms;
 
   for (int i = 0; i < KPROBE_MAX_SKB_POS; i++) {
-    size_t cur = 0;
-    const char **syms;
-    char name[32] = {0};
-    struct bpf_link *link;
-    struct bpf_program *prog;
-
-    if (sprintf(name, "ipft_main%d", i) < 0) {
-      fprintf(stderr, "sprintf failed\n");
-      return -1;
-    }
-
-    prog = bpf_object__find_program_by_name(t->bpf, name);
-    if (prog == NULL) {
-      fprintf(stderr, "bpf_object__find_program_by_name failed\n");
-      return -1;
-    }
-
-    memset(name, 0, sizeof(name));
-
-    syms = calloc(symsdb_get_pos2syms_total(t->sdb, i), sizeof(char *));
+    syms = symsdb_get_syms_by_pos(t->sdb, i);
     if (syms == NULL) {
+      continue;
+    }
+
+    error = get_prog_by_pos(t->bpf, i, &prog, NULL);
+    if (error == -1) {
+      fprintf(stderr, "get_prog_by_pos failed\n");
+      return -1;
+    }
+
+    symnames =
+        calloc(symsdb_get_syms_total_by_pos(t->sdb, i), sizeof(*symnames));
+    if (symnames == NULL) {
       fprintf(stderr, "calloc failed\n");
       return -1;
     }
 
-    for (int j = 0; j < symsdb_get_pos2syms_total(t->sdb, i); j++) {
-      const char *sym = symsdb_pos2syms_get(t->sdb, i, j);
+    size_t cur = 0;
 
-      if (!regex_match(t->re, sym)) {
+    for (int j = 0; j < symsdb_get_syms_total_by_pos(t->sdb, i); j++) {
+      sym = syms[j];
+
+      if (!regex_match(t->re, sym->symname)) {
         attach_stat.filtered++;
         continue;
       }
 
-      syms[cur++] = sym;
+      symnames[cur++] = sym->symname;
     }
 
     struct bpf_kprobe_multi_opts opts = {
         .sz = sizeof(opts),
-        .syms = syms,
+        .syms = symnames,
         .cnt = cur,
     };
 
@@ -285,7 +319,13 @@ static int
 attach_ftrace(struct ipft_tracer *t)
 {
   int error, btf_fd;
+  int entry_fd, exit_fd;
   char log_buf[4096] = {0};
+  int entry_tp_fd, exit_tp_fd;
+  struct ipft_sym *sym, **syms;
+  size_t entry_size, exit_size;
+  struct bpf_program *entry_prog, *exit_prog;
+  const struct bpf_insn *entry_insns, *exit_insns;
 
   btf_fd = bpf_object__btf_fd(t->bpf);
   if (btf_fd < 0) {
@@ -294,35 +334,14 @@ attach_ftrace(struct ipft_tracer *t)
   }
 
   for (int i = 0; i < FTRACE_MAX_SKB_POS; i++) {
-    char name[32];
-    int entry_fd, exit_fd;
-    size_t entry_size, exit_size;
-    struct bpf_program *entry_prog, *exit_prog;
-    const struct bpf_insn *entry_insns, *exit_insns;
-
-    memset(name, 0, sizeof(name));
-
-    if (sprintf(name, "ipft_main%d", i) < 0) {
-      fprintf(stderr, "sprintf failed\n");
-      return -1;
+    syms = symsdb_get_syms_by_pos(t->sdb, i);
+    if (syms == NULL) {
+      continue;
     }
 
-    entry_prog = bpf_object__find_program_by_name(t->bpf, name);
-    if (entry_prog == NULL) {
-      fprintf(stderr, "bpf_object__find_program_by_name failed\n");
-      return -1;
-    }
-
-    memset(name, 0, sizeof(name));
-
-    if (sprintf(name, "ipft_main_return%d", i) < 0) {
-      fprintf(stderr, "sprintf failed\n");
-      return -1;
-    }
-
-    exit_prog = bpf_object__find_program_by_name(t->bpf, name);
-    if (exit_prog == NULL) {
-      fprintf(stderr, "bpf_object__find_program_by_name failed\n");
+    error = get_prog_by_pos(t->bpf, i, &entry_prog, &exit_prog);
+    if (error == -1) {
+      fprintf(stderr, "get_prog_by_pos failed\n");
       return -1;
     }
 
@@ -331,27 +350,23 @@ attach_ftrace(struct ipft_tracer *t)
     entry_size = bpf_program__insn_cnt(entry_prog);
     exit_size = bpf_program__insn_cnt(exit_prog);
 
-    for (int j = 0; j < symsdb_get_pos2syms_total(t->sdb, i); j++) {
-      struct ipft_syminfo *sinfo;
-      int entry_tp_fd, exit_tp_fd;
-      struct bpf_prog_load_opts opts = {0};
-      const char *sym = symsdb_pos2syms_get(t->sdb, i, j);
+    for (int j = 0; j < symsdb_get_syms_total_by_pos(t->sdb, i); j++) {
+      sym = syms[j];
 
-      if (!regex_match(t->re, sym)) {
+      if (!regex_match(t->re, sym->symname)) {
         attach_stat.filtered++;
         goto out;
       }
 
-      error = symsdb_get_sym2info(t->sdb, sym, &sinfo);
-      if (error != 0) {
-        fprintf(stderr, "symsdb_get_sym2info failed\n");
-        return -1;
-      }
-
-      opts.sz = sizeof(opts), opts.prog_btf_fd = btf_fd,
-      opts.attach_btf_id = sinfo->btf_id,
-      opts.attach_btf_obj_fd = sinfo->btf_fd, opts.log_level = 4,
-      opts.log_size = 4096, opts.log_buf = log_buf,
+      struct bpf_prog_load_opts opts = {
+          .sz = sizeof(opts),
+          .prog_btf_fd = btf_fd,
+          .attach_btf_id = sym->btf_id,
+          .attach_btf_obj_fd = sym->btf_fd,
+          .log_level = 4,
+          .log_size = sizeof(log_buf),
+          .log_buf = log_buf,
+      };
 
       opts.expected_attach_type = BPF_TRACE_FENTRY;
 
@@ -359,7 +374,7 @@ attach_ftrace(struct ipft_tracer *t)
                                entry_size, &opts);
       if (error == -1) {
         if (t->opt->verbose) {
-          fprintf(stderr, "bpf_prog_load for %s entry failed\n%s", sym,
+          fprintf(stderr, "bpf_prog_load for %s entry failed\n%s", sym->symname,
                   log_buf);
         }
         attach_stat.failed++;
@@ -372,7 +387,8 @@ attach_ftrace(struct ipft_tracer *t)
                               exit_size, &opts);
       if (error == -1) {
         if (t->opt->verbose) {
-          fprintf(stderr, "bpf_prog_load for %s exit failed\n%s", sym, log_buf);
+          fprintf(stderr, "bpf_prog_load for %s exit failed\n%s", sym->symname,
+                  log_buf);
         }
         attach_stat.failed++;
         goto out;
@@ -382,7 +398,7 @@ attach_ftrace(struct ipft_tracer *t)
       if (entry_tp_fd < 0) {
         if (t->opt->verbose) {
           fprintf(stderr, "bpf_raw_tracepoint_open for %s entry failed: %s\n",
-                  sym, libbpf_error_string(entry_tp_fd));
+                  sym->symname, libbpf_error_string(entry_tp_fd));
         }
         attach_stat.failed++;
         goto out;
@@ -392,7 +408,7 @@ attach_ftrace(struct ipft_tracer *t)
       if (exit_tp_fd < 0) {
         if (t->opt->verbose) {
           fprintf(stderr, "bpf_raw_tracepoint_open for %s exit failed: %s\n",
-                  sym, libbpf_error_string(entry_tp_fd));
+                  sym->symname, libbpf_error_string(entry_tp_fd));
         }
         attach_stat.failed++;
         goto out;
@@ -401,12 +417,12 @@ attach_ftrace(struct ipft_tracer *t)
       attach_stat.succeeded++;
 
     out:
-      fprintf(
-          stderr,
-          "\rAttaching program (total %zu, succeeded %zu, failed %zu, filtered: "
-          "%zu)",
-          attach_stat.total, attach_stat.succeeded, attach_stat.failed,
-          attach_stat.filtered);
+      fprintf(stderr,
+              "\rAttaching program (total %zu, succeeded %zu, failed %zu, "
+              "filtered: "
+              "%zu)",
+              attach_stat.total, attach_stat.succeeded, attach_stat.failed,
+              attach_stat.filtered);
       fflush(stderr);
     }
   }
@@ -419,10 +435,11 @@ attach_all(struct ipft_tracer *t)
 {
   int error;
 
-  attach_stat.total = symsdb_get_sym2info_total(t->sdb);
+  attach_stat.total = symsdb_get_syms_total(t->sdb);
 
-  fprintf(stderr, "Attaching program (total %zu, succeeded 0, failed 0, filtered: 0)",
-      attach_stat.total);
+  fprintf(stderr,
+          "Attaching program (total %zu, succeeded 0, failed 0, filtered: 0)",
+          attach_stat.total);
 
   switch (t->opt->backend) {
   case IPFT_BACKEND_KPROBE:
@@ -659,53 +676,32 @@ static int
 ftrace_set_init_target(struct bpf_object *bpf, struct ipft_tracer *t)
 {
   int error;
-  char name[32];
 
   for (int i = 0; i < FTRACE_MAX_SKB_POS; i++) {
-    const char *sym;
+    struct ipft_sym *sym;
     struct bpf_program *entry_prog, *exit_prog;
 
-    memset(name, 0, sizeof(name));
-
-    if (sprintf(name, "ipft_main%d", i) < 0) {
-      fprintf(stderr, "sprintf failed\n");
+    error = get_prog_by_pos(bpf, i, &entry_prog, &exit_prog);
+    if (error == -1) {
+      fprintf(stderr, "get_prog_by_pos failed\n");
       return -1;
     }
 
-    entry_prog = bpf_object__find_program_by_name(bpf, name);
-    if (entry_prog == NULL) {
-      fprintf(stderr, "bpf__find_program_by_name failed\n");
-      return -1;
-    }
-
-    memset(name, 0, sizeof(name));
-
-    if (sprintf(name, "ipft_main_return%d", i) < 0) {
-      fprintf(stderr, "sprintf failed\n");
-      return -1;
-    }
-
-    exit_prog = bpf_object__find_program_by_name(bpf, name);
-    if (exit_prog == NULL) {
-      fprintf(stderr, "bpf__find_program_by_name failed\n");
-      return -1;
-    }
-
-    if (symsdb_get_pos2syms_total(t->sdb, i) != 0) {
-      sym = symsdb_pos2syms_get(t->sdb, i, 0);
+    if (symsdb_get_syms_total_by_pos(t->sdb, i) != 0) {
+      sym = symsdb_get_syms_by_pos(t->sdb, i)[0];
     } else {
       bpf_program__set_autoload(entry_prog, false);
       bpf_program__set_autoload(exit_prog, false);
       continue;
     }
 
-    error = bpf_program__set_attach_target(entry_prog, 0, sym);
+    error = bpf_program__set_attach_target(entry_prog, 0, sym->symname);
     if (error == -1) {
       fprintf(stderr, "bpf_program__set_attach_target failed\n");
       return -1;
     }
 
-    error = bpf_program__set_attach_target(exit_prog, 0, sym);
+    error = bpf_program__set_attach_target(exit_prog, 0, sym->symname);
     if (error == -1) {
       fprintf(stderr, "bpf_program__set_attach_target failed\n");
       return -1;

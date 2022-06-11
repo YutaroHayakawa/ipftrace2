@@ -69,8 +69,8 @@ struct ipft_symsdb_opt {
   int max_skb_pos;
 };
 
-struct ipft_syminfo {
-  int skb_pos;
+struct ipft_sym {
+  char *symname;
   uint32_t btf_fd;
   uint32_t btf_id;
 };
@@ -92,16 +92,11 @@ int get_max_args_for_backend(enum ipft_backends backend);
 int get_max_skb_pos_for_backend(enum ipft_backends backend);
 
 int symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt);
-size_t symsdb_get_sym2info_total(struct ipft_symsdb *sdb);
-int symsdb_get_sym2info(struct ipft_symsdb *sdb, const char *name,
-                        struct ipft_syminfo **sinfop);
-int symsdb_get_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char **symp);
-int symsdb_sym2info_foreach(struct ipft_symsdb *sdb,
-                            int (*cb)(const char *, struct ipft_syminfo *,
-                                      void *),
-                            void *arg);
-const char *symsdb_pos2syms_get(struct ipft_symsdb *sdb, int pos, int idx);
-int symsdb_get_pos2syms_total(struct ipft_symsdb *sdb, int pos);
+int symsdb_get_symname_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
+                               char **symnamep);
+struct ipft_sym **symsdb_get_syms_by_pos(struct ipft_symsdb *sdb, int pos);
+int symsdb_get_syms_total(struct ipft_symsdb *sdb);
+int symsdb_get_syms_total_by_pos(struct ipft_symsdb *sdb, int pos);
 
 int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);

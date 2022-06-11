@@ -22,18 +22,18 @@ static int
 json_output_on_event(struct ipft_output *_out, struct ipft_event *e)
 {
   int error;
-  char *name;
+  char *symname;
   struct json_output *out = (struct json_output *)_out;
 
-  error = symsdb_get_addr2sym(out->base.sdb, e->faddr, &name);
+  error = symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
   if (error == -1) {
-    fprintf(stderr, "Failed to resolve the symbol from address\n");
+    fprintf(stderr, "symsdb_get_symname_by_addr failed\n");
     return -1;
   }
 
   printf("{\"packet_id\":\"%p\",\"timestamp\":%zu,\"processor_id\":%u,"
          "\"function\":\"%s\",\"is_return\":%s",
-         (void *)e->packet_id, e->tstamp, e->processor_id, name,
+         (void *)e->packet_id, e->tstamp, e->processor_id, symname,
          e->is_return ? "true" : "false");
 
   if (out->base.script) {

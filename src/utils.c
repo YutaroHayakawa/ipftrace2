@@ -12,24 +12,13 @@
 
 #include "ipft.h"
 
-static int
-print_sym(const char *name, __unused struct ipft_syminfo *sinfo, void *data)
-{
-  struct ipft_regex *re = (struct ipft_regex *)data;
-
-  if (regex_match(re, name)) {
-    printf("%s\n", name);
-  }
-
-  return 0;
-}
-
 int
 list_functions(struct ipft_tracer_opt *opt)
 {
   int error;
   struct ipft_regex *re;
   struct ipft_symsdb *sdb;
+  struct ipft_sym *sym, **syms;
 
   error = regex_create(&re, opt->regex);
   if (error == -1) {
@@ -48,10 +37,17 @@ list_functions(struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = symsdb_sym2info_foreach(sdb, print_sym, re);
-  if (error == -1) {
-    fprintf(stderr, "Failed to traverse sym2info\n");
-    return -1;
+  for (int i = 0; i < sdb_opt.max_skb_pos; i++) {
+    syms = symsdb_get_syms_by_pos(sdb, i);
+    if (syms == NULL) {
+      continue;
+    }
+    for (int j = 0; j < symsdb_get_syms_total_by_pos(sdb, i); j++) {
+      sym = syms[j];
+      if (regex_match(re, sym->symname)) {
+        printf("%s\n", sym->symname);
+      }
+    }
   }
 
   return 0;
