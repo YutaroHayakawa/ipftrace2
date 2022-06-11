@@ -6,6 +6,8 @@
 #define PCRE2_CODE_UNIT_WIDTH 8
 #include <pcre2.h>
 
+#include "ipft.h"
+
 struct ipft_regex {
   pcre2_code *compiled;
 };
@@ -24,7 +26,7 @@ regex_create(struct ipft_regex **rep, const char *regex)
 
   re = calloc(1, sizeof(*re));
   if (re == NULL) {
-    perror("calloc");
+    ERROR("calloc failed\n");
     return -1;
   }
 
@@ -34,8 +36,7 @@ regex_create(struct ipft_regex **rep, const char *regex)
   if (re->compiled == NULL) {
     PCRE2_UCHAR buffer[256];
     pcre2_get_error_message(error, buffer, sizeof(buffer));
-    fprintf(stderr, "PCRE2 compilation failed at offset %ld: %s\n",
-            error_offset, buffer);
+    ERROR("PCRE2 compilation failed at offset %ld: %s\n", error_offset, buffer);
     return -1;
   }
 

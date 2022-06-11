@@ -22,7 +22,7 @@ list_functions(struct ipft_tracer_opt *opt)
 
   error = regex_create(&re, opt->regex);
   if (error == -1) {
-    fprintf(stderr, "regex_create failed\n");
+    ERROR("regex_create failed\n");
     return -1;
   }
 
@@ -33,7 +33,7 @@ list_functions(struct ipft_tracer_opt *opt)
 
   error = symsdb_create(&sdb, &sdb_opt);
   if (error == -1) {
-    fprintf(stderr, "Failed to initialize symsdb\n");
+    ERROR("Failed to initialize symsdb\n");
     return -1;
   }
 

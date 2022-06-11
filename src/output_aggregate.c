@@ -38,7 +38,7 @@ aggregate_output_on_event(struct ipft_output *_out, struct ipft_event *_e)
 
   e = malloc(sizeof(*e));
   if (e == NULL) {
-    perror("malloc");
+    ERROR("malloc failed\n");
     return -1;
   }
 
@@ -47,7 +47,7 @@ aggregate_output_on_event(struct ipft_output *_out, struct ipft_event *_e)
   /* Put trace to trace store */
   iter = kh_put(trace, out->trace, e->packet_id, &ret);
   if (ret == -1) {
-    fprintf(stderr, "Failed to put trace to store\n");
+    ERROR("Failed to put trace to store\n");
     return -1;
   } else if (ret == 0) {
     l = kh_value(out->trace, iter);
@@ -55,7 +55,7 @@ aggregate_output_on_event(struct ipft_output *_out, struct ipft_event *_e)
   } else {
     l = kl_init(trace_list);
     if (l == NULL) {
-      perror("kl_init");
+      ERROR("kl_init failed\n");
       return -1;
     }
     *kl_pushp(trace_list, l) = e;
@@ -63,7 +63,7 @@ aggregate_output_on_event(struct ipft_output *_out, struct ipft_event *_e)
   }
 
   /* Update the status on screen */
-  fprintf(stderr, "\rGot %zu traces", out->ntraces++);
+  INFO("\rGot %zu traces", out->ntraces++);
   fflush(stderr);
 
   return 0;
@@ -101,7 +101,7 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray,
 
     error = symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
     if (error == -1) {
-      fprintf(stderr, "symsdb_get_symname_by_addr failed\n");
+      ERROR("symsdb_get_symname_by_addr failed\n");
       return -1;
     }
 
@@ -139,7 +139,7 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
 
     error = symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
     if (error == -1) {
-      fprintf(stderr, "Failed to resolve the symbol from address\n");
+      ERROR("Failed to resolve the symbol from address\n");
       return -1;
     }
 
@@ -242,17 +242,17 @@ aggregate_output_post_trace(struct ipft_output *_out)
       if (out->base.tracer == IPFT_TRACER_FUNCTION) {
         error = dump_function(out, earray, count);
         if (error != 0) {
-          fprintf(stderr, "dump_function failed\n");
+          ERROR("dump_function failed\n");
           return -1;
         }
       } else if (out->base.tracer == IPFT_TRACER_FUNCTION_GRAPH) {
         error = dump_function_graph(out, earray, count);
         if (error != 0) {
-          fprintf(stderr, "dump_function_graph failed\n");
+          ERROR("dump_function_graph failed\n");
           return -1;
         }
       } else {
-        fprintf(stderr, "Unexpected tracer ID %d\n", out->base.tracer);
+        ERROR("Unexpected tracer ID %d\n", out->base.tracer);
         return -1;
       }
 
@@ -268,13 +268,13 @@ aggregate_output_create(struct ipft_output **outp)
 
   out = malloc(sizeof(*out));
   if (out == NULL) {
-    perror("malloc");
+    ERROR("malloc failed\n");
     return -1;
   }
 
   out->trace = kh_init(trace);
   if (out->trace == NULL) {
-    perror("kh_init");
+    ERROR("kh_init failed\n");
     return -1;
   }
 

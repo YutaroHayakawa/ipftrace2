@@ -27,7 +27,7 @@ json_output_on_event(struct ipft_output *_out, struct ipft_event *e)
 
   error = symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
   if (error == -1) {
-    fprintf(stderr, "symsdb_get_symname_by_addr failed\n");
+    ERROR("symsdb_get_symname_by_addr failed\n");
     return -1;
   }
 
@@ -64,7 +64,7 @@ json_output_create(struct ipft_output **outp)
 
   out = malloc(sizeof(*out));
   if (out == NULL) {
-    perror("malloc");
+    ERROR("malloc failed\n");
     return -1;
   }
 

@@ -16,6 +16,8 @@
 
 #include "ipft.h"
 
+bool verbose = false;
+
 static struct option options[] = {
     {"backend", required_argument, 0, 'b'},
     {"help", no_argument, 0, 'h'},
@@ -38,37 +40,36 @@ static struct option options[] = {
 static void
 usage(void)
 {
-  fprintf(stderr,
-          "Usage: ipft [OPTIONS]\n"
-          "\n"
-          "Options:\n"
-          " -b, --backend            [BACKEND]       Specify trace backend\n"
-          " -h, --help                               Show this text\n"
-          " -l, --list                               List functions\n"
-          " -m, --mark               [NUMBER]        Trace the packet marked "
-          "with <mark> [required]\n"
-          "   , --mask               [NUMBER]        Only match to the bits "
-          "masked with given bitmask (default: 0xffffffff)\n"
-          " -o, --output             [OUTPUT-FORMAT] Specify output format\n"
-          " -r, --regex              [REGEX]         Filter the function to "
-          "trace with regex\n"
-          " -s, --script             [PATH]          Path to extension script\n"
-          " -t, --tracer             [TRACER-TYPE]   Specify tracer type\n"
-          " -v, --verbose                            Turn on debug message\n"
-          "   , --perf-page-count    [NUMBER]        See page_count of "
-          "perf_event_open(2) man page (default: 8)\n"
-          "   , --perf-sample-period [NUMBER]        See sample_period of "
-          "perf_event_open(2) man page (default: 1)\n"
-          "   , --perf-wakeup-events [NUMBER]        See wakeup_events of "
-          "perf_event_open(2) man page (default: 1)\n"
-          "   , --no-set-rlimit                      Don't set rlimit\n"
-          "   , --enable-probe-server                Enable probe server\n"
-          "   , --probe-server-port                  Set probe server port\n"
-          "\n"
-          "BACKEND       := { kprobe, ftrace, kprobe-multi }\n"
-          "OUTPUT-FORMAT := { aggregate, json }\n"
-          "TRACER-TYPE   := { function, function_graph (experimental) }\n"
-          "\n");
+  INFO("Usage: ipft [OPTIONS]\n"
+       "\n"
+       "Options:\n"
+       " -b, --backend            [BACKEND]       Specify trace backend\n"
+       " -h, --help                               Show this text\n"
+       " -l, --list                               List functions\n"
+       " -m, --mark               [NUMBER]        Trace the packet marked "
+       "with <mark> [required]\n"
+       "   , --mask               [NUMBER]        Only match to the bits "
+       "masked with given bitmask (default: 0xffffffff)\n"
+       " -o, --output             [OUTPUT-FORMAT] Specify output format\n"
+       " -r, --regex              [REGEX]         Filter the function to "
+       "trace with regex\n"
+       " -s, --script             [PATH]          Path to extension script\n"
+       " -t, --tracer             [TRACER-TYPE]   Specify tracer type\n"
+       " -v, --verbose                            Turn on debug message\n"
+       "   , --perf-page-count    [NUMBER]        See page_count of "
+       "perf_event_open(2) man page (default: 8)\n"
+       "   , --perf-sample-period [NUMBER]        See sample_period of "
+       "perf_event_open(2) man page (default: 1)\n"
+       "   , --perf-wakeup-events [NUMBER]        See wakeup_events of "
+       "perf_event_open(2) man page (default: 1)\n"
+       "   , --no-set-rlimit                      Don't set rlimit\n"
+       "   , --enable-probe-server                Enable probe server\n"
+       "   , --probe-server-port                  Set probe server port\n"
+       "\n"
+       "BACKEND       := { kprobe, ftrace, kprobe-multi }\n"
+       "OUTPUT-FORMAT := { aggregate, json }\n"
+       "TRACER-TYPE   := { function, function_graph (experimental) }\n"
+       "\n");
 }
 
 static void
@@ -84,7 +85,6 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->regex = NULL;
   opt->script = NULL;
   opt->tracer = IPFT_TRACER_FUNCTION;
-  opt->verbose = false;
   opt->enable_probe_server = false;
   opt->probe_server_port = 13720;
 }
@@ -92,24 +92,21 @@ opt_init(struct ipft_tracer_opt *opt)
 static void
 opt_dump(struct ipft_tracer_opt *opt)
 {
-  fprintf(stderr, "============   Options   ============\n");
-  fprintf(stderr, "backend            : %s\n",
-          get_backend_name_by_id(opt->backend));
-  fprintf(stderr, "mark               : 0x%x\n", opt->mark);
-  fprintf(stderr, "mask               : 0x%x\n", opt->mask);
-  fprintf(stderr, "regex              : %s\n", opt->regex);
-  fprintf(stderr, "script             : %s\n", opt->script);
-  fprintf(stderr, "tracer             : %s\n",
-          get_tracer_name_by_id(opt->tracer));
-  fprintf(stderr, "output             : %s\n",
-          get_output_name_by_id(opt->output));
-  fprintf(stderr, "perf_page_cnt      : %zu\n", opt->perf_page_cnt);
-  fprintf(stderr, "perf_sample_period : %zu\n", opt->perf_sample_period);
-  fprintf(stderr, "perf_wakeup_events : %u\n", opt->perf_wakeup_events);
+  INFO("============   Options   ============\n");
+  INFO("backend            : %s\n", get_backend_name_by_id(opt->backend));
+  INFO("mark               : 0x%x\n", opt->mark);
+  INFO("mask               : 0x%x\n", opt->mask);
+  INFO("regex              : %s\n", opt->regex);
+  INFO("script             : %s\n", opt->script);
+  INFO("tracer             : %s\n", get_tracer_name_by_id(opt->tracer));
+  INFO("output             : %s\n", get_output_name_by_id(opt->output));
+  INFO("perf_page_cnt      : %zu\n", opt->perf_page_cnt);
+  INFO("perf_sample_period : %zu\n", opt->perf_sample_period);
+  INFO("perf_wakeup_events : %u\n", opt->perf_wakeup_events);
   if (opt->enable_probe_server) {
-    fprintf(stderr, "probe_server_port  : %u\n", opt->probe_server_port);
+    INFO("probe_server_port  : %u\n", opt->probe_server_port);
   }
-  fprintf(stderr, "============ End Options ============\n");
+  INFO("============ End Options ============\n");
 }
 
 static int
@@ -119,12 +116,12 @@ get_nr_open(unsigned int *nr_openp)
 
   FILE *f = fopen("/proc/sys/fs/nr_open", "r");
   if (f == NULL) {
-    perror("Failed to open /proc/sys/fs/nr_open");
+    ERROR("fopen /proc/sys/fs/nr_open failed: %s\n", strerror(errno));
     return -1;
   }
 
   if (fscanf(f, "%u", &nr_open) != 1) {
-    perror("Failed to read the value from /proc/sys/fs/nr_open");
+    ERROR("fscanf failed\n");
     return -1;
   }
 
@@ -136,7 +133,7 @@ get_nr_open(unsigned int *nr_openp)
 }
 
 static int
-do_set_rlimit(bool verbose)
+do_set_rlimit(void)
 {
   int error;
   struct rlimit lim;
@@ -145,17 +142,13 @@ do_set_rlimit(bool verbose)
   /*
    * Set locked memory limit to infinity
    */
-  if (verbose) {
-    fprintf(
-        stderr,
-        "Bumping RLIMIT_MEMLOCK (cur: RLIM_INFINITY, max: RLIM_INFINITY)\n");
-  }
+  VERBOSE("Bumping RLIMIT_MEMLOCK (cur: RLIM_INFINITY, max: RLIM_INFINITY)\n");
 
   lim.rlim_cur = RLIM_INFINITY;
   lim.rlim_max = RLIM_INFINITY;
   error = setrlimit(RLIMIT_MEMLOCK, &lim);
   if (error == -1) {
-    perror("setrlimit");
+    ERROR("setrlimit failed: %s\n", strerror(errno));
     return -1;
   }
 
@@ -164,25 +157,21 @@ do_set_rlimit(bool verbose)
    */
   error = get_nr_open(&nr_open);
   if (error == -1) {
-    fprintf(stderr, "get_nr_open failed\n");
+    ERROR("get_nr_open failed\n");
     return -1;
   }
 
   /*
    * Set file limit
    */
-  if (verbose) {
-    fprintf(stderr, "Bumping RLIMIT_MEMLOCK (cur: %u, max: %u)\n", nr_open,
-            nr_open);
-  }
+  VERBOSE("Bumping RLIMIT_MEMLOCK (cur: %u, max: %u)\n", nr_open, nr_open);
 
   lim.rlim_cur = nr_open;
   lim.rlim_max = nr_open;
   error = setrlimit(RLIMIT_NOFILE, &lim);
   if (error == -1) {
-    fprintf(stderr,
-            "setlimit failed (resource: RLIMIT_NOFILE, cur: %u, max: %u\n",
-            nr_open, nr_open);
+    ERROR("setlimit failed (resource: RLIMIT_NOFILE, cur: %u, max: %u\n",
+          nr_open, nr_open);
     return -1;
   }
 
@@ -214,7 +203,7 @@ main(int argc, char **argv)
     case 'b':
       opt.backend = get_backend_id_by_name(optarg);
       if (opt.backend == IPFT_BACKEND_UNSPEC) {
-        fprintf(stderr, "Unknown backend %s\n", optarg);
+        ERROR("Unknown backend %s\n", optarg);
         usage();
         goto end;
       }
@@ -228,7 +217,7 @@ main(int argc, char **argv)
     case 'o':
       opt.output = get_output_id_by_name(optarg);
       if (opt.output == IPFT_OUTPUT_UNSPEC) {
-        fprintf(stderr, "Unknown output %s\n", optarg);
+        ERROR("Unknown output %s\n", optarg);
         usage();
         goto end;
       }
@@ -242,13 +231,13 @@ main(int argc, char **argv)
     case 't':
       opt.tracer = get_tracer_id_by_name(optarg);
       if (opt.tracer == IPFT_TRACER_UNSPEC) {
-        fprintf(stderr, "Unknown tracer %s\n", optarg);
+        ERROR("Unknown tracer %s\n", optarg);
         usage();
         goto end;
       }
       break;
     case 'v':
-      opt.verbose = true;
+      verbose = true;
       break;
     case '0':
       optname = options[optind].name;
@@ -296,9 +285,9 @@ main(int argc, char **argv)
   }
 
   if (set_rlimit) {
-    error = do_set_rlimit(opt.verbose);
+    error = do_set_rlimit();
     if (error == -1) {
-      fprintf(stderr, "do_set_rlimit failed\n");
+      ERROR("do_set_rlimit failed\n");
       return -1;
     }
   }
@@ -306,8 +295,8 @@ main(int argc, char **argv)
   if (opt.backend == IPFT_BACKEND_UNSPEC) {
     opt.backend = select_backend_for_tracer(opt.tracer);
     if (opt.backend == IPFT_BACKEND_UNSPEC) {
-      fprintf(stderr, "Couldn't find available backend for %s tracer\n",
-              get_tracer_name_by_id(opt.tracer));
+      ERROR("Couldn't find available backend for %s tracer\n",
+            get_tracer_name_by_id(opt.tracer));
       return -1;
     }
   }
@@ -317,7 +306,7 @@ main(int argc, char **argv)
     goto end;
   }
 
-  if (opt.verbose) {
+  if (verbose) {
     /* Enable debug print for libbpf */
     libbpf_set_print(debug_print);
     /* Print out all options user provided */
@@ -326,13 +315,13 @@ main(int argc, char **argv)
 
   error = tracer_create(&t, &opt);
   if (error == -1) {
-    fprintf(stderr, "Failed to create tracer\n");
+    ERROR("tracer_create failed\n");
     goto end;
   }
 
   error = tracer_run(t);
   if (error == -1) {
-    fprintf(stderr, "Trace failed with error\n");
+    ERROR("tracer_run failed\n");
     goto end;
   }
 

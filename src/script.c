@@ -11,6 +11,8 @@
 #include <lauxlib.h>
 #include <luaconf.h>
 
+#include "ipft.h"
+
 struct ipft_script {
   lua_Integer api_version;
   lua_State *L;
@@ -65,7 +67,7 @@ script_get_api_version(lua_State *L)
 {
   lua_getglobal(L, "api_version");
   if (!lua_isinteger(L, -1)) {
-    fprintf(stderr, "api_version should be an integer value\n");
+    ERROR("api_version should be an integer value\n");
     return -1;
   }
 
@@ -98,7 +100,7 @@ script_create(struct ipft_script **scriptp, const char *path)
 
   script = malloc(sizeof(*script));
   if (script == NULL) {
-    fprintf(stderr, "Failed to allocate memory\n");
+    ERROR("Failed to allocate memory\n");
     return -1;
   }
 
@@ -109,13 +111,13 @@ script_create(struct ipft_script **scriptp, const char *path)
   error = luaL_dofile(L, path);
   if (error != 0) {
     const char *cause = lua_tostring(L, -1);
-    fprintf(stderr, "Lua error: %s\n", cause);
+    ERROR("Lua error: %s\n", cause);
     return -1;
   }
 
   api_version = script_get_api_version(L);
   if (api_version == -1) {
-    fprintf(stderr, "Failed to get API version\n");
+    ERROR("Failed to get API version\n");
     return -1;
   }
 
@@ -123,8 +125,7 @@ script_create(struct ipft_script **scriptp, const char *path)
    * We currently only support API version 1
    */
   if (api_version != 1) {
-    fprintf(stderr, "Unsupported API version \"" LUA_INTEGER_FMT "\"\n",
-            api_version);
+    ERROR("Unsupported API version \"" LUA_INTEGER_FMT "\"\n", api_version);
     return -1;
   }
 
@@ -163,13 +164,13 @@ script_get_program(struct ipft_script *script, uint8_t **imagep,
 
   tmp = lua_tolstring(script->L, -1, &image_size);
   if (tmp == NULL) {
-    fprintf(stderr, "Failed to get module binary\n");
+    ERROR("Failed to get module binary\n");
     return -1;
   }
 
   image = malloc(image_size);
   if (image == NULL) {
-    fprintf(stderr, "Failed to allocate memory\n");
+    ERROR("Failed to allocate memory\n");
     return -1;
   }
 
@@ -204,11 +205,9 @@ script_exec_decode(struct ipft_script *script, uint8_t *data, size_t len,
   while (lua_next(L, -2) != 0) {
     /* We only support flat string => string table for simplicity */
     if (!lua_isstring(L, -2) || !lua_isstring(L, -1)) {
-      fprintf(stderr,
-              "Invalid key value type, expect string key/value got %s key %s "
-              "value\n",
-              lua_typename(L, lua_type(L, -2)),
-              lua_typename(L, lua_type(L, -1)));
+      ERROR("Invalid key value type, expect string key/value got %s key %s "
+            "value\n",
+            lua_typename(L, lua_type(L, -2)), lua_typename(L, lua_type(L, -1)));
       return -1;
     }
 
@@ -218,7 +217,7 @@ script_exec_decode(struct ipft_script *script, uint8_t *data, size_t len,
     const char *v = lua_tolstring(L, -1, &vlen);
     error = cb(k, klen, v, vlen);
     if (error == -1) {
-      fprintf(stderr, "Callback returned with error\n");
+      ERROR("Callback returned with error\n");
       return -1;
     }
 

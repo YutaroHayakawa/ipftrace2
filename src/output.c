@@ -47,12 +47,12 @@ output_create(struct ipft_output **outp, enum ipft_outputs output,
     error = json_output_create(&out);
     break;
   default:
-    fprintf(stderr, "Unsupported output ID %d\n", output);
+    ERROR("Unsupported output ID %d\n", output);
     return -1;
   }
 
   if (error == -1) {
-    fprintf(stderr, "Failed to create output\n");
+    ERROR("Failed to create output\n");
     return -1;
   }
 

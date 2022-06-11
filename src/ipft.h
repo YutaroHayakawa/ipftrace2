@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <sys/time.h>
 #include <linux/perf_event.h>
 
 #include <uapi/linux/bpf.h>
@@ -28,6 +29,28 @@ struct ipft_symsdb;
 struct ipft_regex;
 struct ipft_script;
 struct ipft_tracer;
+
+extern bool verbose;
+
+#define INFO(_fmt, ...)                                                        \
+  do {                                                                         \
+    fprintf(stderr, _fmt, ##__VA_ARGS__);                                      \
+  } while (0)
+
+#define VERBOSE(_fmt, ...)                                                     \
+  do {                                                                         \
+    if (verbose) {                                                             \
+      fprintf(stderr, "verbose: " _fmt, ##__VA_ARGS__);                        \
+    }                                                                          \
+  } while (0)
+
+#define ERROR(_fmt, ...)                                                       \
+  do {                                                                         \
+    struct timeval _t0;                                                        \
+    gettimeofday(&_t0, NULL);                                                  \
+    fprintf(stderr, "%03d.%06d %s [%d] " _fmt, (int)(_t0.tv_sec % 1000),       \
+            (int)_t0.tv_usec, __FUNCTION__, __LINE__, ##__VA_ARGS__);          \
+  } while (0)
 
 enum ipft_tracers {
   IPFT_TRACER_UNSPEC,
@@ -59,7 +82,6 @@ struct ipft_tracer_opt {
   size_t perf_page_cnt;
   uint64_t perf_sample_period;
   uint32_t perf_wakeup_events;
-  bool verbose;
   bool enable_probe_server;
   uint16_t probe_server_port;
 };

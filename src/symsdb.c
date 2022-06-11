@@ -42,7 +42,7 @@ pos2syms_append(struct ipft_symsdb *sdb, int pos, struct ipft_sym *sym)
 
   v = malloc(sizeof(*v));
   if (v == NULL) {
-    fprintf(stderr, "malloc failed\n");
+    ERROR("malloc failed\n");
     return -1;
   }
 
@@ -111,7 +111,7 @@ symsdb_get_symname_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
 
   iter = kh_get(addr2symname, db, addr);
   if (iter == kh_end(db)) {
-    fprintf(stderr, "Failed to resolve func addr: %lu\n", addr);
+    ERROR("Failed to resolve func addr: %lu\n", addr);
     return -1;
   }
 
@@ -130,7 +130,7 @@ put_symname2addr(struct ipft_symsdb *sdb, const char *symname, uint64_t addr)
 
   k = strdup(symname);
   if (k == NULL) {
-    fprintf(stderr, "strdup failed\n");
+    ERROR("strdup failed\n");
     return -1;
   }
 
@@ -138,7 +138,7 @@ put_symname2addr(struct ipft_symsdb *sdb, const char *symname, uint64_t addr)
 
   iter = kh_put(symname2addr, db, k, &missing);
   if (missing == -1) {
-    fprintf(stderr, "kh_put failed\n");
+    ERROR("kh_put failed\n");
     return -1;
   } else if (!missing) {
     free(k);
@@ -150,8 +150,7 @@ put_symname2addr(struct ipft_symsdb *sdb, const char *symname, uint64_t addr)
 }
 
 static int
-get_addr_by_symname(struct ipft_symsdb *sdb, char *symname,
-                           uint64_t *addrp)
+get_addr_by_symname(struct ipft_symsdb *sdb, char *symname, uint64_t *addrp)
 {
   khint_t iter;
   khash_t(symname2addr) * db;
@@ -160,7 +159,7 @@ get_addr_by_symname(struct ipft_symsdb *sdb, char *symname,
 
   iter = kh_get(symname2addr, db, symname);
   if (iter == kh_end(db)) {
-    fprintf(stderr, "Failed to resolve func symbol name: %s\n", symname);
+    ERROR("Failed to resolve func symbol name: %s\n", symname);
     return -1;
   }
 
@@ -183,7 +182,7 @@ put_availfuncs(struct ipft_symsdb *sdb, char *sym)
 
   iter = kh_put(availfuncs, sdb->availfuncs, k, &missing);
   if (missing == -1) {
-    fprintf(stderr, "kh_put failed\n");
+    ERROR("kh_put failed\n");
     return -1;
   } else if (!missing) {
     free(k);
@@ -213,7 +212,7 @@ put_funcsseen(struct ipft_symsdb *sdb, char *sym)
 
   iter = kh_put(funcsseen, sdb->funcsseen, sym, &missing);
   if (missing == -1) {
-    fprintf(stderr, "kh_put failed\n");
+    ERROR("kh_put failed\n");
     return -1;
   }
 
@@ -257,7 +256,7 @@ populate_availfuncs(struct ipft_symsdb *sdb)
       if (*cur == '\n' || *cur == ' ') {
         error = put_availfuncs(sdb, sym);
         if (error == -1) {
-          fprintf(stderr, "put_availfuncs failed\n");
+          ERROR("put_availfuncs failed\n");
           return -1;
         }
         break;
@@ -300,8 +299,7 @@ populate_addr2symname_and_symname2addr(struct ipft_symsdb *sdb)
   }
 
   if (geteuid() != 0) {
-    fprintf(
-        stderr,
+    ERROR(
         "Non-root users cannot read address info. Please execute with root.\n");
     return -1;
   }
@@ -344,13 +342,13 @@ populate_addr2symname_and_symname2addr(struct ipft_symsdb *sdb)
      */
     error = put_addr2symname(sdb, addr, symname);
     if (error == -1) {
-      fprintf(stderr, "put_addr2sym failed\n");
+      ERROR("put_addr2sym failed\n");
       return -1;
     }
 
     error = put_symname2addr(sdb, symname, addr);
     if (error == -1) {
-      fprintf(stderr, "put_symname2addr failed\n");
+      ERROR("put_symname2addr failed\n");
       return -1;
     }
   }
@@ -458,13 +456,13 @@ do_populate_syms(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
 
       sym.symname = strdup(func_name);
       if (sym.symname == NULL) {
-        fprintf(stderr, "strdup failed\n");
+        ERROR("strdup failed\n");
         return -1;
       }
 
       error = get_addr_by_symname(sdb, sym.symname, &addr);
       if (error == -1) {
-        fprintf(stderr, "get_addr_by_symname failed\n");
+        ERROR("get_addr_by_symname failed\n");
         return -1;
       }
 
@@ -474,13 +472,13 @@ do_populate_syms(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
 
       error = pos2syms_append(sdb, i, &sym);
       if (error == -1) {
-        fprintf(stderr, "pos2syms_append failed\n");
+        ERROR("pos2syms_append failed\n");
         return -1;
       }
 
       error = put_funcsseen(sdb, sym.symname);
       if (error == -1) {
-        fprintf(stderr, "put_funcsseen failed\n");
+        ERROR("put_funcsseen failed\n");
         return -1;
       }
 
@@ -504,13 +502,13 @@ populate_syms(struct ipft_symsdb *sdb)
 
   vmlinux_btf = btf__load_vmlinux_btf();
   if (libbpf_get_error(vmlinux_btf) != 0) {
-    fprintf(stderr, "libbpf_find_kernel_btf failed\n");
+    ERROR("libbpf_find_kernel_btf failed\n");
     return -1;
   }
 
   error = do_populate_syms(sdb, vmlinux_btf, true);
   if (error == -1) {
-    fprintf(stderr, "btf_fill_sym2info failed\n");
+    ERROR("btf_fill_sym2info failed\n");
     return -1;
   }
 
@@ -534,19 +532,19 @@ populate_syms(struct ipft_symsdb *sdb)
     }
 
     if (error) {
-      fprintf(stderr, "bpf_btf_get_next_id failed\n");
+      ERROR("bpf_btf_get_next_id failed\n");
       return -1;
     }
 
     fd = bpf_btf_get_fd_by_id(id);
     if (fd < 0) {
-      fprintf(stderr, "bpf_btf_get_fd_by_id failed\n");
+      ERROR("bpf_btf_get_fd_by_id failed\n");
       return -1;
     }
 
     btf = btf__load_from_kernel_by_id_split(id, vmlinux_btf);
     if (btf == NULL) {
-      fprintf(stderr, "btf__load_from_kernel_by_id failed\n");
+      ERROR("btf__load_from_kernel_by_id failed\n");
       return -1;
     }
 
@@ -554,7 +552,7 @@ populate_syms(struct ipft_symsdb *sdb)
 
     error = do_populate_syms(sdb, btf, false);
     if (error == -1) {
-      fprintf(stderr, "btf_fill_sym2info failed\n");
+      ERROR("btf_fill_sym2info failed\n");
       return -1;
     }
   }
@@ -570,7 +568,7 @@ symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt)
 
   sdb = (struct ipft_symsdb *)calloc(1, sizeof(*sdb));
   if (sdb == NULL) {
-    fprintf(stderr, "calloc failed\n");
+    ERROR("calloc failed\n");
     return -1;
   }
 
@@ -578,43 +576,43 @@ symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt)
 
   sdb->availfuncs = kh_init(availfuncs);
   if (sdb->availfuncs == NULL) {
-    fprintf(stderr, "kh_init failed\n");
+    ERROR("kh_init failed\n");
     return -1;
   }
 
   error = populate_availfuncs(sdb);
   if (error == -1) {
-    fprintf(stderr, "populate_availfuncs failed\n");
+    ERROR("populate_availfuncs failed\n");
     return -1;
   }
 
   sdb->addr2symname = kh_init(addr2symname);
   if (sdb->addr2symname == NULL) {
-    fprintf(stderr, "kh_init failed\n");
+    ERROR("kh_init failed\n");
     return -1;
   }
 
   sdb->symname2addr = kh_init(symname2addr);
   if (sdb->symname2addr == NULL) {
-    fprintf(stderr, "kh_init failed\n");
+    ERROR("kh_init failed\n");
     return -1;
   }
 
   error = populate_addr2symname_and_symname2addr(sdb);
   if (error == -1) {
-    fprintf(stderr, "populate_addr2symname failed\n");
+    ERROR("populate_addr2symname failed\n");
     return -1;
   }
 
   sdb->funcsseen = kh_init(funcsseen);
   if (sdb->funcsseen == NULL) {
-    fprintf(stderr, "kh_init failed\n");
+    ERROR("kh_init failed\n");
     return -1;
   }
 
   sdb->pos2syms = calloc(opt->max_skb_pos, sizeof(*sdb->pos2syms));
   if (sdb->pos2syms == NULL) {
-    fprintf(stderr, "calloc failed\n");
+    ERROR("calloc failed\n");
     return -1;
   }
 
@@ -624,7 +622,7 @@ symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt)
 
   error = populate_syms(sdb);
   if (error == -1) {
-    fprintf(stderr, "populate_pos2syms failed\n");
+    ERROR("populate_pos2syms failed\n");
     return -1;
   }
 

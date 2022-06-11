@@ -156,13 +156,13 @@ get_prog_by_pos(struct bpf_object *bpf, int pos,
   struct bpf_program *prog;
 
   if (sprintf(name, "ipft_main%d", pos) < 0) {
-    fprintf(stderr, "sprintf failed\n");
+    ERROR("sprintf failed\n");
     return -1;
   }
 
   prog = bpf_object__find_program_by_name(bpf, name);
   if (prog == NULL) {
-    fprintf(stderr, "bpf_object__find_program_by_name failed\n");
+    ERROR("bpf_object__find_program_by_name failed\n");
     return -1;
   }
 
@@ -175,13 +175,13 @@ get_prog_by_pos(struct bpf_object *bpf, int pos,
   memset(name, 0, sizeof(name));
 
   if (sprintf(name, "ipft_main_return%d", pos) < 0) {
-    fprintf(stderr, "sprintf failed\n");
+    ERROR("sprintf failed\n");
     return -1;
   }
 
   prog = bpf_object__find_program_by_name(bpf, name);
   if (prog == NULL) {
-    fprintf(stderr, "bpf_object__find_program_by_name failed\n");
+    ERROR("bpf_object__find_program_by_name failed\n");
     return -1;
   }
 
@@ -206,7 +206,7 @@ attach_kprobe(struct ipft_tracer *t)
 
     error = get_prog_by_pos(t->bpf, i, &prog, NULL);
     if (error == -1) {
-      fprintf(stderr, "get_prog_by_pos failed\n");
+      ERROR("get_prog_by_pos failed\n");
       return -1;
     }
 
@@ -220,9 +220,7 @@ attach_kprobe(struct ipft_tracer *t)
 
       link = bpf_program__attach_kprobe(prog, false, sym->symname);
       if (link == NULL) {
-        if (t->opt->verbose) {
-          fprintf(stderr, "Attach kprobe failed for %s\n", sym->symname);
-        }
+        VERBOSE("Attach kprobe failed for %s\n", sym->symname);
         attach_stat.failed++;
         goto out;
       }
@@ -230,12 +228,11 @@ attach_kprobe(struct ipft_tracer *t)
       attach_stat.succeeded++;
 
     out:
-      fprintf(stderr,
-              "\rAttaching program (total %zu, succeeded %zu, failed %zu, "
-              "filtered: "
-              "%zu)",
-              attach_stat.total, attach_stat.succeeded, attach_stat.failed,
-              attach_stat.filtered);
+      INFO("\rAttaching program (total %zu, succeeded %zu, failed %zu, "
+           "filtered: "
+           "%zu)",
+           attach_stat.total, attach_stat.succeeded, attach_stat.failed,
+           attach_stat.filtered);
       fflush(stderr);
     }
   }
@@ -260,14 +257,13 @@ attach_kprobe_multi(struct ipft_tracer *t)
 
     error = get_prog_by_pos(t->bpf, i, &prog, NULL);
     if (error == -1) {
-      fprintf(stderr, "get_prog_by_pos failed\n");
+      ERROR("get_prog_by_pos failed\n");
       return -1;
     }
 
-    addrs =
-        calloc(symsdb_get_syms_total_by_pos(t->sdb, i), sizeof(*addrs));
+    addrs = calloc(symsdb_get_syms_total_by_pos(t->sdb, i), sizeof(*addrs));
     if (addrs == NULL) {
-      fprintf(stderr, "calloc failed\n");
+      ERROR("calloc failed\n");
       return -1;
     }
 
@@ -294,21 +290,17 @@ attach_kprobe_multi(struct ipft_tracer *t)
 
     error = libbpf_get_error(link);
     if (error != 0) {
-      if (t->opt->verbose) {
-        fprintf(stderr, "bpf_program__attach_kprobe_multi_opts failed: %s\n",
-                libbpf_error_string(error));
-      }
+      VERBOSE("bpf_program__attach_kprobe_multi_opts failed: %s\n",
+              libbpf_error_string(error));
       attach_stat.failed += opts.cnt;
     } else {
       attach_stat.succeeded += opts.cnt;
     }
 
-    fprintf(
-        stderr,
-        "\rAttaching program (total %zu, succeeded %zu, failed %zu, filtered: "
-        "%zu)",
-        attach_stat.total, attach_stat.succeeded, attach_stat.failed,
-        attach_stat.filtered);
+    INFO("\rAttaching program (total %zu, succeeded %zu, failed %zu, filtered: "
+         "%zu)",
+         attach_stat.total, attach_stat.succeeded, attach_stat.failed,
+         attach_stat.filtered);
     fflush(stderr);
   }
 
@@ -329,7 +321,7 @@ attach_ftrace(struct ipft_tracer *t)
 
   btf_fd = bpf_object__btf_fd(t->bpf);
   if (btf_fd < 0) {
-    fprintf(stderr, "bpf_object__btf_fd failed\n");
+    ERROR("bpf_object__btf_fd failed\n");
     return -1;
   }
 
@@ -341,7 +333,7 @@ attach_ftrace(struct ipft_tracer *t)
 
     error = get_prog_by_pos(t->bpf, i, &entry_prog, &exit_prog);
     if (error == -1) {
-      fprintf(stderr, "get_prog_by_pos failed\n");
+      ERROR("get_prog_by_pos failed\n");
       return -1;
     }
 
@@ -373,10 +365,7 @@ attach_ftrace(struct ipft_tracer *t)
       entry_fd = bpf_prog_load(BPF_PROG_TYPE_TRACING, NULL, "GPL", entry_insns,
                                entry_size, &opts);
       if (error == -1) {
-        if (t->opt->verbose) {
-          fprintf(stderr, "bpf_prog_load for %s entry failed\n%s", sym->symname,
-                  log_buf);
-        }
+        VERBOSE("bpf_prog_load for %s entry failed\n%s", sym->symname, log_buf);
         attach_stat.failed++;
         goto out;
       }
@@ -386,30 +375,23 @@ attach_ftrace(struct ipft_tracer *t)
       exit_fd = bpf_prog_load(BPF_PROG_TYPE_TRACING, NULL, "GPL", exit_insns,
                               exit_size, &opts);
       if (error == -1) {
-        if (t->opt->verbose) {
-          fprintf(stderr, "bpf_prog_load for %s exit failed\n%s", sym->symname,
-                  log_buf);
-        }
+        VERBOSE("bpf_prog_load for %s exit failed\n%s", sym->symname, log_buf);
         attach_stat.failed++;
         goto out;
       }
 
       entry_tp_fd = bpf_raw_tracepoint_open(NULL, entry_fd);
       if (entry_tp_fd < 0) {
-        if (t->opt->verbose) {
-          fprintf(stderr, "bpf_raw_tracepoint_open for %s entry failed: %s\n",
-                  sym->symname, libbpf_error_string(entry_tp_fd));
-        }
+        VERBOSE("bpf_raw_tracepoint_open for %s entry failed: %s\n",
+                sym->symname, libbpf_error_string(entry_tp_fd));
         attach_stat.failed++;
         goto out;
       }
 
       exit_tp_fd = bpf_raw_tracepoint_open(NULL, exit_fd);
       if (exit_tp_fd < 0) {
-        if (t->opt->verbose) {
-          fprintf(stderr, "bpf_raw_tracepoint_open for %s exit failed: %s\n",
-                  sym->symname, libbpf_error_string(entry_tp_fd));
-        }
+        VERBOSE("bpf_raw_tracepoint_open for %s exit failed: %s\n",
+                sym->symname, libbpf_error_string(entry_tp_fd));
         attach_stat.failed++;
         goto out;
       }
@@ -417,12 +399,11 @@ attach_ftrace(struct ipft_tracer *t)
       attach_stat.succeeded++;
 
     out:
-      fprintf(stderr,
-              "\rAttaching program (total %zu, succeeded %zu, failed %zu, "
-              "filtered: "
-              "%zu)",
-              attach_stat.total, attach_stat.succeeded, attach_stat.failed,
-              attach_stat.filtered);
+      INFO("\rAttaching program (total %zu, succeeded %zu, failed %zu, "
+           "filtered: "
+           "%zu)",
+           attach_stat.total, attach_stat.succeeded, attach_stat.failed,
+           attach_stat.filtered);
       fflush(stderr);
     }
   }
@@ -440,9 +421,8 @@ attach_all(struct ipft_tracer *t)
 
   attach_stat.total = symsdb_get_syms_total(t->sdb);
 
-  fprintf(stderr,
-          "Attaching program (total %zu, succeeded 0, failed 0, filtered: 0)",
-          attach_stat.total);
+  INFO("Attaching program (total %zu, succeeded 0, failed 0, filtered: 0)",
+       attach_stat.total);
 
   switch (t->opt->backend) {
   case IPFT_BACKEND_KPROBE:
@@ -464,17 +444,16 @@ attach_all(struct ipft_tracer *t)
     }
     break;
   default:
-    fprintf(stderr, "Unknown backend ID %d\n", t->opt->backend);
+    ERROR("Unknown backend ID %d\n", t->opt->backend);
     return -1;
   }
 
-  fprintf(stderr, "\n");
+  INFO("\n");
 
   end = clock();
 
-  if (t->opt->verbose) {
-    fprintf(stderr, "Took %lf seconds to attach\n", ((double) (end - start)) / CLOCKS_PER_SEC);
-  }
+  VERBOSE("Took %lf seconds to attach\n",
+          ((double)(end - start)) / CLOCKS_PER_SEC);
 
   return error;
 }
@@ -503,7 +482,7 @@ trace_cb(void *ctx, __unused int cpu, struct perf_event_header *ehdr)
     error = 0;
     break;
   default:
-    fprintf(stderr, "BUG: Unknown event type %d\n", ehdr->type);
+    ERROR("Unknown event type %d\n", ehdr->type);
     return LIBBPF_PERF_EVENT_ERROR;
   }
 
@@ -533,7 +512,7 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
   pb = perf_buffer__new_raw(bpf_object__find_map_fd_by_name(t->bpf, "events"),
                             perf_page_cnt, &pe_attr, trace_cb, t, &pb_opts);
   if (pb == NULL) {
-    fprintf(stderr, "perf_buffer__new_raw failed\n");
+    ERROR("perf_buffer__new_raw failed\n");
     return -1;
   }
 
@@ -556,18 +535,18 @@ create_tmpfile_from_image(int *fdp, char **namep, uint8_t *image,
 
   name = strdup("/tmp/ipft_XXXXXX");
   if (name == NULL) {
-    fprintf(stderr, "Failed to allocate memory for tmpfile name\n");
+    ERROR("Failed to allocate memory for tmpfile name\n");
     return -1;
   }
 
   fd = mkstemp(name);
   if (fd == -1) {
-    fprintf(stderr, "Failed to create tmpfile\n");
+    ERROR("Failed to create tmpfile\n");
     return -1;
   }
 
   if (write(fd, image, image_size) == -1) {
-    fprintf(stderr, "Failed to write image to tmpfile\n");
+    ERROR("Failed to write image to tmpfile\n");
     goto err0;
   }
 
@@ -594,14 +573,14 @@ do_link(char **namep, uint8_t *target_image, size_t target_image_size,
   error = create_tmpfile_from_image(&target_fd, &target_name, target_image,
                                     target_image_size);
   if (error == -1) {
-    fprintf(stderr, "create_tmpfile_from_image for target image failed\n");
+    ERROR("create_tmpfile_from_image for target image failed\n");
     return -1;
   }
 
   error = create_tmpfile_from_image(&module_fd, &module_name, module_image,
                                     module_image_size);
   if (error == -1) {
-    fprintf(stderr, "create_tmpfile_from_image for module image failed\n");
+    ERROR("create_tmpfile_from_image for module image failed\n");
     goto err0;
   }
 
@@ -611,7 +590,7 @@ do_link(char **namep, uint8_t *target_image, size_t target_image_size,
 
   linker = bpf_linker__new(name, &lopts);
   if (linker == NULL) {
-    fprintf(stderr, "bpf_linker__create failed\n");
+    ERROR("bpf_linker__create failed\n");
     goto err1;
   }
 
@@ -619,19 +598,19 @@ do_link(char **namep, uint8_t *target_image, size_t target_image_size,
 
   error = bpf_linker__add_file(linker, target_name, &fopts);
   if (error == -1) {
-    fprintf(stderr, "bpf_linker__add_file failed\n");
+    ERROR("bpf_linker__add_file failed\n");
     goto err2;
   }
 
   error = bpf_linker__add_file(linker, module_name, &fopts);
   if (error == -1) {
-    fprintf(stderr, "bpf_linker__add_file failed\n");
+    ERROR("bpf_linker__add_file failed\n");
     goto err2;
   }
 
   error = bpf_linker__finalize(linker);
   if (error == -1) {
-    fprintf(stderr, "bpf_linker__finalize failed\n");
+    ERROR("bpf_linker__finalize failed\n");
     goto err2;
   }
 
@@ -667,7 +646,7 @@ get_target_image(enum ipft_backends backend, uint8_t **imagep,
     *image_sizep = ipft_kprobe_multi_bpf_o_len;
     break;
   default:
-    fprintf(stderr, "Unsupported backend ID %d\n", backend);
+    ERROR("Unsupported backend ID %d\n", backend);
     return -1;
   }
   return 0;
@@ -692,7 +671,7 @@ ftrace_set_init_target(struct bpf_object *bpf, struct ipft_tracer *t)
 
     error = get_prog_by_pos(bpf, i, &entry_prog, &exit_prog);
     if (error == -1) {
-      fprintf(stderr, "get_prog_by_pos failed\n");
+      ERROR("get_prog_by_pos failed\n");
       return -1;
     }
 
@@ -706,13 +685,13 @@ ftrace_set_init_target(struct bpf_object *bpf, struct ipft_tracer *t)
 
     error = bpf_program__set_attach_target(entry_prog, 0, sym->symname);
     if (error == -1) {
-      fprintf(stderr, "bpf_program__set_attach_target failed\n");
+      ERROR("bpf_program__set_attach_target failed\n");
       return -1;
     }
 
     error = bpf_program__set_attach_target(exit_prog, 0, sym->symname);
     if (error == -1) {
-      fprintf(stderr, "bpf_program__set_attach_target failed\n");
+      ERROR("bpf_program__set_attach_target failed\n");
       return -1;
     }
   }
@@ -733,20 +712,20 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
 
   error = get_target_image(backend, &target_image, &target_image_size);
   if (error != 0) {
-    fprintf(stderr, "get_target_image failed\n");
+    ERROR("get_target_image failed\n");
     return -1;
   }
 
   if (t->script != NULL) {
     error = script_get_program(t->script, &module_image, &module_image_size);
     if (error != 0) {
-      fprintf(stderr, "script_get_program failed\n");
+      ERROR("script_get_program failed\n");
       return -1;
     }
   } else {
     error = get_default_module_image(&module_image, &module_image_size);
     if (error != 0) {
-      fprintf(stderr, "get_default_module failed\n");
+      ERROR("get_default_module failed\n");
       return -1;
     }
   }
@@ -754,7 +733,7 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
   error = do_link(&name, target_image, target_image_size, module_image,
                   module_image_size);
   if (error == -1) {
-    fprintf(stderr, "do_link failed\n");
+    ERROR("do_link failed\n");
     return -1;
   }
 
@@ -765,7 +744,7 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
 
   bpf = bpf_object__open(name);
   if (bpf == NULL) {
-    fprintf(stderr, "bpf_object__open failed\n");
+    ERROR("bpf_object__open failed\n");
     return -1;
   }
 
@@ -774,14 +753,14 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
   if (backend == IPFT_BACKEND_FTRACE) {
     error = ftrace_set_init_target(bpf, t);
     if (error == -1) {
-      fprintf(stderr, "ftrace_setup_prep failed\n");
+      ERROR("ftrace_setup_prep failed\n");
       return -1;
     }
   }
 
   error = bpf_object__load(bpf);
   if (error == -1) {
-    fprintf(stderr, "bpf_object__load failed\n");
+    ERROR("bpf_object__load failed\n");
     return -1;
   }
 
@@ -791,7 +770,7 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
   error = bpf_map_update_elem(bpf_object__find_map_fd_by_name(bpf, "config"),
                               &(int){0}, &conf, 0);
   if (error == -1) {
-    fprintf(stderr, "Cannot update config map\n");
+    ERROR("Cannot update config map\n");
     return -1;
   }
 
@@ -818,13 +797,13 @@ handle_tcp_probe(void *arg)
 
   lsock = socket(AF_INET, SOCK_STREAM, 0);
   if (lsock == -1) {
-    fprintf(stderr, "socket failed: %s\n", strerror(errno));
+    ERROR("socket failed: %s\n", strerror(errno));
     pthread_exit(arg);
   }
 
   error = setsockopt(lsock, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int));
   if (error == -1) {
-    fprintf(stderr, "setsockopt failed: %s\n", strerror(errno));
+    ERROR("setsockopt failed: %s\n", strerror(errno));
     pthread_exit(arg);
   }
 
@@ -836,13 +815,13 @@ handle_tcp_probe(void *arg)
 
   error = bind(lsock, (struct sockaddr *)&laddr, sizeof(laddr));
   if (error == -1) {
-    fprintf(stderr, "bind failed: %s\n", strerror(errno));
+    ERROR("bind failed: %s\n", strerror(errno));
     pthread_exit(arg);
   }
 
   error = listen(lsock, 100);
   if (error == -1) {
-    fprintf(stderr, "listen failed: %s\n", strerror(errno));
+    ERROR("listen failed: %s\n", strerror(errno));
     pthread_exit(arg);
   }
 
@@ -852,7 +831,7 @@ handle_tcp_probe(void *arg)
 
     csock = accept(lsock, (struct sockaddr *)&caddr, &caddr_len);
     if (csock == -1) {
-      fprintf(stderr, "accept failed: %s\n", strerror(errno));
+      ERROR("accept failed: %s\n", strerror(errno));
       continue;
     }
 
@@ -872,11 +851,11 @@ tracer_run(struct ipft_tracer *t)
 
   error = attach_all(t);
   if (error) {
-    fprintf(stderr, "attach_all failed\n");
+    ERROR("attach_all failed\n");
     return -1;
   }
 
-  fprintf(stderr, "Trace ready!\n");
+  INFO("Trace ready!\n");
 
   signal(SIGINT, handle_signal);
   signal(SIGTERM, handle_signal);
@@ -884,13 +863,13 @@ tracer_run(struct ipft_tracer *t)
   if (t->opt->enable_probe_server) {
     error = pthread_create(&thread, NULL, handle_tcp_probe, (void *)t->opt);
     if (error == -1) {
-      fprintf(stderr, "pthread_create failed: %s\n", strerror(errno));
+      ERROR("pthread_create failed: %s\n", strerror(errno));
       return -1;
     }
 
     error = pthread_detach(thread);
     if (error == -1) {
-      fprintf(stderr, "pthread_detach failed: %s\n", strerror(errno));
+      ERROR("pthread_detach failed: %s\n", strerror(errno));
       return -1;
     }
   }
@@ -907,7 +886,7 @@ tracer_run(struct ipft_tracer *t)
 
   error = output_post_trace(t->out);
   if (error == -1) {
-    fprintf(stderr, "output_post_trace failed\n");
+    ERROR("output_post_trace failed\n");
     return -1;
   }
 
@@ -922,22 +901,22 @@ static bool
 opt_validate(struct ipft_tracer_opt *opt)
 {
   if (opt->backend == IPFT_BACKEND_UNSPEC) {
-    fprintf(stderr, "Backend unspecified\n");
+    ERROR("Backend unspecified\n");
     return false;
   }
 
   if (opt->mark == 0 || opt->mask == 0) {
-    fprintf(stderr, "mark/mask can't be zero\n");
+    ERROR("mark/mask can't be zero\n");
     return false;
   }
 
   if (opt->tracer == IPFT_TRACER_UNSPEC) {
-    fprintf(stderr, "Tracer unspecified\n");
+    ERROR("Tracer unspecified\n");
     return false;
   }
 
   if (opt->perf_page_cnt == 0) {
-    fprintf(stderr, "perf_page_count should be at least 1\n");
+    ERROR("perf_page_count should be at least 1\n");
     return false;
   }
 
@@ -951,13 +930,13 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
   struct ipft_tracer *t;
 
   if (!opt_validate(opt)) {
-    fprintf(stderr, "Invalid option specified\n");
+    ERROR("Invalid option specified\n");
     return -1;
   }
 
   t = calloc(1, sizeof(*t));
   if (t == NULL) {
-    fprintf(stderr, "Failed to allocate memory\n");
+    ERROR("Failed to allocate memory\n");
     return -1;
   }
 
@@ -970,38 +949,38 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
 
   error = symsdb_create(&t->sdb, &sdb_opt);
   if (error != 0) {
-    fprintf(stderr, "symsdb_create failed\n");
+    ERROR("symsdb_create failed\n");
     return -1;
   }
 
   error = script_create(&t->script, opt->script);
   if (error == -1) {
-    fprintf(stderr, "script_create failed\n");
+    ERROR("script_create failed\n");
     return -1;
   }
 
   error = bpf_create(&t->bpf, opt->mark, opt->mask, opt->backend, t);
   if (error == -1) {
-    fprintf(stderr, "bpf_create failed\n");
+    ERROR("bpf_create failed\n");
     return -1;
   }
 
   error = regex_create(&t->re, opt->regex);
   if (error != 0) {
-    fprintf(stderr, "regex_create failed\n");
+    ERROR("regex_create failed\n");
     return -1;
   }
 
   error = output_create(&t->out, opt->output, t->sdb, t->script, opt->tracer);
   if (error != 0) {
-    fprintf(stderr, "output_create failed\n");
+    ERROR("output_create failed\n");
     return -1;
   }
 
   error = perf_buffer_create(&t->pb, t, opt->perf_page_cnt,
                              opt->perf_sample_period, opt->perf_wakeup_events);
   if (error == -1) {
-    fprintf(stderr, "perf_buffer_create failed\n");
+    ERROR("perf_buffer_create failed\n");
     return -1;
   }
 
