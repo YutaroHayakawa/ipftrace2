@@ -2,7 +2,7 @@
 
 for tracer in "$@"; do
   # Launch function tracer
-  ipft -m 1 -t $tracer -o json --enable-probe-server > /tmp/trace.txt &
+  ipft -v -m 1 -t $tracer -o json --enable-probe-server > /tmp/trace.txt &
 
   # Wait for tracer to be ready
   until nc -z 127.0.0.1 13720; do sleep 2s; done
