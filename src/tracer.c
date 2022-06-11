@@ -434,6 +434,9 @@ static int
 attach_all(struct ipft_tracer *t)
 {
   int error;
+  clock_t start, end;
+
+  start = clock();
 
   attach_stat.total = symsdb_get_syms_total(t->sdb);
 
@@ -466,6 +469,12 @@ attach_all(struct ipft_tracer *t)
   }
 
   fprintf(stderr, "\n");
+
+  end = clock();
+
+  if (t->opt->verbose) {
+    fprintf(stderr, "Took %lf seconds to attach\n", ((double) (end - start)) / CLOCKS_PER_SEC);
+  }
 
   return error;
 }
