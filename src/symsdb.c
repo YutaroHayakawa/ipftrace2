@@ -111,7 +111,7 @@ symsdb_get_symname_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
 
   iter = kh_get(addr2symname, db, addr);
   if (iter == kh_end(db)) {
-    ERROR("Failed to resolve func addr: %lu\n", addr);
+    ERROR("Failed to resolve func addr: 0x%lx\n", addr);
     return -1;
   }
 
