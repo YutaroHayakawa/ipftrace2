@@ -1,6 +1,6 @@
 # ipftrace2
 
-`ipftrace2` is a tool which allows you to trace the journey of packets inside the Linux kernel. It is similar to the `ftrace` in some sense but, you can trace **which flow have gone through which functions** inside the kernel which is usually more important information for the network people than **which functions are called** information provided by `ftrace`.
+`ipftrace2` is a tool which allows you to trace the journey of packets inside the Linux kernel. It is similar to `ftrace` in some sense, but you can trace **which flow has gone through which functions** inside the kernel which is usually more important information for the network people than **which functions are called** information provided by `ftrace`.
 
 ![demo](img/demo.gif)
 
@@ -39,7 +39,7 @@ Run ipftrace2
 sudo ipft -m 0xdeadbeef
 ```
 
-Mark the packets you are interested
+Mark the packets you are interested in
 
 ```
 # Mark packets from/to 1.1.1.1
@@ -59,7 +59,7 @@ Terminate `ipft` with `Ctrl-C` . Then, you should see the output.
 
 #### Function tracer
 
-Records function calls for packets. This is a default tracer.
+Records function calls for packets. This is the default tracer.
 
 ```
 $ sudo ipft -m 0xdeadbeef
@@ -94,9 +94,9 @@ $ sudo ipft -m 0xdeadbeef -t function_graph
 <skip...>
 ```
 
-#### Raw output with JSON
+#### Raw JSON output
 
-Generates raw tracing output to `stdout` with machine-readable JSON. You can implement your own visualizer with this feature.
+Generates raw tracing output to `stdout` in machine-readable JSON. You can implement your own visualizer with this feature.
 
 ```
 $ sudo ipft -m 0xdeadbeef -t function_graph -o json
@@ -169,9 +169,9 @@ OUTPUT-FORMAT := { aggregate, json }
 TRACER-TYPE   := { function, function_graph (experimental) }
 ```
 
-## Further readings
+## Further reading
 
 - [Scripting manual](docs/scripting.md) gives you the guide to customize your tracing output with Lua script
-- With [output specification](docs/output.md) , you can learn how to interpret the output
+- With [output specification](docs/output.md), you can learn how to interpret the output
 - Understanding [marking](docs/marking.md) helps you a lot for fully utilizing the power of ipftrace2
 - Please check this [doc](docs/internals.md) out if you are interested in the ipftrace2 internals
