@@ -99,11 +99,9 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray,
   for (uint32_t i = 0; i < count; i++) {
     e = earray[i];
 
-    error = symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
-    if (error == -1) {
-      ERROR("symsdb_get_symname_by_addr failed\n");
-      return -1;
-    }
+    /* Actually, this won't fail. When name resolution fails, symbol name
+     * (unknown) will be returned. */
+    symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
 
     if (out->base.script != NULL) {
       /* Print basic data */
