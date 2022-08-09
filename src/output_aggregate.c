@@ -9,7 +9,7 @@
 #include "ipft.h"
 
 /*
- * Aggregate output with on-memory trace store
+ * Aggregate output with in-memory trace store
  */
 
 static void
