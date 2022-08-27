@@ -24,14 +24,14 @@ struct {
   __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
   __uint(key_size, sizeof(uint32_t));
   __uint(value_size, sizeof(uint32_t));
-} events SEC(".maps");
+} ipft_events SEC(".maps");
 
 struct {
   __uint(type, BPF_MAP_TYPE_ARRAY);
   __uint(max_entries, 1);
   __type(key, uint32_t);
   __type(value, struct ipft_trace_config);
-} config SEC(".maps");
+} ipft_config SEC(".maps");
 
 static __inline int
 ipft_body(void *ctx, struct sk_buff *skb, uint8_t is_return)
@@ -42,7 +42,7 @@ ipft_body(void *ctx, struct sk_buff *skb, uint8_t is_return)
   struct ipft_event e = {0};
   struct ipft_trace_config *conf;
 
-  conf = bpf_map_lookup_elem(&config, &idx);
+  conf = bpf_map_lookup_elem(&ipft_config, &idx);
   if (conf == NULL) {
     return 0;
   }
@@ -63,7 +63,7 @@ ipft_body(void *ctx, struct sk_buff *skb, uint8_t is_return)
     return 0;
   }
 
-  bpf_perf_event_output(ctx, &events, BPF_F_CURRENT_CPU, &e, sizeof(e));
+  bpf_perf_event_output(ctx, &ipft_events, BPF_F_CURRENT_CPU, &e, sizeof(e));
 
   return 0;
 }

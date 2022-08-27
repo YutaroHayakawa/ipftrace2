@@ -509,8 +509,9 @@ perf_buffer_create(struct perf_buffer **pbp, struct ipft_tracer *t,
       .wakeup_events = perf_wakeup_events,
   };
 
-  pb = perf_buffer__new_raw(bpf_object__find_map_fd_by_name(t->bpf, "events"),
-                            perf_page_cnt, &pe_attr, trace_cb, t, &pb_opts);
+  pb = perf_buffer__new_raw(
+      bpf_object__find_map_fd_by_name(t->bpf, "ipft_events"), perf_page_cnt,
+      &pe_attr, trace_cb, t, &pb_opts);
   if (pb == NULL) {
     ERROR("perf_buffer__new_raw failed\n");
     return -1;
@@ -767,8 +768,8 @@ bpf_create(struct bpf_object **bpfp, uint32_t mark, uint32_t mask,
   conf.mark = mark;
   conf.mask = mask;
 
-  error = bpf_map_update_elem(bpf_object__find_map_fd_by_name(bpf, "config"),
-                              &(int){0}, &conf, 0);
+  error = bpf_map_update_elem(
+      bpf_object__find_map_fd_by_name(bpf, "ipft_config"), &(int){0}, &conf, 0);
   if (error == -1) {
     ERROR("Cannot update config map\n");
     return -1;
