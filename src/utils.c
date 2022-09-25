@@ -16,11 +16,17 @@ int
 list_functions(struct ipft_tracer_opt *opt)
 {
   int error;
-  struct ipft_regex *re;
   struct ipft_symsdb *sdb;
+  struct ipft_regex *re, *mre;
   struct ipft_sym *sym, **syms;
 
   error = regex_create(&re, opt->regex);
+  if (error == -1) {
+    ERROR("regex_create failed\n");
+    return -1;
+  }
+
+  error = regex_create(&mre, opt->module_regex);
   if (error == -1) {
     ERROR("regex_create failed\n");
     return -1;
@@ -47,10 +53,14 @@ list_functions(struct ipft_tracer_opt *opt)
     }
     for (int j = 0; j < symsdb_get_syms_total_by_pos(sdb, i); j++) {
       sym = syms[j];
-      if (regex_match(re, sym->symname)) {
-        printf("%64.64s\t%16.16s\t0x%016lx\t%d\n", sym->symname, sym->modname,
-               sym->addr, i);
+      if (!regex_match(re, sym->symname)) {
+        continue;
       }
+      if (!regex_match(mre, sym->modname)) {
+        continue;
+      }
+      printf("%64.64s\t%16.16s\t0x%016lx\t%d\n", sym->symname, sym->modname,
+             sym->addr, i);
     }
   }
 

@@ -152,6 +152,7 @@ Options:
  -l, --list                               List functions
  -m, --mark               [NUMBER]        Trace the packet marked with <mark> [required]
    , --mask               [NUMBER]        Only match to the bits masked with given bitmask (default: 0xffffffff)
+   , --module-regex       [REGEX]         Filter the function to trace by regex for kernel module's name
  -o, --output             [OUTPUT-FORMAT] Specify output format
  -r, --regex              [REGEX]         Filter the function to trace with regex
  -s, --script             [PATH]          Path to extension script

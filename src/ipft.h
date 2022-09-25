@@ -77,6 +77,7 @@ struct ipft_tracer_opt {
   uint32_t mark;
   uint32_t mask;
   char *regex;
+  char *module_regex;
   char *script;
   enum ipft_outputs output;
   size_t perf_page_cnt;

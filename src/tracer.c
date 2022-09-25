@@ -24,6 +24,7 @@
 struct ipft_tracer {
   struct bpf_object *bpf;
   struct ipft_regex *re;
+  struct ipft_regex *mre;
   struct ipft_symsdb *sdb;
   struct ipft_tracer_opt *opt;
   struct ipft_output *out;
@@ -218,6 +219,11 @@ attach_kprobe(struct ipft_tracer *t)
         goto out;
       }
 
+      if (!regex_match(t->mre, sym->modname)) {
+        attach_stat.filtered++;
+        goto out;
+      }
+
       link = bpf_program__attach_kprobe(prog, false, sym->symname);
       if (link == NULL) {
         VERBOSE("Attach kprobe failed for %s\n", sym->symname);
@@ -273,6 +279,11 @@ attach_kprobe_multi(struct ipft_tracer *t)
       sym = syms[j];
 
       if (!regex_match(t->re, sym->symname)) {
+        attach_stat.filtered++;
+        continue;
+      }
+
+      if (!regex_match(t->mre, sym->modname)) {
         attach_stat.filtered++;
         continue;
       }
@@ -346,6 +357,11 @@ attach_ftrace(struct ipft_tracer *t)
       sym = syms[j];
 
       if (!regex_match(t->re, sym->symname)) {
+        attach_stat.filtered++;
+        goto out;
+      }
+
+      if (!regex_match(t->mre, sym->modname)) {
         attach_stat.filtered++;
         goto out;
       }
@@ -967,6 +983,12 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
   }
 
   error = regex_create(&t->re, opt->regex);
+  if (error != 0) {
+    ERROR("regex_create failed\n");
+    return -1;
+  }
+
+  error = regex_create(&t->mre, opt->module_regex);
   if (error != 0) {
     ERROR("regex_create failed\n");
     return -1;

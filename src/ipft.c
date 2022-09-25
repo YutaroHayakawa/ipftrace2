@@ -25,6 +25,7 @@ static struct option options[] = {
     {"mark", required_argument, 0, 'm'},
     {"output", required_argument, 0, 'o'},
     {"regex", required_argument, 0, 'r'},
+    {"module-regex", required_argument, 0, '0'},
     {"script", required_argument, 0, 's'},
     {"verbose", no_argument, 0, 'v'},
     {"mask", required_argument, 0, '0'},
@@ -50,6 +51,8 @@ usage(void)
        "with <mark> [required]\n"
        "   , --mask               [NUMBER]        Only match to the bits "
        "masked with given bitmask (default: 0xffffffff)\n"
+       "   , --module-regex       [REGEX]         Filter the function to "
+       "trace by regex for kernel module's name\n"
        " -o, --output             [OUTPUT-FORMAT] Specify output format\n"
        " -r, --regex              [REGEX]         Filter the function to "
        "trace with regex\n"
@@ -83,6 +86,7 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->perf_sample_period = 1;
   opt->perf_wakeup_events = 1;
   opt->regex = NULL;
+  opt->module_regex = NULL;
   opt->script = NULL;
   opt->tracer = IPFT_TRACER_FUNCTION;
   opt->enable_probe_server = false;
@@ -96,6 +100,7 @@ opt_dump(struct ipft_tracer_opt *opt)
   INFO("backend            : %s\n", get_backend_name_by_id(opt->backend));
   INFO("mark               : 0x%x\n", opt->mark);
   INFO("mask               : 0x%x\n", opt->mask);
+  INFO("module-regex       : %s\n", opt->module_regex);
   INFO("regex              : %s\n", opt->regex);
   INFO("script             : %s\n", opt->script);
   INFO("tracer             : %s\n", get_tracer_name_by_id(opt->tracer));
@@ -244,6 +249,11 @@ main(int argc, char **argv)
 
       if (strcmp(optname, "mask") == 0) {
         opt.mask = strtoul(optarg, NULL, 0);
+        break;
+      }
+
+      if (strcmp(optname, "module-regex") == 0) {
+        opt.module_regex = strdup(optarg);
         break;
       }
 
