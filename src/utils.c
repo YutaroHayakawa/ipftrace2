@@ -37,7 +37,8 @@ list_functions(struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  fprintf(stderr, "%64.64s\t%18s\t%s\n", "NAME", "ADDR", "SKB_POSITION");
+  fprintf(stderr, "%64.64s\t%16.16s\t%18s\t%s\n", "NAME", "MOD", "ADDR",
+          "SKB_POSITION");
 
   for (int i = 0; i < sdb_opt.max_skb_pos; i++) {
     syms = symsdb_get_syms_by_pos(sdb, i);
@@ -47,7 +48,8 @@ list_functions(struct ipft_tracer_opt *opt)
     for (int j = 0; j < symsdb_get_syms_total_by_pos(sdb, i); j++) {
       sym = syms[j];
       if (regex_match(re, sym->symname)) {
-        printf("%64.64s\t0x%016lx\t%d\n", sym->symname, sym->addr, i);
+        printf("%64.64s\t%16.16s\t0x%016lx\t%d\n", sym->symname, sym->modname,
+               sym->addr, i);
       }
     }
   }

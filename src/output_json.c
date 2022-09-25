@@ -22,17 +22,17 @@ static int
 json_output_on_event(struct ipft_output *_out, struct ipft_event *e)
 {
   int error;
-  char *symname;
+  struct ipft_sym *sym;
   struct json_output *out = (struct json_output *)_out;
 
   /* Actually, this won't fail. When name resolution fails, symbol name
    * (unknown) will be returned. */
-  symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
+  symsdb_get_sym_by_addr(out->base.sdb, e->faddr, &sym);
 
   printf("{\"packet_id\":\"%p\",\"timestamp\":%zu,\"processor_id\":%u,"
-         "\"function\":\"%s\",\"is_return\":%s",
-         (void *)e->packet_id, e->tstamp, e->processor_id, symname,
-         e->is_return ? "true" : "false");
+         "\"module\":\"%s\",\"function\":\"%s\",\"is_return\":%s",
+         (void *)e->packet_id, e->tstamp, e->processor_id, sym->modname,
+         sym->symname, e->is_return ? "true" : "false");
 
   if (out->base.script) {
     error = script_exec_decode(out->base.script, e->data, sizeof(e->data),

@@ -94,6 +94,7 @@ struct ipft_symsdb_opt {
 struct ipft_sym {
   uint64_t addr;
   char *symname;
+  char *modname;
   uint32_t btf_fd;
   uint32_t btf_id;
 };
@@ -115,8 +116,8 @@ int get_max_args_for_backend(enum ipft_backends backend);
 int get_max_skb_pos_for_backend(enum ipft_backends backend);
 
 int symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt);
-int symsdb_get_symname_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
-                               char **symnamep);
+int symsdb_get_sym_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
+                           struct ipft_sym **symp);
 struct ipft_sym **symsdb_get_syms_by_pos(struct ipft_symsdb *sdb, int pos);
 int symsdb_get_syms_total(struct ipft_symsdb *sdb);
 int symsdb_get_syms_total_by_pos(struct ipft_symsdb *sdb, int pos);

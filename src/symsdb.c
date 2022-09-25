@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <linux/bpf.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -21,7 +22,7 @@
 #include "khash.h"
 #include "kvec.h"
 
-KHASH_MAP_INIT_INT64(addr2symname, char *)
+KHASH_MAP_INIT_INT64(addr2sym, struct ipft_sym *)
 KHASH_MAP_INIT_STR(symname2addr, uint64_t)
 KHASH_MAP_INIT_STR(availfuncs, int)
 KHASH_SET_INIT_STR(funcsseen)
@@ -31,7 +32,7 @@ struct ipft_symsdb {
   khash_t(funcsseen) * funcsseen;
   khash_t(availfuncs) * availfuncs;
   kvec_t(struct ipft_sym *) * pos2syms;
-  khash_t(addr2symname) * addr2symname;
+  khash_t(addr2sym) * addr2symname;
   khash_t(symname2addr) * symname2addr;
 };
 
@@ -76,46 +77,62 @@ symsdb_get_syms_total_by_pos(struct ipft_symsdb *sdb, int pos)
 }
 
 static int
-put_addr2symname(struct ipft_symsdb *sdb, uint64_t addr, char *symname)
+put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *symname,
+             char *modname)
 {
-  char *v;
   int missing;
   khint_t iter;
-  khash_t(addr2symname) * db;
+  struct ipft_sym *sym;
+  khash_t(addr2sym) * db;
 
-  v = strdup(symname);
-  if (v == NULL) {
+  sym = calloc(1, sizeof(*sym));
+  if (sym == NULL) {
+    return -1;
+  }
+
+  sym->symname = strdup(symname);
+  if (sym->symname == NULL) {
+    return -1;
+  }
+
+  sym->modname = strdup(modname);
+  if (sym->modname == NULL) {
     return -1;
   }
 
   db = ((struct ipft_symsdb *)sdb)->addr2symname;
 
-  iter = kh_put(addr2symname, db, addr, &missing);
+  iter = kh_put(addr2sym, db, addr, &missing);
   if (!missing) {
     return -1;
   }
 
-  kh_value(db, iter) = v;
+  kh_value(db, iter) = sym;
 
   return 0;
 }
 
+struct ipft_sym unknown_sym = {
+    .modname = "(unknown)",
+    .symname = "(unknown)",
+};
+
 int
-symsdb_get_symname_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
-                           char **symnamep)
+symsdb_get_sym_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
+                       struct ipft_sym **symp)
 {
   khint_t iter;
-  khash_t(addr2symname) * db;
+  khash_t(addr2sym) * db;
 
   db = ((struct ipft_symsdb *)sdb)->addr2symname;
 
-  iter = kh_get(addr2symname, db, addr);
+  iter = kh_get(addr2sym, db, addr);
   if (iter == kh_end(db)) {
-    *symnamep = "(unknown)";
+    *symp = &unknown_sym;
     return -1;
   }
 
-  *symnamep = kh_value(db, iter);
+  *symp = kh_value(db, iter);
 
   return 0;
 }
@@ -291,6 +308,7 @@ populate_addr2symname_and_symname2addr(struct ipft_symsdb *sdb)
   uint64_t addr;
   char line[2048];
   char *symname, *endsym;
+  char *modname, *endmod;
 
   f = fopen("/proc/kallsyms", "r");
   if (f == NULL) {
@@ -328,6 +346,25 @@ populate_addr2symname_and_symname2addr(struct ipft_symsdb *sdb)
       endsym++;
     }
 
+    modname = endsym;
+    while (*modname && isspace(*modname)) {
+      modname++;
+    }
+
+    if (*modname == '[') {
+      endmod = modname;
+      modname++;
+      while (*endmod && *endmod != ']') {
+        endmod++;
+      }
+      if (*endmod != ']') {
+        modname = "(unknown)";
+      }
+      *endmod = '\0';
+    } else {
+      modname = "vmlinux";
+    }
+
     *endsym = '\0';
 
     /*
@@ -340,7 +377,7 @@ populate_addr2symname_and_symname2addr(struct ipft_symsdb *sdb)
     /*
      * This shouldn't fail
      */
-    error = put_addr2symname(sdb, addr, symname);
+    error = put_addr2sym(sdb, addr, symname, modname);
     if (error == -1) {
       ERROR("put_addr2sym failed\n");
       return -1;
@@ -359,7 +396,8 @@ populate_addr2symname_and_symname2addr(struct ipft_symsdb *sdb)
 }
 
 static int
-do_populate_syms(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
+do_populate_syms(struct ipft_symsdb *sdb, const char *modname, struct btf *btf,
+                 bool is_vmlinux_btf)
 {
   uint64_t addr;
   struct ipft_sym sym;
@@ -460,6 +498,16 @@ do_populate_syms(struct ipft_symsdb *sdb, struct btf *btf, bool is_vmlinux_btf)
         return -1;
       }
 
+      if (modname != NULL) {
+        sym.modname = strdup(modname);
+        if (sym.modname == NULL) {
+          ERROR("strdup failed\n");
+          return -1;
+        }
+      } else {
+        sym.modname = NULL;
+      }
+
       error = get_addr_by_symname(sdb, sym.symname, &addr);
       if (error == -1) {
         ERROR("get_addr_by_symname failed\n");
@@ -506,7 +554,7 @@ populate_syms(struct ipft_symsdb *sdb)
     return -1;
   }
 
-  error = do_populate_syms(sdb, vmlinux_btf, true);
+  error = do_populate_syms(sdb, "vmlinux", vmlinux_btf, true);
   if (error == -1) {
     ERROR("btf_fill_sym2info failed\n");
     return -1;
@@ -525,6 +573,12 @@ populate_syms(struct ipft_symsdb *sdb)
 
   while (true) {
     int fd;
+    char name[64] = {0};
+    struct bpf_btf_info info = {0};
+    uint32_t info_len = sizeof(info);
+
+    info.name = (__u64)name;
+    info.name_len = sizeof(name);
 
     error = bpf_btf_get_next_id(id, &id);
     if (error && errno == ENOENT) {
@@ -542,6 +596,12 @@ populate_syms(struct ipft_symsdb *sdb)
       return -1;
     }
 
+    error = bpf_obj_get_info_by_fd(fd, &info, &info_len);
+    if (error == -1) {
+      ERROR("bpf_obj_get_info_by_fd failed: %s\n", strerror(errno));
+      return -1;
+    }
+
     btf = btf__load_from_kernel_by_id_split(id, vmlinux_btf);
     if (btf == NULL) {
       ERROR("btf__load_from_kernel_by_id failed\n");
@@ -550,7 +610,7 @@ populate_syms(struct ipft_symsdb *sdb)
 
     btf__set_fd(btf, fd);
 
-    error = do_populate_syms(sdb, btf, false);
+    error = do_populate_syms(sdb, (const char *)info.name, btf, false);
     if (error == -1) {
       ERROR("btf_fill_sym2info failed\n");
       return -1;
@@ -586,7 +646,7 @@ symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt)
     return -1;
   }
 
-  sdb->addr2symname = kh_init(addr2symname);
+  sdb->addr2symname = kh_init(addr2sym);
   if (sdb->addr2symname == NULL) {
     ERROR("kh_init failed\n");
     return -1;

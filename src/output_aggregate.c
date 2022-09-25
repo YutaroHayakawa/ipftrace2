@@ -93,7 +93,7 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray,
               uint32_t count)
 {
   int error;
-  char *symname;
+  struct ipft_sym *sym;
   struct ipft_event *e;
 
   for (uint32_t i = 0; i < count; i++) {
@@ -101,11 +101,12 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray,
 
     /* Actually, this won't fail. When name resolution fails, symbol name
      * (unknown) will be returned. */
-    symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
+    symsdb_get_sym_by_addr(out->base.sdb, e->faddr, &sym);
 
     if (out->base.script != NULL) {
       /* Print basic data */
-      printf("%-20zu %03u %32.32s ( ", e->tstamp, e->processor_id, symname);
+      printf("%-20zu %03u %24.24s %32.32s ( ", e->tstamp, e->processor_id,
+             sym->modname, sym->symname);
 
       /* Execute script and print results */
       error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
@@ -116,7 +117,8 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray,
 
       printf(")\n");
     } else {
-      printf("%-20zu %03u %32.32s\n", e->tstamp, e->processor_id, symname);
+      printf("%-20zu %03u %24.24s %32.32s\n", e->tstamp, e->processor_id,
+             sym->modname, sym->symname);
     }
   }
 
@@ -128,14 +130,14 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
                     uint32_t count)
 {
   int error;
-  char *symname;
+  struct ipft_sym *sym;
   struct ipft_event *e;
 
   uint32_t indent = 0;
   for (uint32_t i = 0; i < count; i++) {
     e = earray[i];
 
-    error = symsdb_get_symname_by_addr(out->base.sdb, e->faddr, &symname);
+    error = symsdb_get_sym_by_addr(out->base.sdb, e->faddr, &sym);
     if (error == -1) {
       ERROR("Failed to resolve the symbol from address\n");
       return -1;
@@ -143,11 +145,12 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
 
     char s[64] = {0};
     if (!e->is_return) {
-      sprintf(s, "%-*s%s() {", indent * 2, "", symname);
+      sprintf(s, "%-*s%s() {", indent * 2, "", sym->symname);
 
       if (out->base.script != NULL) {
         /* Print basic data */
-        printf("%-20zu %03u %-64.64s ( ", e->tstamp, e->processor_id, s);
+        printf("%-20zu %03u %24.24s %-64.64s ( ", e->tstamp, e->processor_id,
+               sym->modname, s);
 
         /* Execute script and print results */
         error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
@@ -158,7 +161,8 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
 
         printf(")\n");
       } else {
-        printf("%-20zu %03u %-64.64s\n", e->tstamp, e->processor_id, s);
+        printf("%-20zu %03u %24.24s %-64.64s\n", e->tstamp, e->processor_id,
+               sym->modname, s);
       }
 
       /*
@@ -181,7 +185,8 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
 
       if (out->base.script != NULL) {
         /* Print basic data */
-        printf("%-20zu %03u %-64.64s ( ", e->tstamp, e->processor_id, s);
+        printf("%-20zu %03u %24.24s %-64.64s ( ", e->tstamp, e->processor_id,
+               sym->modname, s);
 
         /* Execute script and print results */
         error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
@@ -192,7 +197,8 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
 
         printf(")\n");
       } else {
-        printf("%-20zu %03u %-64.64s\n", e->tstamp, e->processor_id, s);
+        printf("%-20zu %03u %24.24s %-64.64s\n", e->tstamp, e->processor_id,
+               sym->modname, s);
       }
     }
   }
@@ -211,7 +217,8 @@ aggregate_output_post_trace(struct ipft_output *_out)
 
   printf("\n");
 
-  printf("%-20s %3.3s %32.32s\n", "Timestamp", "CPU", "Function");
+  printf("%-20s %3.3s %24.24s %32.32s\n", "Timestamp", "CPU", "Module",
+         "Function");
   kh_foreach_value(
       out->trace, l, printf("===\n");
 
