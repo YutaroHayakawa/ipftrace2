@@ -26,7 +26,7 @@
 ipftrace2 is a single-binary application. You don't have to install any dependencies.
 
 ```
-curl -OL https://github.com/YutaroHayakawa/ipftrace2/releases/download/v0.7.0/ipftrace2_amd64.tar.gz
+curl -OL https://github.com/YutaroHayakawa/ipftrace2/releases/latest/download/ipftrace2_amd64.tar.gz
 tar xvf ipftrace2_amd64.tar.gz
 sudo cp ipft /usr/local/bin/ipft
 ```
