@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Build ipft binary with Docker
       run: |
@@ -28,7 +28,7 @@ jobs:
     needs: build_binary
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Download ipft binary
       uses: actions/download-artifact@v3
@@ -58,7 +58,7 @@ jobs:
     needs: build_binary
     steps:
     - name: Checkout
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Download ipft binary
       uses: actions/download-artifact@v3
