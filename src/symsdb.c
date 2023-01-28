@@ -80,7 +80,7 @@ static int
 put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *symname,
              char *modname)
 {
-  int missing;
+  int error;
   khint_t iter;
   struct ipft_sym *sym;
   khash_t(addr2sym) * db;
@@ -102,9 +102,13 @@ put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *symname,
 
   db = ((struct ipft_symsdb *)sdb)->addr2symname;
 
-  iter = kh_put(addr2sym, db, addr, &missing);
-  if (!missing) {
+  iter = kh_put(addr2sym, db, addr, &error);
+  if (error == -1) {
     return -1;
+  } else if (error == 0) {
+    VERBOSE("Duplicated address found %p for symbol %s at module %s\n",
+        (void *)addr, symname, modname);
+    return 0;
   }
 
   kh_value(db, iter) = sym;
