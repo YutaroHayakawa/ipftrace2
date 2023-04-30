@@ -36,6 +36,7 @@ static struct option options[] = {
     {"no-set-rlimit", no_argument, 0, '0'},
     {"enable-probe-server", no_argument, 0, '0'},
     {"probe-server-port", required_argument, 0, '0'},
+    {"gen", required_argument, 0, '0'},
     {NULL, 0, 0, 0},
 };
 
@@ -48,6 +49,7 @@ usage(void)
        " -b, --backend            [BACKEND]       Specify trace backend\n"
        " -e, --extension          [PATH]          Path to extension "
        "(the file name must be have .c, .o, or .lua suffix)\n"
+       "     --gen                [TARGET]        Generate something\n"
        " -h, --help                               Show this text\n"
        " -l, --list                               List functions\n"
        " -m, --mark               [NUMBER]        Trace the packet marked "
@@ -76,6 +78,7 @@ usage(void)
        "BACKEND       := { kprobe, ftrace, kprobe-multi }\n"
        "OUTPUT-FORMAT := { aggregate, json }\n"
        "TRACER-TYPE   := { function, function_graph (experimental) }\n"
+       "TARGET        := { bpf-module-skeleton }\n"
        "\n");
 }
 
@@ -188,6 +191,15 @@ do_set_rlimit(void)
   return 0;
 }
 
+static void
+do_gen(const char *target)
+{
+  if (strcmp(target, "bpf-module-skeleton") == 0) {
+    gen_bpf_module_skeleton();
+    return;
+  }
+}
+
 static bool
 is_unwanted_message(const char *fmt)
 {
@@ -233,8 +245,9 @@ main(int argc, char **argv)
   const char *optname;
   struct ipft_tracer *t;
   struct ipft_tracer_opt opt;
-  bool list = false;
   bool set_rlimit = true;
+  bool list = false, gen = false;
+  char *gen_target;
 
   opt_init(&opt);
 
@@ -333,11 +346,22 @@ main(int argc, char **argv)
         break;
       }
 
+      if (strcmp(optname, "gen") == 0) {
+        gen = true;
+        gen_target = strdup(optarg);
+        break;
+      }
+
       break;
     default:
       usage();
       goto end;
     }
+  }
+
+  if (gen) {
+    do_gen(gen_target);
+    return EXIT_SUCCESS;
   }
 
   if (set_rlimit) {

@@ -119,3 +119,44 @@ libbpf_error_string(int error)
   libbpf_strerror(error, buf, sizeof(buf));
   return buf;
 }
+
+void
+gen_bpf_module_skeleton(void)
+{
+  printf(
+      "#include <linux/types.h>\n"
+      "#include <bpf/bpf_helpers.h>\n"
+      "#include <bpf/bpf_core_read.h>\n"
+      "\n"
+      "#define __ipft_sec_skip           "
+      "__attribute__((section(\"__ipft_skip\")))\n"
+      "#define __ipft_event_struct       __ipft_event_struct __ipft_sec_skip\n"
+      "\n"
+      "struct event {\n"
+      "  /* Your fields comes here */\n"
+      "  unsigned int len;\n"
+      "} __ipft_event_struct;\n"
+      "\n"
+      "/*\n"
+      " * This is an only subset of actual sk_buff definitions but no "
+      "problem.\n"
+      " * Because BPF-CORE feature of libbpf loader takes care of rewrite "
+      "this\n"
+      " * program based on actual definition from kernel BTF.\n"
+      " */\n"
+      "struct sk_buff {\n"
+      "  /* Your fields comes here. Below is an example. */\n"
+      "  unsigned int len;\n"
+      "};\n"
+      "\n"
+      "__hidden int\n"
+      "module(void *ctx, struct sk_buff *skb, __u8 data[64])\n"
+      "{\n"
+      "  struct event *ev = (struct event *)data;\n"
+      "\n"
+      "  /* Your logic comes here. Below is an example. */\n"
+      "  ev->len = BPF_CORE_READ(skb, len);\n"
+      "\n"
+      "  return 0;\n"
+      "}\n");
+}
