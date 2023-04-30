@@ -84,17 +84,15 @@ function init()
   print("init")
 end
 
-function emit()
-  -- Emit compiled ELF image of C custom program with binary string. You can
-  -- also embed binary string directly to here. A quick one liner to generate
-  -- string binary string is following.
-  --
-  -- od -An -tx1 -v foo.bpf.o | sed "s/ /\\\x/g" | tr -d "\n"
-  --
-  return io.open("foo.bpf.o", "rb"):read("*all")
-end
+-- Emit compiled ELF image of C custom program with binary string. You can
+-- also embed binary string directly to here. A quick one liner to generate
+-- string binary string is following.
+--
+-- od -An -tx1 -v foo.bpf.o | sed "s/ /\\\x/g" | tr -d "\n"
+--
+program = io.open("foo.bpf.o", "rb"):read("*all")
 
-function dump(data)
+function decode(data)
   -- Called multiple times for every tracing output. Parse binary data (which
   -- comes from `data` buffer of C module() function) and generate flat table
   -- that maps string to string/number. Type other than string/number or nested
