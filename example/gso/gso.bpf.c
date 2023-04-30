@@ -3,16 +3,15 @@
  * Copyright (C) 2020-present Yutaro Hayakawa
  */
 
-#include <stdint.h>
-#include <linux/ptrace.h>
+#include <linux/types.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 
-struct gso_info {
+struct event {
   unsigned int len;
-  uint16_t gso_size;
-  uint16_t gso_segs;
-  uint32_t gso_type;
+  __u16 gso_size;
+  __u16 gso_segs;
+  __u32 gso_type;
 };
 
 /*
@@ -28,18 +27,18 @@ struct sk_buff {
 };
 
 struct skb_shared_info {
-  uint16_t gso_size;
-  uint16_t gso_segs;
-  uint32_t gso_type;
+  __u16 gso_size;
+  __u16 gso_segs;
+  __u32 gso_type;
 };
 
 __hidden int
-module(void *ctx, struct sk_buff *skb, uint8_t data[64])
+module(void *ctx, struct sk_buff *skb, __u8 data[64])
 {
   unsigned int end;
   unsigned char *head;
   struct skb_shared_info *shinfo;
-  struct gso_info *info = (struct gso_info *)data;
+  struct event *ev = (struct event *)data;
 
   head = BPF_CORE_READ(skb, head);
   end = BPF_CORE_READ(skb, end);
@@ -51,10 +50,10 @@ module(void *ctx, struct sk_buff *skb, uint8_t data[64])
    */
   shinfo = (struct skb_shared_info *)(head + end);
 
-  info->len = BPF_CORE_READ(skb, len);
-  info->gso_size = BPF_CORE_READ(shinfo, gso_size);
-  info->gso_segs = BPF_CORE_READ(shinfo, gso_segs);
-  info->gso_type = BPF_CORE_READ(shinfo, gso_type);
+  ev->len = BPF_CORE_READ(skb, len);
+  ev->gso_size = BPF_CORE_READ(shinfo, gso_size);
+  ev->gso_segs = BPF_CORE_READ(shinfo, gso_segs);
+  ev->gso_type = BPF_CORE_READ(shinfo, gso_type);
 
   return 0;
 }
