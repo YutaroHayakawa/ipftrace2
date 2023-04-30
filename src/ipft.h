@@ -177,3 +177,4 @@ int probe_kprobe_multi(void);
 char *libbpf_error_string(int error);
 
 void gen_bpf_module_skeleton(void);
+void gen_bpf_module_header(void);

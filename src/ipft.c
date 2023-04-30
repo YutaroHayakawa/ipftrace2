@@ -78,7 +78,7 @@ usage(void)
        "BACKEND       := { kprobe, ftrace, kprobe-multi }\n"
        "OUTPUT-FORMAT := { aggregate, json }\n"
        "TRACER-TYPE   := { function, function_graph (experimental) }\n"
-       "TARGET        := { bpf-module-skeleton }\n"
+       "TARGET        := { bpf-module-skeleton, bpf-module-header }\n"
        "\n");
 }
 
@@ -196,6 +196,11 @@ do_gen(const char *target)
 {
   if (strcmp(target, "bpf-module-skeleton") == 0) {
     gen_bpf_module_skeleton();
+    return;
+  }
+
+  if (strcmp(target, "bpf-module-header") == 0) {
+    gen_bpf_module_header();
     return;
   }
 }

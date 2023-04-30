@@ -11,9 +11,64 @@
 #include <bpf/libbpf.h>
 
 #include "ipft.h"
-#include <bpf/libbpf_legacy.h>
 
 #define EVENT_STRUCT_SYM "__ipft_event_struct"
+#define COMPILE_CMD_FMT "%s -target bpf -O2 -g -c -o - %s %s"
+
+const char *bpf_module_preamble =
+    "#include <linux/types.h>\n"
+    "#include <bpf/bpf_helpers.h>\n"
+    "#include <bpf/bpf_core_read.h>\n"
+    "\n"
+    "#define __ipft_sec_skip __attribute__((section(\"__ipft_skip\")))\n"
+    "#define " EVENT_STRUCT_SYM " " EVENT_STRUCT_SYM " __ipft_sec_skip\n";
+
+void
+gen_bpf_module_skeleton(void)
+{
+  printf("%s"
+         "\n"
+         "struct event {\n"
+         "  /* Your fields comes here */\n"
+         "  unsigned int len;\n"
+         "} __ipft_event_struct;\n"
+         "\n"
+         "/*\n"
+         " * This is an only subset of actual sk_buff definitions but no "
+         "problem.\n"
+         " * Because BPF-CORE feature of libbpf loader takes care of rewrite "
+         "this\n"
+         " * program based on actual definition from kernel BTF.\n"
+         " */\n"
+         "struct sk_buff {\n"
+         "  /* Your fields comes here. Below is an example. */\n"
+         "  unsigned int len;\n"
+         "};\n"
+         "\n"
+         "__hidden int\n"
+         "module(void *ctx, struct sk_buff *skb, __u8 data[64])\n"
+         "{\n"
+         "  struct event *ev = (struct event *)data;\n"
+         "\n"
+         "  /* Your logic comes here. Below is an example. */\n"
+         "  ev->len = BPF_CORE_READ(skb, len);\n"
+         "\n"
+         "  return 0;\n"
+         "}\n",
+         bpf_module_preamble);
+}
+
+void
+gen_bpf_module_header(void)
+{
+  printf("#ifndef __IPFT_EXTENSION_H__\n"
+         "#define __IPFT_EXTENSION_H__\n"
+         "\n"
+         "%s"
+         "\n"
+         "#endif\n",
+         bpf_module_preamble);
+}
 
 typedef void (*printfn)(FILE *, void *);
 
@@ -209,8 +264,8 @@ read_object(FILE *f, uint8_t **bufp, size_t *sizep)
   return 0;
 }
 
-static int
-compile_and_read(const char *path, uint8_t **bufp, size_t *sizep)
+static char *
+gen_compile_command(const char *path)
 {
   int error;
   char *cmd;
@@ -225,9 +280,24 @@ compile_and_read(const char *path, uint8_t **bufp, size_t *sizep)
     cflags = "";
   }
 
-  error = asprintf(&cmd, "%s -target bpf -O2 -g -c -o - %s %s", cc, cflags, path);
+  error = asprintf(&cmd, COMPILE_CMD_FMT, cc, cflags, path);
   if (error == -1) {
     ERROR("asprintf failed\n");
+    return NULL;
+  }
+
+  return cmd;
+}
+
+static int
+compile_and_read(const char *path, uint8_t **bufp, size_t *sizep)
+{
+  int error;
+  char *cmd;
+
+  cmd = gen_compile_command(path);
+  if (cmd == NULL) {
+    ERROR("Failed to generate compile command\n");
     return -1;
   }
 
@@ -252,7 +322,7 @@ compile_and_read(const char *path, uint8_t **bufp, size_t *sizep)
   }
 
   if (error != 0) {
-    ERROR("Got an error code from C compiler (%s): %d\n", cc, error);
+    ERROR("Got an error code from C compiler (command: %s)\n", cmd);
     return -1;
   }
 
