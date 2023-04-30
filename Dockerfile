@@ -27,6 +27,6 @@ RUN tar xvf lua-5.4.4.tar.gz
 RUN cd lua-5.4.4 && make && make install
 RUN rm -rf lua-5.4.4 lua-5.4.4.tar.gz
 
-RUN git clone -b v1.0.0 https://github.com/libbpf/libbpf
+RUN git clone -b v1.1.0 https://github.com/libbpf/libbpf
 RUN cd libbpf/src && make install BUILD_STATIC_ONLY=1
 RUN rm -rf libbpf
