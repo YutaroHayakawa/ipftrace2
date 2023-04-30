@@ -142,6 +142,59 @@ get_max_skb_pos_for_backend(enum ipft_backends backend)
   }
 }
 
+enum ipft_extensions
+get_extension_id_by_name(const char *name)
+{
+  if (strcmp(name, "lua") == 0) {
+    return IPFT_EXTENSION_LUA;
+  }
+
+  if (strcmp(name, "bpf-c") == 0) {
+    return IPFT_EXTENSION_BPF_C;
+  }
+
+  if (strcmp(name, "bpf-object") == 0) {
+    return IPFT_EXTENSION_BPF_O;
+  }
+
+  return IPFT_EXTENSION_UNSPEC;
+}
+
+const char *
+get_extension_name_by_id(enum ipft_extensions id)
+{
+  switch (id) {
+  case IPFT_EXTENSION_LUA:
+    return "lua";
+  case IPFT_EXTENSION_BPF_C:
+    return "bpf-c";
+  case IPFT_EXTENSION_BPF_O:
+    return "bpf-object";
+  default:
+    return NULL;
+  }
+}
+
+enum ipft_extensions
+select_extension_for_path(const char *path)
+{
+  size_t len = strlen(path);
+
+  if (len >= 2 && strcmp(path + len - 2, ".c") == 0) {
+    return IPFT_EXTENSION_BPF_C;
+  }
+
+  if (len >= 2 && strcmp(path + len - 2, ".o") == 0) {
+    return IPFT_EXTENSION_BPF_O;
+  }
+
+  if (len >= 4 && strcmp(path + len - 4, ".lua") == 0) {
+    return IPFT_EXTENSION_LUA;
+  }
+
+  return IPFT_EXTENSION_UNSPEC;
+}
+
 static struct {
   size_t total;
   size_t succeeded;
@@ -866,6 +919,16 @@ tracer_run(struct ipft_tracer *t)
   int error;
   pthread_t thread;
 
+  if (t->script != NULL) {
+    script_init(t->script);
+
+    error = script_init_decoder(t->script, t->bpf);
+    if (error == -1) {
+      ERROR("script_init_decoder failed\n");
+      return -1;
+    }
+  }
+
   error = attach_all(t);
   if (error) {
     ERROR("attach_all failed\n");
@@ -970,7 +1033,7 @@ tracer_create(struct ipft_tracer **tp, struct ipft_tracer_opt *opt)
     return -1;
   }
 
-  error = script_create(&t->script, opt->script);
+  error = script_create(&t->script, opt->extension, opt->extension_path);
   if (error == -1) {
     ERROR("script_create failed\n");
     return -1;

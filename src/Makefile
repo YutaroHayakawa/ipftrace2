@@ -12,6 +12,7 @@ OBJS := \
   utils.o \
   script.o \
   script_lua.o \
+  script_bpf.o \
 
 CFLAGS := \
   -g \

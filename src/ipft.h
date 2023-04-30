@@ -7,6 +7,7 @@
 #include <linux/perf_event.h>
 
 #include <uapi/linux/bpf.h>
+#include <bpf/libbpf.h>
 
 #include "ipft_common.h"
 
@@ -71,6 +72,13 @@ enum ipft_outputs {
   IPFT_OUTPUT_JSON,
 };
 
+enum ipft_extensions {
+  IPFT_EXTENSION_UNSPEC,
+  IPFT_EXTENSION_LUA,
+  IPFT_EXTENSION_BPF_C,
+  IPFT_EXTENSION_BPF_O,
+};
+
 struct ipft_tracer_opt {
   enum ipft_tracers tracer;
   enum ipft_backends backend;
@@ -78,7 +86,8 @@ struct ipft_tracer_opt {
   uint32_t mask;
   char *regex;
   char *module_regex;
-  char *script;
+  enum ipft_extensions extension;
+  char *extension_path;
   enum ipft_outputs output;
   size_t perf_page_cnt;
   uint64_t perf_sample_period;
@@ -112,6 +121,7 @@ struct ipft_script {
   void (*init)(struct ipft_script *);
   void (*fini)(struct ipft_script *);
   int (*get_program)(struct ipft_script *, uint8_t **, size_t *);
+  int (*init_decoder)(struct ipft_script *, struct bpf_object *bpf);
   int (*decode)(struct ipft_script *, uint8_t *, size_t,
                 int (*)(const char *, size_t, const char *, size_t));
 };
@@ -123,6 +133,9 @@ const char *get_backend_name_by_id(enum ipft_backends backend);
 enum ipft_backends select_backend_for_tracer(enum ipft_tracers tracer);
 int get_max_args_for_backend(enum ipft_backends backend);
 int get_max_skb_pos_for_backend(enum ipft_backends backend);
+enum ipft_extensions get_extension_id_by_name(const char *name);
+const char *get_extension_name_by_id(enum ipft_extensions extension);
+enum ipft_extensions select_extension_for_path(const char *path);
 
 int symsdb_create(struct ipft_symsdb **sdbp, struct ipft_symsdb_opt *opt);
 int symsdb_get_sym_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
@@ -134,12 +147,16 @@ int symsdb_get_syms_total_by_pos(struct ipft_symsdb *sdb, int pos);
 int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);
 
-int script_create(struct ipft_script **scriptp, const char *path);
+int script_create(struct ipft_script **scriptp, enum ipft_extensions extension,
+                  const char *path);
 int lua_script_create(struct ipft_script **scriptp, const char *path);
+int bpf_script_create(struct ipft_script **scriptp, const char *path,
+                      bool needs_compile);
 void script_init(struct ipft_script *script);
 void script_fini(struct ipft_script *script);
 int script_get_program(struct ipft_script *script, uint8_t **imagep,
                        size_t *image_sizep);
+int script_init_decoder(struct ipft_script *script, struct bpf_object *bpf);
 int script_decode(struct ipft_script *script, uint8_t *data, size_t len,
                   int (*cb)(const char *, size_t, const char *, size_t));
 

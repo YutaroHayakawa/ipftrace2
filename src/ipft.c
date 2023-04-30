@@ -20,6 +20,7 @@ bool verbose = false;
 
 static struct option options[] = {
     {"backend", required_argument, 0, 'b'},
+    {"extension", required_argument, 0, 'e'},
     {"help", no_argument, 0, 'h'},
     {"list", no_argument, 0, 'l'},
     {"mark", required_argument, 0, 'm'},
@@ -45,6 +46,8 @@ usage(void)
        "\n"
        "Options:\n"
        " -b, --backend            [BACKEND]       Specify trace backend\n"
+       " -e, --extension          [PATH]          Path to extension "
+       "(the file name must be have .c, .o, or .lua suffix)\n"
        " -h, --help                               Show this text\n"
        " -l, --list                               List functions\n"
        " -m, --mark               [NUMBER]        Trace the packet marked "
@@ -56,7 +59,8 @@ usage(void)
        " -o, --output             [OUTPUT-FORMAT] Specify output format\n"
        " -r, --regex              [REGEX]         Filter the function to "
        "trace with regex\n"
-       " -s, --script             [PATH]          Path to extension script\n"
+       " -s, --script             [PATH]          Path to extension "
+       "Lua script (deprecated, use -e instead)\n"
        " -t, --tracer             [TRACER-TYPE]   Specify tracer type\n"
        " -v, --verbose                            Turn on debug message\n"
        "   , --perf-page-count    [NUMBER]        See page_count of "
@@ -87,7 +91,7 @@ opt_init(struct ipft_tracer_opt *opt)
   opt->perf_wakeup_events = 1;
   opt->regex = NULL;
   opt->module_regex = NULL;
-  opt->script = NULL;
+  opt->extension_path = NULL;
   opt->tracer = IPFT_TRACER_FUNCTION;
   opt->enable_probe_server = false;
   opt->probe_server_port = 13720;
@@ -102,7 +106,8 @@ opt_dump(struct ipft_tracer_opt *opt)
   INFO("mask               : 0x%x\n", opt->mask);
   INFO("module-regex       : %s\n", opt->module_regex);
   INFO("regex              : %s\n", opt->regex);
-  INFO("script             : %s\n", opt->script);
+  INFO("extension          : %s\n", get_extension_name_by_id(opt->extension));
+  INFO("extension_path     : %s\n", opt->extension_path);
   INFO("tracer             : %s\n", get_tracer_name_by_id(opt->tracer));
   INFO("output             : %s\n", get_output_name_by_id(opt->output));
   INFO("perf_page_cnt      : %zu\n", opt->perf_page_cnt);
@@ -183,9 +188,40 @@ do_set_rlimit(void)
   return 0;
 }
 
+static bool
+is_unwanted_message(const char *fmt)
+{
+  /* We want to ignore this message because it we intentionally use
+   * __ipft_skip section to put the variables we don't want to
+   * instantiate.
+   */
+  if (strstr(fmt, "libbpf: elf: skipping unrecognized data section") == fmt) {
+    return true;
+  }
+  return false;
+}
+
 static int
 debug_print(__unused enum libbpf_print_level level, const char *fmt, va_list ap)
 {
+  if (is_unwanted_message(fmt)) {
+    return 0;
+  }
+  return vfprintf(stderr, fmt, ap);
+}
+
+static int
+default_print(__unused enum libbpf_print_level level, const char *fmt,
+              va_list ap)
+{
+  if (level == LIBBPF_DEBUG) {
+    return 0;
+  }
+
+  if (is_unwanted_message(fmt)) {
+    return 0;
+  }
+
   return vfprintf(stderr, fmt, ap);
 }
 
@@ -202,7 +238,7 @@ main(int argc, char **argv)
 
   opt_init(&opt);
 
-  while ((c = getopt_long(argc, argv, "b:hlm:o:r:s:t:v", options, &optind)) !=
+  while ((c = getopt_long(argc, argv, "b:e:hlm:o:r:s:t:v", options, &optind)) !=
          -1) {
     switch (c) {
     case 'b':
@@ -212,6 +248,15 @@ main(int argc, char **argv)
         usage();
         goto end;
       }
+      break;
+    case 'e':
+      opt.extension = select_extension_for_path(optarg);
+      if (opt.extension == IPFT_EXTENSION_UNSPEC) {
+        ERROR("Invalid file name %s\n", optarg);
+        usage();
+        goto end;
+      }
+      opt.extension_path = strdup(optarg);
       break;
     case 'l':
       list = true;
@@ -231,7 +276,8 @@ main(int argc, char **argv)
       opt.regex = strdup(optarg);
       break;
     case 's':
-      opt.script = strdup(optarg);
+      opt.extension = IPFT_EXTENSION_LUA;
+      opt.extension_path = strdup(optarg);
       break;
     case 't':
       opt.tracer = get_tracer_id_by_name(optarg);
@@ -321,6 +367,8 @@ main(int argc, char **argv)
     libbpf_set_print(debug_print);
     /* Print out all options user provided */
     opt_dump(&opt);
+  } else {
+    libbpf_set_print(default_print);
   }
 
   error = tracer_create(&t, &opt);

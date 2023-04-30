@@ -179,6 +179,13 @@ decode(struct ipft_script *_script, uint8_t *data, size_t len,
   return 0;
 }
 
+static int
+init_decoder(struct ipft_script *script __unused,
+             struct bpf_object *bpf __unused)
+{
+  return 0;
+}
+
 int
 lua_script_create(struct ipft_script **scriptp, const char *path)
 {
@@ -226,6 +233,7 @@ lua_script_create(struct ipft_script **scriptp, const char *path)
   script->base.init = init;
   script->base.fini = fini;
   script->base.get_program = get_program;
+  script->base.init_decoder = init_decoder;
   script->base.decode = decode;
 
   script->L = L;
