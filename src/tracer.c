@@ -908,7 +908,7 @@ tracer_run(struct ipft_tracer *t)
   }
 
   if (t->script != NULL) {
-    script_exec_fini(t->script);
+    script_fini(t->script);
   }
 
   return 0;

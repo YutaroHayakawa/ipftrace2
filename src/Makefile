@@ -11,6 +11,7 @@ OBJS := \
   tracer.o \
   utils.o \
   script.o \
+  script_lua.o \
 
 CFLAGS := \
   -g \

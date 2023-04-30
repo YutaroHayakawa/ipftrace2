@@ -108,6 +108,14 @@ struct ipft_output {
   int (*post_trace)(struct ipft_output *);
 };
 
+struct ipft_script {
+  void (*init)(struct ipft_script *);
+  void (*fini)(struct ipft_script *);
+  int (*get_program)(struct ipft_script *, uint8_t **, size_t *);
+  int (*decode)(struct ipft_script *, uint8_t *, size_t,
+                int (*)(const char *, size_t, const char *, size_t));
+};
+
 enum ipft_tracers get_tracer_id_by_name(const char *name);
 const char *get_tracer_name_by_id(enum ipft_tracers tracer);
 enum ipft_backends get_backend_id_by_name(const char *name);
@@ -127,11 +135,13 @@ int regex_create(struct ipft_regex **rep, const char *regex);
 bool regex_match(struct ipft_regex *re, const char *s);
 
 int script_create(struct ipft_script **scriptp, const char *path);
+int lua_script_create(struct ipft_script **scriptp, const char *path);
+void script_init(struct ipft_script *script);
+void script_fini(struct ipft_script *script);
 int script_get_program(struct ipft_script *script, uint8_t **imagep,
                        size_t *image_sizep);
-int script_exec_decode(struct ipft_script *script, uint8_t *data, size_t len,
-                       int (*cb)(const char *, size_t, const char *, size_t));
-void script_exec_fini(struct ipft_script *script);
+int script_decode(struct ipft_script *script, uint8_t *data, size_t len,
+                  int (*cb)(const char *, size_t, const char *, size_t));
 
 const char *get_output_name_by_id(enum ipft_outputs id);
 enum ipft_outputs get_output_id_by_name(const char *name);

@@ -109,8 +109,8 @@ dump_function(struct aggregate_output *out, struct ipft_event **earray,
              sym->modname, sym->symname);
 
       /* Execute script and print results */
-      error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
-                                 print_script_output);
+      error = script_decode(out->base.script, e->data, sizeof(e->data),
+                            print_script_output);
       if (error == -1) {
         return -1;
       }
@@ -153,8 +153,8 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
                sym->modname, s);
 
         /* Execute script and print results */
-        error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
-                                   print_script_output);
+        error = script_decode(out->base.script, e->data, sizeof(e->data),
+                              print_script_output);
         if (error == -1) {
           return -1;
         }
@@ -189,8 +189,8 @@ dump_function_graph(struct aggregate_output *out, struct ipft_event **earray,
                sym->modname, s);
 
         /* Execute script and print results */
-        error = script_exec_decode(out->base.script, e->data, sizeof(e->data),
-                                   print_script_output);
+        error = script_decode(out->base.script, e->data, sizeof(e->data),
+                              print_script_output);
         if (error == -1) {
           return -1;
         }

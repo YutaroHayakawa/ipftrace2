@@ -107,7 +107,7 @@ put_addr2sym(struct ipft_symsdb *sdb, uint64_t addr, char *symname,
     return -1;
   } else if (error == 0) {
     VERBOSE("Duplicated address found %p for symbol %s at module %s\n",
-        (void *)addr, symname, modname);
+            (void *)addr, symname, modname);
     return 0;
   }
 
