@@ -1,0 +1,56 @@
+/*
+ * SPDX-License-Identifier: GPL-2.0-only
+ * Copyright (C) 2023-present Yutaro Hayakawa
+ */
+
+#include <linux/types.h>
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
+
+#define __ipft_sec_skip           __attribute__((section("__ipft_skip")))
+#define __ipft_event_struct       __ipft_event_struct __ipft_sec_skip
+
+struct event {
+  unsigned int len;
+  __u16 gso_size;
+  __u16 gso_segs;
+  __u32 gso_type;
+} __ipft_event_struct;
+
+struct sk_buff {
+  unsigned int len;
+  unsigned char *head;
+  unsigned int end;
+};
+
+struct skb_shared_info {
+  __u16 gso_size;
+  __u16 gso_segs;
+  __u32 gso_type;
+};
+
+__hidden int
+module(void *ctx, struct sk_buff *skb, __u8 data[64])
+{
+  unsigned int end;
+  unsigned char *head;
+  struct skb_shared_info *shinfo;
+  struct event *ev = (struct event *)data;
+
+  head = BPF_CORE_READ(skb, head);
+  end = BPF_CORE_READ(skb, end);
+
+  /*
+   * This calcuration only works when the kernel is compiled
+   * with NET_SKBUFF_DATA_USES_OFFSET=y because if it set to
+   * 'n', type of end is unsigned char *.
+   */
+  shinfo = (struct skb_shared_info *)(head + end);
+
+  ev->len = BPF_CORE_READ(skb, len);
+  ev->gso_size = BPF_CORE_READ(shinfo, gso_size);
+  ev->gso_segs = BPF_CORE_READ(shinfo, gso_segs);
+  ev->gso_type = BPF_CORE_READ(shinfo, gso_type);
+
+  return 0;
+}
