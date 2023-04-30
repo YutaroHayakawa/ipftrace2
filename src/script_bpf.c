@@ -1,7 +1,10 @@
-#include "linux/btf.h"
+#define _GNU_SOURCE
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
@@ -76,6 +79,7 @@ struct bpf_script {
   struct printer_inst *insts;
   size_t ninsts;
   const char *path;
+  bool needs_compile;
 };
 
 static const char *
@@ -178,33 +182,112 @@ fini(struct ipft_script *_script __unused)
 }
 
 static int
+read_object(FILE *f, uint8_t **bufp, size_t *sizep)
+{
+  FILE *mem = open_memstream((char **)bufp, sizep);
+  if (mem == NULL) {
+    ERROR("Failed to open memstream\n");
+    return -1;
+  }
+
+  while (true) {
+    uint8_t buf[256];
+
+    size_t nread = fread(buf, 1, sizeof(buf), f);
+    if (nread == 0) {
+      break;
+    }
+
+    size_t nwrite = fwrite(buf, 1, nread, mem);
+    if (nwrite != nread) {
+      break;
+    }
+  }
+
+  fclose(mem);
+
+  return 0;
+}
+
+static int
+compile_and_read(const char *path, uint8_t **bufp, size_t *sizep)
+{
+  int error;
+  char *cmd;
+
+  const char *cc = getenv("CC");
+  if (cc == NULL) {
+    cc = "clang";
+  }
+
+  const char *cflags = getenv("CFLAGS");
+  if (cflags == NULL) {
+    cflags = "";
+  }
+
+  error = asprintf(&cmd, "%s -target bpf -O2 -g -c -o - %s %s", cc, cflags, path);
+  if (error == -1) {
+    ERROR("asprintf failed\n");
+    return -1;
+  }
+
+  VERBOSE("cmd: %s\n", cmd);
+
+  FILE *p = popen(cmd, "r");
+  if (p == NULL) {
+    ERROR("popen failed\n");
+    return -1;
+  }
+
+  error = read_object(p, bufp, sizep);
+  if (error == -1) {
+    ERROR("read_object failed\n");
+    goto err0;
+  }
+
+  error = pclose(p);
+  if (error == -1) {
+    ERROR("pclose failed: %s\n", strerror(errno));
+    return -1;
+  }
+
+  if (error != 0) {
+    ERROR("Got an error code from C compiler (%s): %d\n", cc, error);
+    return -1;
+  }
+
+  return 0;
+
+err0:
+  pclose(p);
+  return -1;
+}
+
+static int
 get_program(struct ipft_script *_script, uint8_t **bufp, size_t *sizep)
 {
+  int error;
   struct bpf_script *script = (struct bpf_script *)_script;
 
-  FILE *f = fopen(script->path, "r");
-  if (f == NULL) {
-    ERROR("Couldn't open BPF ELF file: %s\n", script->path);
-    return -1;
+  if (script->needs_compile) {
+    error = compile_and_read(script->path, bufp, sizep);
+    if (error == -1) {
+      ERROR("compile_and_read failed\n");
+      return -1;
+    }
+  } else {
+    FILE *f = fopen(script->path, "r");
+    if (f == NULL) {
+      ERROR("failed to open %s\n", script->path);
+      return -1;
+    }
+
+    error = read_object(f, bufp, sizep);
+    if (error == -1) {
+      ERROR("read_object failed\n");
+      return -1;
+    }
   }
-
-  fseek(f, 0, SEEK_END);
-  size_t size = ftell(f);
-  rewind(f);
-
-  uint8_t *buf = malloc(size);
-  if (buf == NULL) {
-    ERROR("Failed to allocate memory\n");
-    return -1;
-  }
-
-  if (fread(buf, 1, size, f) != size) {
-    ERROR("Failed to read BPF ELF file\n");
-    return -1;
-  }
-
-  *bufp = buf;
-  *sizep = size;
 
   return 0;
 }
@@ -377,6 +460,7 @@ bpf_script_create(struct ipft_script **scriptp, const char *path,
   script->base.init_decoder = init_decoder;
   script->base.decode = decode;
   script->path = path;
+  script->needs_compile = needs_compile;
 
   *scriptp = &script->base;
 
