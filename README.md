@@ -172,7 +172,7 @@ TRACER-TYPE   := { function, function_graph (experimental) }
 
 ## Further reading
 
-- [Scripting manual](docs/scripting.md) gives you the guide to customize your tracing output with Lua script
+- [Lua extension manual](docs/lua_extension.md) gives you the guide to customize your tracing output with Lua script
 - With [output specification](docs/output.md), you can learn how to interpret the output
 - Understanding [marking](docs/marking.md) helps you a lot for fully utilizing the power of ipftrace2
 - Please check this [doc](docs/internals.md) out if you are interested in the ipftrace2 internals
