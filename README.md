@@ -113,10 +113,10 @@ $ sudo ipft -m 0xdeadbeef -t function_graph -o json
 
 #### Custom tracing output
 
-You can customize your tracing output by providing custom BPF and Lua program.
+You can customize your tracing output by providing custom extension.
 
 ```
-$ sudo ipft -m 0xdeadbeef -s script.lua
+$ sudo ipft -m 0xdeadbeef -e example.c
 <skip...>
 96976848684329       000                      nf_checksum ( len: 2822 )
 96976848692769       000                   nf_ip_checksum ( len: 2822 )
@@ -131,7 +131,7 @@ $ sudo ipft -m 0xdeadbeef -s script.lua
 Of course, you can use scripting together with JSON output.
 
 ```
-$ sudo ipft -m 0xdeadbeef -s script.lua -o json
+$ sudo ipft -m 0xdeadbeef -e example.c -o json
 <skip...>
 {"packet_id":"0xffff935007672900","timestamp":169530008921,"processor_id":0,"function":"__ip_finish_output","is_return":false,"len":"40"}
 {"packet_id":"0xffff935007672900","timestamp":169530010558,"processor_id":0,"function":"ip_finish_output2","is_return":false,"len":"40"}
@@ -148,6 +148,8 @@ Usage: ipft [OPTIONS]
 
 Options:
  -b, --backend            [BACKEND]       Specify trace backend
+ -e, --extension          [PATH]          Path to extension (the file name must be have .c, .o, or .lua suffix)
+     --gen                [TARGET]        Generate something
  -h, --help                               Show this text
  -l, --list                               List functions
  -m, --mark               [NUMBER]        Trace the packet marked with <mark> [required]
@@ -155,7 +157,7 @@ Options:
    , --module-regex       [REGEX]         Filter the function to trace by regex for kernel module's name
  -o, --output             [OUTPUT-FORMAT] Specify output format
  -r, --regex              [REGEX]         Filter the function to trace with regex
- -s, --script             [PATH]          Path to extension script
+ -s, --script             [PATH]          Path to extension Lua script (deprecated, use -e instead)
  -t, --tracer             [TRACER-TYPE]   Specify tracer type
  -v, --verbose                            Turn on debug message
    , --perf-page-count    [NUMBER]        See page_count of perf_event_open(2) man page (default: 8)
@@ -168,11 +170,13 @@ Options:
 BACKEND       := { kprobe, ftrace, kprobe-multi }
 OUTPUT-FORMAT := { aggregate, json }
 TRACER-TYPE   := { function, function_graph (experimental) }
+TARGET        := { bpf-module-skeleton, bpf-module-header }
 ```
 
 ## Further reading
 
-- [Lua extension manual](docs/lua_extension.md) gives you the guide to customize your tracing output with Lua script
+- [BPF extension manual (recommended)](docs/bpf_extension.md) gives you the guide guide to customize your tracing output
+- [Lua extension manual (deprecated)](docs/lua_extension.md) gives you the guide to customize your tracing output in legacy Lua extension
 - With [output specification](docs/output.md), you can learn how to interpret the output
 - Understanding [marking](docs/marking.md) helps you a lot for fully utilizing the power of ipftrace2
 - Please check this [doc](docs/internals.md) out if you are interested in the ipftrace2 internals
