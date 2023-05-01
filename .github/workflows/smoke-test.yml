@@ -35,9 +35,9 @@ jobs:
       with:
         name: ipft
 
-    - name: Boot CentOS Stream 8
+    - name: Boot Rocky Linux 8
       run: |
-        cp ./tests/Vagrantfile.centos-stream8 ./Vagrantfile
+        cp ./tests/Vagrantfile.rocky-linux8 ./Vagrantfile
         vagrant up
 
     - name: Display kernel version
