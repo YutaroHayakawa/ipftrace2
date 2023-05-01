@@ -24,7 +24,7 @@ jobs:
         path: src/ipft
 
   run_with_minimum_kernel:
-    runs-on: macos-10.15
+    runs-on: macos-latest
     needs: build_binary
     steps:
     - name: Checkout
@@ -54,7 +54,7 @@ jobs:
       run: vagrant ssh -- "/bin/sh -c 'cd /vagrant && sudo ./tests/smoke-test.sh function'"
 
   run_with_maximum_kernel:
-    runs-on: macos-10.15
+    runs-on: macos-latest
     needs: build_binary
     steps:
     - name: Checkout
