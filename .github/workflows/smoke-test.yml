@@ -47,7 +47,10 @@ jobs:
       run: vagrant ssh -- "/bin/sh -c 'cd /vagrant && chmod +x ipft && sudo mv ipft /usr/bin'"
 
     - name: Install required packages
-      run: vagrant ssh -- "/bin/sh -c 'sudo dnf -y install jq nc'"
+      run: |
+        vagrant ssh -- "/bin/sh -c 'sudo dnf -y install jq nc clang make elfutils-libelf-devel'"
+        vagrant ssh -- "/bin/sh -c 'curl -OL https://github.com/libbpf/libbpf/archive/refs/tags/v1.1.0.tar.gz'"
+        vagrant ssh -- "/bin/sh -c 'tar xf v1.1.0.tar.gz && sudo make -C libbpf-1.1.0/src install'"
 
     - name: Run smoke test
       timeout-minutes: 5
@@ -78,7 +81,7 @@ jobs:
 
     - name: Install required packages
       run: |
-        vagrant ssh -- "/bin/sh -c 'yes | sudo pacman -S jq gnu-netcat'"
+        vagrant ssh -- "/bin/sh -c 'yes | sudo pacman -S jq gnu-netcat clang libbpf'"
 
     - name: Run smoke test
       timeout-minutes: 20  # function_graph tracing takes time for detaching
