@@ -118,6 +118,10 @@ like this.
 #ifndef __IPFT_EXTENSION_H__
 #define __IPFT_EXTENSION_H__
 
+#include <linux/types.h>
+#include <bpf/bpf_helpers.h>
+#include <bpf/bpf_core_read.h>
+
 #define __ipft_sec_skip __attribute__((section("__ipft_skip")))
 #define __ipft_event_struct __ipft_event_struct __ipft_sec_skip
 
