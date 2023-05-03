@@ -59,29 +59,13 @@ ipft: $(OBJS)
 
 tracer.o: $(BPF_HEADERS)
 
-ipft_kprobe.bpf.o: ipft_kprobe.bpf.c
+%.bpf.o: %.bpf.c
 	$(CLANG) $(BPF_CFLAGS) -c $^
 
-ipft_kprobe.bpf.o.h: ipft_kprobe.bpf.o
-	xxd -i ipft_kprobe.bpf.o > ipft_kprobe.bpf.o.h
-
-ipft_ftrace.bpf.o: ipft_ftrace.bpf.c
-	$(CLANG) $(BPF_CFLAGS) -c $^
-
-ipft_ftrace.bpf.o.h: ipft_ftrace.bpf.o
-	xxd -i ipft_ftrace.bpf.o > ipft_ftrace.bpf.o.h
-
-ipft_kprobe_multi.bpf.o: ipft_kprobe_multi.bpf.c
-	$(CLANG) $(BPF_CFLAGS) -c $^
-
-ipft_kprobe_multi.bpf.o.h: ipft_kprobe_multi.bpf.o
-	xxd -i ipft_kprobe_multi.bpf.o > ipft_kprobe_multi.bpf.o.h
-
-null_module.bpf.o: null_module.bpf.c
-	$(CLANG) $(BPF_CFLAGS) -c $^
-
-null_module.bpf.o.h: null_module.bpf.o 
-	xxd -i null_module.bpf.o > null_module.bpf.o.h
+%.bpf.o.h: %.bpf.o
+	echo "// clang-format off" > $@
+	$(XXD) -i $^ >> $@
+	echo "// clang-format on" >> $@
 
 format:
 	clang-format -i *.c
