@@ -21,4 +21,4 @@ if [ ! -z "$1" ]; then
     TARGET=$1
 fi
 
-docker run --rm --name $CONTAINER_NAME -v $ROOT:/mnt $DOCKER_IMAGE /bin/sh -c "cd /mnt/src && make $TARGET"
+docker run --rm --name $CONTAINER_NAME -v $ROOT:/mnt -u `stat -c "%u:%g" .` $DOCKER_IMAGE /bin/sh -c "cd /mnt/src && make $TARGET"
