@@ -63,9 +63,7 @@ tracer.o: $(BPF_HEADERS)
 	$(CLANG) $(BPF_CFLAGS) -c $^
 
 %.bpf.o.h: %.bpf.o
-	echo "// clang-format off" > $@
 	$(XXD) -i $^ >> $@
-	echo "// clang-format on" >> $@
 
 format:
 	clang-format -i *.c

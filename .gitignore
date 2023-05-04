@@ -1,3 +1,4 @@
 src/*.o
-!src/*.bpf.o
+src/*.bpf.o
+src/*.bpf.o.h
 src/ipft
