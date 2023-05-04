@@ -25,6 +25,25 @@ jobs:
         name: ipft
         path: src/ipft
 
+  check_docs:
+    runs-on: ubuntu-latest
+    needs: build_binary
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Download ipft binary
+      uses: actions/download-artifact@v3
+      with:
+        name: ipft
+        path: src/ipft
+
+    - name: Set ipft permission
+      run: chmod 755 src/ipft
+
+    - name: Check docs
+      run: ./scripts/docs.sh check_diff
+
   run_with_minimum_kernel:
     runs-on: macos-latest
     needs: build_binary
