@@ -13,9 +13,11 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v3
 
-    - name: Build ipft binary with Docker
-      run: |
-        VERSION=latest sudo -E ./scripts/make.sh
+    - name: Build builder image
+      run: sudo docker build -t ipft-builder:latest .
+
+    - name: Build ipft binary with builder
+      run: DOCKER_IMAGE=ipft-builder VERSION=latest sudo -E ./scripts/make.sh
 
     - name: Upload ipft binary for later use
       uses: actions/upload-artifact@v3
