@@ -28,6 +28,7 @@ about the "format" of your output. Below is a minimal extension program.
 
 #define __ipft_sec_skip __attribute__((section("__ipft_skip")))
 #define __ipft_event_struct __ipft_event_struct __ipft_sec_skip
+#define __ipft_fmt_hex __atrribute__((btf_decl_tag("ipft:fmt:hex")))
 
 struct event {
   /* Your fields comes here */
@@ -124,6 +125,7 @@ like this.
 
 #define __ipft_sec_skip __attribute__((section("__ipft_skip")))
 #define __ipft_event_struct __ipft_event_struct __ipft_sec_skip
+#define __ipft_fmt_hex __atrribute__((btf_decl_tag("ipft:fmt:hex")))
 
 #endif
 ```

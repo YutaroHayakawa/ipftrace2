@@ -1,3 +1,4 @@
+#include <linux/btf.h>
 #define _GNU_SOURCE
 #include <stdint.h>
 #include <stdio.h>
@@ -13,6 +14,8 @@
 #include "ipft.h"
 
 #define EVENT_STRUCT_SYM "__ipft_event_struct"
+#define FORMAT_SPECIFIER_TAG "ipft:fmt:"
+#define FORMAT_HEX "hex"
 #define COMPILE_CMD_FMT "%s -target bpf -O2 -g -c -o - %s %s"
 
 const char *bpf_module_preamble =
@@ -21,7 +24,9 @@ const char *bpf_module_preamble =
     "#include <bpf/bpf_core_read.h>\n"
     "\n"
     "#define __ipft_sec_skip __attribute__((section(\"__ipft_skip\")))\n"
-    "#define " EVENT_STRUCT_SYM " " EVENT_STRUCT_SYM " __ipft_sec_skip\n";
+    "#define " EVENT_STRUCT_SYM " " EVENT_STRUCT_SYM " __ipft_sec_skip\n"
+    "#define __ipft_fmt_hex __atrribute__((btf_decl_tag(\"" FORMAT_SPECIFIER_TAG
+        FORMAT_HEX "\")))\n";
 
 void
 gen_bpf_module_skeleton(void)
@@ -72,11 +77,30 @@ gen_bpf_module_header(void)
 
 typedef void (*printfn)(FILE *, void *);
 
+enum formatter_types {
+  FORMATTER_TYPE_DEFAULT,
+  FORMATTER_TYPE_HEX,
+};
+
+static const char *
+formatter_type_str(enum formatter_types t)
+{
+  switch (t) {
+  case FORMATTER_TYPE_DEFAULT:
+    return "default";
+  case FORMATTER_TYPE_HEX:
+    return FORMAT_HEX;
+  default:
+    return "unknown";
+  }
+}
+
 struct printer_inst {
   const char *key;
   size_t key_len;
   size_t offset;
   printfn print;
+  enum formatter_types formatter;
 };
 
 /* clang-format off */
@@ -90,10 +114,28 @@ struct printer_inst {
     fprintf(f, fmt, *target);                                                  \
   }
 
-decl_print_t(uint8_t, "%u") decl_print_t(uint16_t, "%u")
-decl_print_t(uint32_t, "%u") decl_print_t(uint64_t, "%lu")
-decl_print_t(int8_t, "%d") decl_print_t(int16_t, "%d")
-decl_print_t(int32_t, "%d") decl_print_t(int64_t, "%ld")
+decl_print_t(uint8_t, "%u")
+decl_print_t(uint16_t, "%u")
+decl_print_t(uint32_t, "%u")
+decl_print_t(uint64_t, "%lu")
+decl_print_t(int8_t, "%d")
+decl_print_t(int16_t, "%d")
+decl_print_t(int32_t, "%d")
+decl_print_t(int64_t, "%ld")
+
+#define print_hex_t(t) print_hex_##t
+
+#define decl_print_hex_t(t, fmt)                                               \
+  static void print_hex_##t(FILE *f, void *p)                                  \
+  {                                                                            \
+    t *target = (t *)p;                                                        \
+    fprintf(f, "0x" fmt, *target);                                             \
+  }
+
+decl_print_hex_t(uint8_t, "%x")
+decl_print_hex_t(uint16_t, "%x")
+decl_print_hex_t(uint32_t, "%x")
+decl_print_hex_t(uint64_t, "%lx")
 
 static void print_bool(FILE *f, void *p)
 {
@@ -223,6 +265,25 @@ get_int_printer(__u8 bits, __u8 encoding)
     break;
   }
 
+  return NULL;
+}
+
+static printfn
+get_hex_printer(__u8 bits)
+{
+  switch (bits) {
+  case 8:
+    return print_hex_t(uint8_t);
+  case 16:
+    return print_hex_t(uint16_t);
+  case 32:
+    return print_hex_t(uint32_t);
+  case 64:
+    return print_hex_t(uint64_t);
+  default:
+    ERROR("Unsupported bit width %u\n", bits);
+    break;
+  }
   return NULL;
 }
 
@@ -362,117 +423,259 @@ get_program(struct ipft_script *_script, uint8_t **bufp, size_t *sizep)
   return 0;
 }
 
-static int
-init_decoder(struct ipft_script *_script, struct bpf_object *bpf)
+static bool
+is_event_struct(struct btf *btf, const struct btf_type *t)
 {
-  struct bpf_script *script = (struct bpf_script *)_script;
-  const struct btf_type *t;
+  const char *name = btf__str_by_offset(btf, t->name_off);
+  if (name == NULL) {
+    return false;
+  }
+
+  if (strcmp(name, EVENT_STRUCT_SYM) != 0) {
+    return false;
+  }
+
+  t = btf__type_by_id(btf, t->type);
+  if (t == NULL) {
+    ERROR("Event struct variable has no type associated type\n");
+    return false;
+  }
+
+  if (!btf_is_struct(t)) {
+    ERROR("Event struct type is not struct, but %d\n", btf_kind(t));
+    return false;
+  }
+
+  return true;
+}
+
+static bool
+is_format_specifier(struct btf *btf, const struct btf_type *t)
+{
+  const char *name = btf__name_by_offset(btf, t->name_off);
+
+  if (strstr(name, FORMAT_SPECIFIER_TAG) != name) {
+    return false;
+  }
+
+  return true;
+}
+
+static enum formatter_types
+get_formatter_type(const char *tag)
+{
+  char *fmt = strstr(tag, FORMAT_SPECIFIER_TAG);
+  if (fmt != tag) {
+    goto err0;
+  }
+
+  fmt += strlen(FORMAT_SPECIFIER_TAG);
+
+  if (strstr(fmt, FORMAT_HEX) == fmt) {
+    return FORMATTER_TYPE_HEX;
+  }
+
+  ERROR("Unknown format specifier: %s\n", fmt);
+
+  return FORMATTER_TYPE_DEFAULT;
+
+err0:
+  ERROR("Invalid format specifier: %s\n", tag);
+  return FORMATTER_TYPE_DEFAULT;
+}
+
+#define MAX_FMT_SPECS 64
+
+struct btf_summary {
   struct btf *btf;
+  const struct btf_type *event_struct_t;
+  __u16 nmembers;
+  const struct btf_member *members;
+  const struct btf_type **member_types;
+  const char **member_names;
+  enum formatter_types *fmt_types;
+};
+
+static int
+btf_summary_create(struct btf_summary **summaryp, struct bpf_object *bpf)
+{
+  __s32 tid;
+  struct btf *btf;
+  const struct btf_type *t;
+  struct btf_summary *summary;
+
+  summary = calloc(1, sizeof(*summary));
+  if (summary == NULL) {
+    ERROR("Cannot allocate memory");
+    return -1;
+  }
 
   btf = bpf_object__btf(bpf);
   if (btf == NULL) {
     ERROR("BTF not found: %s\n", libbpf_error_string(libbpf_get_error(btf)));
+    return -1;
   }
 
-  /*
-   * Find event struct variable and extract its type
-   */
-  const struct btf_type *event_struct_t = NULL;
-  for (uint32_t id = 0; (t = btf__type_by_id(btf, id)); id++) {
-    if (!btf_is_var(t)) {
-      continue;
-    }
+  summary->btf = btf;
 
-    const char *name = btf__str_by_offset(btf, t->name_off);
-    if (name == NULL) {
-      continue;
-    }
-
-    if (strcmp(name, EVENT_STRUCT_SYM) != 0) {
-      continue;
-    }
-
-    t = btf__type_by_id(btf, t->type);
-    if (t == NULL) {
-      ERROR("Event struct variable has no type associated type\n");
-      return -1;
-    }
-
-    if (!btf_is_struct(t)) {
-      ERROR("Event struct type is not struct, but %d\n", btf_kind(t));
-      return -1;
-    }
-
-    event_struct_t = t;
-    break;
+  tid = btf__find_by_name_kind(summary->btf, EVENT_STRUCT_SYM, BTF_KIND_VAR);
+  if (tid < 0) {
+    ERROR("Failed to find event struct var: %s\n", libbpf_error_string(tid));
+    return -1;
   }
 
-  if (event_struct_t == NULL) {
-    ERROR("Couldn't find event struct\n");
+  t = btf__type_by_id(summary->btf, tid);
+  if (!is_event_struct(summary->btf, t)) {
+    ERROR("Found event struct variable, but has invalid type\n");
+    return -1;
+  }
+
+  summary->event_struct_t = btf__type_by_id(summary->btf, t->type);
+  summary->nmembers = btf_vlen(summary->event_struct_t);
+  summary->members = btf_members(summary->event_struct_t);
+
+  summary->member_types =
+      calloc(summary->nmembers, sizeof(*summary->member_types));
+  if (summary->member_types == NULL) {
+    ERROR("Cannot allocate memory\n");
+    return -1;
+  }
+
+  summary->member_names =
+      calloc(summary->nmembers, sizeof(*summary->member_names));
+  if (summary->member_names == NULL) {
+    ERROR("Cannot allocate memory\n");
+    return -1;
+  }
+
+  for (__u16 i = 0; i < summary->nmembers; i++) {
+    const struct btf_member *m = summary->members + i;
+    summary->member_types[i] =
+        btf__type_by_id(btf, btf__resolve_type(summary->btf, m->type));
+    summary->member_names[i] = btf__name_by_offset(btf, m->name_off);
+  }
+
+  /* Collect all format specifiers */
+  summary->fmt_types = calloc(summary->nmembers, sizeof(*summary->fmt_types));
+  if (summary->fmt_types == NULL) {
+    ERROR("Cannot allocate memory\n");
+    return -1;
+  }
+
+  for (uint32_t id = 0; (t = btf__type_by_id(summary->btf, id)); id++) {
+    if (btf_is_decl_tag(t) && is_format_specifier(summary->btf, t)) {
+      enum formatter_types ft;
+      struct btf_decl_tag *tag = btf_decl_tag(t);
+      if (tag->component_idx == -1 || tag->component_idx >= summary->nmembers) {
+        ERROR("Tag %s is pointing to invalid struct field\n",
+              btf__name_by_offset(summary->btf, t->name_off));
+        return -1;
+      }
+
+      ft = get_formatter_type(btf__name_by_offset(btf, t->name_off));
+      if (ft == FORMATTER_TYPE_DEFAULT) {
+        ERROR("Failed to get formatter type\n");
+        return -1;
+      }
+
+      summary->fmt_types[tag->component_idx] = ft;
+
+      continue;
+    }
+  }
+
+  *summaryp = summary;
+
+  return 0;
+}
+
+static printfn
+get_default_printer(const struct btf_type *t)
+{
+  __u16 kind = btf_kind(t);
+  switch (kind) {
+  case BTF_KIND_INT:
+    return get_int_printer(btf_int_bits(t), btf_int_encoding(t));
+  case BTF_KIND_PTR:
+    return print_pointer;
+  default:
+    ERROR("Cannot get printer for type %s\n", btf_kind_str(kind));
+    return NULL;
+  }
+}
+
+static int
+init_decoder(struct ipft_script *_script, struct bpf_object *bpf)
+{
+  struct bpf_script *script = (struct bpf_script *)_script;
+  struct btf_summary *summary;
+  int error;
+
+  error = btf_summary_create(&summary, bpf);
+  if (error == -1) {
+    ERROR("btf_summary_create failed\n");
     return -1;
   }
 
   /*
    * Create printer instructions from event struct type
    */
-  __u16 nmembers = btf_vlen(event_struct_t);
-
-  struct printer_inst *insts = calloc(nmembers, sizeof(struct printer_inst));
+  struct printer_inst *insts =
+      calloc(summary->nmembers, sizeof(struct printer_inst));
   if (insts == NULL) {
     ERROR("Failed to allocate memory\n");
     return -1;
   }
 
-  VERBOSE("======== BTF Printer Insns ========\n");
-
-  struct btf_member *members = btf_members(event_struct_t);
-  for (uint32_t i = 0; i < nmembers; i++) {
-    __u16 kind;
+  for (uint32_t i = 0; i < summary->nmembers; i++) {
     struct printer_inst *inst = insts + i;
-    struct btf_member *member = members + i;
-    const struct btf_type *member_t =
-        btf__type_by_id(btf, btf__resolve_type(btf, member->type));
-    const char *member_name = btf__str_by_offset(btf, member->name_off);
+    const struct btf_member *m = summary->members + i;
+    const struct btf_type *mt = summary->member_types[i];
+    const char *name = summary->member_names[i];
+    const enum formatter_types ft = summary->fmt_types[i];
+    printfn printer;
 
-    inst->key = member_name;
+    inst->key = summary->member_names[i];
     inst->key_len = strlen(inst->key);
 
-    if (member->offset % 8 != 0) {
+    if (m->offset % 8 != 0) {
       ERROR("Member %s is not 8bit aligned. Such a member is not supported "
             "yet.\n",
-            member_name);
+            inst->key);
       return -1;
     }
 
-    inst->offset = member->offset / 8;
+    inst->offset = m->offset / 8;
 
-    kind = btf_kind(member_t);
-
-    switch (kind) {
-    case BTF_KIND_INT:
-      inst->print =
-          get_int_printer(btf_int_bits(member_t), btf_int_encoding(member_t));
-      if (inst->print == NULL) {
-        ERROR("Failed to get printer function for int type\n");
-        return -1;
-      }
-      break;
-    case BTF_KIND_PTR:
-      inst->print = print_pointer;
+    switch (ft) {
+    case FORMATTER_TYPE_HEX:
+      printer = get_hex_printer(btf_int_bits(mt));
       break;
     default:
-      ERROR("Event struct member %s has an unsupported type %s\n", member_name,
-            btf_kind_str(kind));
+      printer = get_default_printer(mt);
+    }
+
+    if (printer == NULL) {
+      ERROR("Cannot format member %s with %s formatter\n", name,
+            formatter_type_str(ft));
       return -1;
     }
 
-    VERBOSE("[%u] key: %s kind: %s\n", i, inst->key, btf_kind_str(kind));
+    inst->formatter = ft;
+    inst->print = printer;
   }
 
+  VERBOSE("======== BTF Printer Insns ========\n");
+  for (uint32_t i = 0; i < summary->nmembers; i++) {
+    struct printer_inst *inst = insts + i;
+    const struct btf_type *t = summary->member_types[i];
+    VERBOSE("[%u] key: %s kind: %s formatter: %s\n", i, inst->key,
+            btf_kind_str(btf_kind(t)), formatter_type_str(inst->formatter));
+  }
   VERBOSE("======= END BTF Printer Insns ======\n");
 
   script->insts = insts;
-  script->ninsts = nmembers;
+  script->ninsts = summary->nmembers;
 
   return 0;
 }
