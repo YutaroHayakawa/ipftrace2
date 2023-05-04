@@ -516,7 +516,7 @@ decode(struct ipft_script *_script, uint8_t *data, size_t data_len,
 
 int
 bpf_script_create(struct ipft_script **scriptp, const char *path,
-                  bool needs_compile __unused)
+                  bool needs_compile)
 {
   struct bpf_script *script = calloc(1, sizeof(*script));
   if (script == NULL) {
