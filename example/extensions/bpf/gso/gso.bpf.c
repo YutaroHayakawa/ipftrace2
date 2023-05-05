@@ -7,14 +7,40 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
 
-#define __ipft_sec_skip           __attribute__((section("__ipft_skip")))
-#define __ipft_event_struct       __ipft_event_struct __ipft_sec_skip
+#define __ipft_sec_skip __attribute__((section("__ipft_skip")))
+#define __ipft_ref(name) name __ipft_sec_skip
+#define __ipft_event_struct __ipft_event_struct __ipft_sec_skip
+#define __ipft_fmt_hex __attribute__((btf_decl_tag("ipft:fmt:hex")))
+#define __ipft_fmt_enum(ref) __attribute__((btf_decl_tag("ipft:fmt:enum:" #ref)))
+#define __ipft_fmt_enum_flags(ref) __attribute__((btf_decl_tag("ipft:fmt:enum_flags:" #ref)))
+
+enum {
+  tcpv4           = 1 << 0,
+  dodgy           = 1 << 1,
+  tcp_ecn         = 1 << 2,
+  tcp_fixedid     = 1 << 3,
+  tcpv6           = 1 << 4,
+  fcoe            = 1 << 5,
+  gre             = 1 << 6,
+  gre_csum        = 1 << 7,
+  ipxip4          = 1 << 8,
+  ipxip6          = 1 << 9,
+  udp_tunnel      = 1 << 10,
+  udp_tunnel_csum = 1 << 11,
+  partial         = 1 << 12,
+  tunnel_remcsum  = 1 << 13,
+  sctp            = 1 << 14,
+  esp             = 1 << 15,
+  udp             = 1 << 16,
+  udp_l4          = 1 << 17,
+  flaglist        = 1 << 18,
+} __ipft_ref(gso_types);
 
 struct event {
   unsigned int len;
   __u16 gso_size;
   __u16 gso_segs;
-  __u32 gso_type;
+  __u32 gso_type __ipft_fmt_enum_flags(gso_types);
 } __ipft_event_struct;
 
 struct sk_buff {
