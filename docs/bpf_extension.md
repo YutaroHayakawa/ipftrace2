@@ -27,8 +27,11 @@ about the "format" of your output. Below is a minimal extension program.
 #include <bpf/bpf_core_read.h>
 
 #define __ipft_sec_skip __attribute__((section("__ipft_skip")))
+#define __ipft_ref(name) name __ipft_sec_skip
 #define __ipft_event_struct __ipft_event_struct __ipft_sec_skip
-#define __ipft_fmt_hex __atrribute__((btf_decl_tag("ipft:fmt:hex")))
+#define __ipft_fmt_hex __attribute__((btf_decl_tag("ipft:fmt:hex")))
+#define __ipft_fmt_enum(ref) __attribute__((btf_decl_tag("ipft:fmt:enum:" #ref)))
+#define __ipft_fmt_enum_flags(ref) __attribute__((btf_decl_tag("ipft:fmt:enum_flags:" #ref)))
 
 struct event {
   /* Your fields comes here */
@@ -124,8 +127,11 @@ like this.
 #include <bpf/bpf_core_read.h>
 
 #define __ipft_sec_skip __attribute__((section("__ipft_skip")))
+#define __ipft_ref(name) name __ipft_sec_skip
 #define __ipft_event_struct __ipft_event_struct __ipft_sec_skip
-#define __ipft_fmt_hex __atrribute__((btf_decl_tag("ipft:fmt:hex")))
+#define __ipft_fmt_hex __attribute__((btf_decl_tag("ipft:fmt:hex")))
+#define __ipft_fmt_enum(ref) __attribute__((btf_decl_tag("ipft:fmt:enum:" #ref)))
+#define __ipft_fmt_enum_flags(ref) __attribute__((btf_decl_tag("ipft:fmt:enum_flags:" #ref)))
 
 #endif
 ```

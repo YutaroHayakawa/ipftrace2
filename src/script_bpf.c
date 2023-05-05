@@ -16,6 +16,8 @@
 #define EVENT_STRUCT_SYM "__ipft_event_struct"
 #define FORMAT_SPECIFIER_TAG "ipft:fmt:"
 #define FORMAT_HEX "hex"
+#define FORMAT_ENUM "enum"
+#define FORMAT_ENUM_FLAGS "enum_flags"
 #define COMPILE_CMD_FMT "%s -target bpf -O2 -g -c -o - %s %s"
 
 const char *bpf_module_preamble =
@@ -24,9 +26,16 @@ const char *bpf_module_preamble =
     "#include <bpf/bpf_core_read.h>\n"
     "\n"
     "#define __ipft_sec_skip __attribute__((section(\"__ipft_skip\")))\n"
+    "#define __ipft_ref(name) name __ipft_sec_skip\n"
     "#define " EVENT_STRUCT_SYM " " EVENT_STRUCT_SYM " __ipft_sec_skip\n"
-    "#define __ipft_fmt_hex __atrribute__((btf_decl_tag(\"" FORMAT_SPECIFIER_TAG
-        FORMAT_HEX "\")))\n";
+    "#define __ipft_fmt_hex __attribute__((btf_decl_tag(\"" FORMAT_SPECIFIER_TAG
+        FORMAT_HEX "\")))\n"
+    "#define __ipft_fmt_enum(ref) "
+    "__attribute__((btf_decl_tag(\"" FORMAT_SPECIFIER_TAG FORMAT_ENUM
+    ":\" #ref)))\n"
+    "#define __ipft_fmt_enum_flags(ref) "
+    "__attribute__((btf_decl_tag(\"" FORMAT_SPECIFIER_TAG FORMAT_ENUM_FLAGS
+    ":\" #ref)))\n";
 
 void
 gen_bpf_module_skeleton(void)
@@ -75,11 +84,13 @@ gen_bpf_module_header(void)
          bpf_module_preamble);
 }
 
-typedef void (*printfn)(FILE *, void *);
+typedef void (*printfn)(FILE *, void *, void *);
 
 enum formatter_types {
   FORMATTER_TYPE_DEFAULT,
   FORMATTER_TYPE_HEX,
+  FORMATTER_TYPE_ENUM,
+  FORMATTER_TYPE_ENUM_FLAGS,
 };
 
 static const char *
@@ -90,6 +101,10 @@ formatter_type_str(enum formatter_types t)
     return "default";
   case FORMATTER_TYPE_HEX:
     return FORMAT_HEX;
+  case FORMATTER_TYPE_ENUM:
+    return FORMAT_ENUM;
+  case FORMATTER_TYPE_ENUM_FLAGS:
+    return FORMAT_ENUM_FLAGS;
   default:
     return "unknown";
   }
@@ -101,6 +116,13 @@ struct printer_inst {
   size_t offset;
   printfn print;
   enum formatter_types formatter;
+  void *data;
+};
+
+struct enum_data {
+  __u16 nmembers;
+  const char **member_names;
+  __s32 *member_values;
 };
 
 /* clang-format off */
@@ -108,7 +130,7 @@ struct printer_inst {
 #define print_t(t) print_##t
 
 #define decl_print_t(t, fmt)                                                   \
-  static void print_##t(FILE *f, void *p)                                      \
+  static void print_##t(FILE *f, void *p, void *data __unused)                 \
   {                                                                            \
     t *target = (t *)p;                                                        \
     fprintf(f, fmt, *target);                                                  \
@@ -126,7 +148,7 @@ decl_print_t(int64_t, "%ld")
 #define print_hex_t(t) print_hex_##t
 
 #define decl_print_hex_t(t, fmt)                                               \
-  static void print_hex_##t(FILE *f, void *p)                                  \
+  static void print_hex_##t(FILE *f, void *p, void *data __unused)             \
   {                                                                            \
     t *target = (t *)p;                                                        \
     fprintf(f, "0x" fmt, *target);                                             \
@@ -137,7 +159,56 @@ decl_print_hex_t(uint16_t, "%x")
 decl_print_hex_t(uint32_t, "%x")
 decl_print_hex_t(uint64_t, "%lx")
 
-static void print_bool(FILE *f, void *p)
+#define print_enum_t(t) print_enum_##t
+
+#define decl_print_enum_t(t)                                                   \
+  static void print_enum_##t(FILE *f, void *p, void *_data)                    \
+  {                                                                            \
+    t *target = (t *)p;                                                        \
+    struct enum_data *data = (struct enum_data *)_data;                        \
+    for (__u16 i = 0; i < data->nmembers; i++) {                               \
+      if (*target == (t)data->member_values[i]) {                              \
+        fprintf(f, "%s", data->member_names[i]);                               \
+        return;                                                                \
+      }                                                                        \
+    }                                                                          \
+    fprintf(f, "<none>");                                                      \
+  }
+
+decl_print_enum_t(uint8_t)
+decl_print_enum_t(uint16_t)
+decl_print_enum_t(uint32_t)
+decl_print_enum_t(uint64_t)
+
+#define print_enum_flags_t(t) print_enum_flags_##t
+
+#define decl_print_enum_flags_t(t) \
+  static void print_enum_flags_##t(FILE *f, void *p, void *_data) \
+  { \
+    t *target = (t *)p; \
+    bool matched = false; \
+    struct enum_data *data = (struct enum_data *)_data; \
+    for (__u16 i = 0; i < data->nmembers; i++) { \
+      if (*target & data->member_values[i]) { \
+        matched = true; \
+        if (i == 0) { \
+          fprintf(f, "%s", data->member_names[i]); \
+        } else { \
+          fprintf(f, "|%s", data->member_names[i]); \
+        } \
+      } \
+    } \
+    if (!matched) { \
+      fprintf(f, "<none>"); \
+    } \
+  }
+
+decl_print_enum_flags_t(uint8_t)
+decl_print_enum_flags_t(uint16_t)
+decl_print_enum_flags_t(uint32_t)
+decl_print_enum_flags_t(uint64_t)
+
+static void print_bool(FILE *f, void *p, void *data __unused)
 {
   bool *target = (bool *)p;
   fprintf(f, "%s", *target ? "true" : "false");
@@ -147,7 +218,7 @@ static void print_bool(FILE *f, void *p)
  * We need to disable clang-format after above function. Otherwise,
  * it will be formatted weirdly like this.
  *
- *     static void print_bool(FILE *f, void *p)
+ *     static void print_bool(FILE *f, void *p, void *data __unused)
  * {
  *   bool *target = (bool *)p;
  *   fprintf(f, "%s", *target ? "true" : "false");
@@ -158,14 +229,14 @@ static void print_bool(FILE *f, void *p)
 /* clang-format on */
 
 static void
-print_char(FILE *f, void *p)
+print_char(FILE *f, void *p, void *data __unused)
 {
   char *target = (char *)p;
   fprintf(f, "%c", *target);
 }
 
 static void
-print_pointer(FILE *f, void *p)
+print_pointer(FILE *f, void *p, void *data __unused)
 {
   void **target = (void **)p;
   fprintf(f, "%p", *target);
@@ -285,6 +356,78 @@ get_hex_printer(__u8 bits)
     break;
   }
   return NULL;
+}
+
+static printfn
+get_enum_printer(__u8 bits)
+{
+  switch (bits) {
+  case 8:
+    return print_enum_t(uint8_t);
+  case 16:
+    return print_enum_t(uint16_t);
+  case 32:
+    return print_enum_t(uint32_t);
+  case 64:
+    return print_enum_t(uint64_t);
+  default:
+    ERROR("Unsupported bit width %u\n", bits);
+    break;
+  }
+  return NULL;
+}
+
+static printfn
+get_enum_flags_printer(__u8 bits)
+{
+  switch (bits) {
+  case 8:
+    return print_enum_flags_t(uint8_t);
+  case 16:
+    return print_enum_flags_t(uint16_t);
+  case 32:
+    return print_enum_flags_t(uint32_t);
+  case 64:
+    return print_enum_flags_t(uint64_t);
+  default:
+    ERROR("Unsupported bit width %u\n", bits);
+    break;
+  }
+  return NULL;
+}
+
+static void *
+get_enum_data(struct btf *btf, const struct btf_type *t)
+{
+  struct enum_data *data;
+
+  data = calloc(1, sizeof(*data));
+  if (data == NULL) {
+    ERROR("Cannot allocate memory\n");
+    return NULL;
+  }
+
+  data->nmembers = btf_vlen(t);
+
+  data->member_values = calloc(data->nmembers, sizeof(*data->member_values));
+  if (data->member_values == NULL) {
+    ERROR("Cannot allocate memory\n");
+    return NULL;
+  }
+
+  data->member_names = calloc(data->nmembers, sizeof(*data->member_names));
+  if (data->member_names == NULL) {
+    ERROR("Cannot allocate memory\n");
+    return NULL;
+  }
+
+  for (__u16 i = 0; i < data->nmembers; i++) {
+    struct btf_enum *e = btf_enum(t) + i;
+    data->member_values[i] = e->val;
+    data->member_names[i] = btf__name_by_offset(btf, e->name_off);
+  }
+
+  return (void *)data;
 }
 
 static void
@@ -462,7 +605,7 @@ is_format_specifier(struct btf *btf, const struct btf_type *t)
 }
 
 static enum formatter_types
-get_formatter_type(const char *tag)
+get_formatter_type(const char *tag, char **refp)
 {
   char *fmt = strstr(tag, FORMAT_SPECIFIER_TAG);
   if (fmt != tag) {
@@ -472,7 +615,18 @@ get_formatter_type(const char *tag)
   fmt += strlen(FORMAT_SPECIFIER_TAG);
 
   if (strstr(fmt, FORMAT_HEX) == fmt) {
+    *refp = NULL;
     return FORMATTER_TYPE_HEX;
+  }
+
+  if (strstr(fmt, FORMAT_ENUM_FLAGS) == fmt) {
+    *refp = fmt + strlen(FORMAT_ENUM_FLAGS) + 1;
+    return FORMATTER_TYPE_ENUM_FLAGS;
+  }
+
+  if (strstr(fmt, FORMAT_ENUM) == fmt) {
+    *refp = fmt + strlen(FORMAT_ENUM) + 1;
+    return FORMATTER_TYPE_ENUM;
   }
 
   ERROR("Unknown format specifier: %s\n", fmt);
@@ -494,6 +648,7 @@ struct btf_summary {
   const struct btf_type **member_types;
   const char **member_names;
   enum formatter_types *fmt_types;
+  const struct btf_type **fmt_refs;
 };
 
 static int
@@ -562,8 +717,15 @@ btf_summary_create(struct btf_summary **summaryp, struct bpf_object *bpf)
     return -1;
   }
 
+  summary->fmt_refs = calloc(summary->nmembers, sizeof(*summary->fmt_refs));
+  if (summary->fmt_refs == NULL) {
+    ERROR("Cannot allocate memory\n");
+    return -1;
+  }
+
   for (uint32_t id = 0; (t = btf__type_by_id(summary->btf, id)); id++) {
     if (btf_is_decl_tag(t) && is_format_specifier(summary->btf, t)) {
+      char *ref;
       enum formatter_types ft;
       struct btf_decl_tag *tag = btf_decl_tag(t);
       if (tag->component_idx == -1 || tag->component_idx >= summary->nmembers) {
@@ -572,13 +734,37 @@ btf_summary_create(struct btf_summary **summaryp, struct bpf_object *bpf)
         return -1;
       }
 
-      ft = get_formatter_type(btf__name_by_offset(btf, t->name_off));
+      ft = get_formatter_type(btf__name_by_offset(btf, t->name_off), &ref);
       if (ft == FORMATTER_TYPE_DEFAULT) {
         ERROR("Failed to get formatter type\n");
         return -1;
       }
 
       summary->fmt_types[tag->component_idx] = ft;
+
+      if (ft == FORMATTER_TYPE_ENUM_FLAGS || ft == FORMATTER_TYPE_ENUM) {
+        __s32 tid;
+        const struct btf_type *t;
+
+        /* This is O(N) where N is number of types in the BTF. Very inefficient,
+         * but it's ok for now. We can optimize this at anytime later.
+         */
+        tid = btf__find_by_name_kind(summary->btf, ref, BTF_KIND_VAR);
+        if (tid < 0) {
+          ERROR("Couldn't find enum reference %s\n", ref);
+          return -1;
+        }
+
+        t = btf__type_by_id(summary->btf, tid);
+
+        t = btf__type_by_id(summary->btf, t->type);
+        if (btf_kind(t) != BTF_KIND_ENUM) {
+          ERROR("non-enum reference associated enum_flags format specifier\n");
+          return -1;
+        }
+
+        summary->fmt_refs[tag->component_idx] = t;
+      }
 
       continue;
     }
@@ -633,7 +819,9 @@ init_decoder(struct ipft_script *_script, struct bpf_object *bpf)
     const struct btf_type *mt = summary->member_types[i];
     const char *name = summary->member_names[i];
     const enum formatter_types ft = summary->fmt_types[i];
+    const struct btf_type *ref_t = summary->fmt_refs[i];
     printfn printer;
+    void *data = NULL;
 
     inst->key = summary->member_names[i];
     inst->key_len = strlen(inst->key);
@@ -651,6 +839,22 @@ init_decoder(struct ipft_script *_script, struct bpf_object *bpf)
     case FORMATTER_TYPE_HEX:
       printer = get_hex_printer(btf_int_bits(mt));
       break;
+    case FORMATTER_TYPE_ENUM:
+      printer = get_enum_printer(btf_int_bits(mt));
+      data = get_enum_data(summary->btf, ref_t);
+      if (data == NULL) {
+        ERROR("Cannot get enum_flags data\n");
+        return -1;
+      }
+      break;
+    case FORMATTER_TYPE_ENUM_FLAGS:
+      printer = get_enum_flags_printer(btf_int_bits(mt));
+      data = get_enum_data(summary->btf, ref_t);
+      if (data == NULL) {
+        ERROR("Cannot get enum_flags data\n");
+        return -1;
+      }
+      break;
     default:
       printer = get_default_printer(mt);
     }
@@ -663,6 +867,7 @@ init_decoder(struct ipft_script *_script, struct bpf_object *bpf)
 
     inst->formatter = ft;
     inst->print = printer;
+    inst->data = data;
   }
 
   VERBOSE("======== BTF Printer Insns ========\n");
@@ -703,7 +908,7 @@ decode(struct ipft_script *_script, uint8_t *data, size_t data_len,
       return -1;
     }
 
-    inst->print(f, data + inst->offset);
+    inst->print(f, data + inst->offset, inst->data);
 
     fflush(f);
 
