@@ -132,12 +132,23 @@ symsdb_get_sym_by_addr(struct ipft_symsdb *sdb, uint64_t addr,
 
   iter = kh_get(addr2sym, db, addr);
   if (iter == kh_end(db)) {
+#ifdef __x86_64__
+    /* Symbol not found. This can be because of the kernel issue that
+     * bpf_get_func_ip() misbehaves when Intel IBT is enabled. Retry symbol
+     * resolution with the address excluding the ENDBR instruction. Ref:
+     * https://lore.kernel.org/bpf/20220811091526.172610-5-jolsa@kernel.org/
+     */
+    iter = kh_get(addr2sym, db, addr - 4);
+    if (iter != kh_end(db)) {
+      goto out;
+    }
+#endif
     *symp = &unknown_sym;
     return -1;
   }
 
+out:
   *symp = kh_value(db, iter);
-
   return 0;
 }
 
