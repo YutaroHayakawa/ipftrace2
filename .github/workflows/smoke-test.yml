@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  build_binary:
+  build:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -19,11 +19,41 @@ jobs:
     - name: Build ipft binary with builder
       run: DOCKER_IMAGE=ipft-builder VERSION=latest sudo -E ./scripts/make.sh
 
+    - name: Save builder image
+      run: sudo docker image save ipft-builder > ipft-builder.tar
+
+    - name: Upload builder image for later use
+      uses: actions/upload-artifact@v3
+      with:
+        name: ipft-builder.tar
+        path: ipft-builder.tar
+
     - name: Upload ipft binary for later use
       uses: actions/upload-artifact@v3
       with:
         name: ipft
         path: src/ipft
+
+  check_format:
+    runs-on: ubuntu-latest
+    needs: build_binary
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Download builder image
+      uses: actions/download-artifact@v3
+      with:
+        name: ipft-builder.tar
+        path: ipft-builder.tar
+
+    - name: Import builder image
+      run: sudo docker image import ipft-builder.tar
+
+    - name: Run format check
+      run: |
+        DOCKER_IMAGE=ipft-builder VERSION=latest sudo -E ./scripts/make.sh format
+        ./scripts/format.sh check_diff
 
   check_docs:
     runs-on: ubuntu-latest
