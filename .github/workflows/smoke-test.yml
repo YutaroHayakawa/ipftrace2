@@ -36,7 +36,7 @@ jobs:
 
   check_format:
     runs-on: ubuntu-latest
-    needs: build_binary
+    needs: build
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -57,7 +57,7 @@ jobs:
 
   check_docs:
     runs-on: ubuntu-latest
-    needs: build_binary
+    needs: build
     steps:
     - name: Checkout
       uses: actions/checkout@v3
@@ -109,7 +109,7 @@ jobs:
 
   run_with_maximum_kernel:
     runs-on: macos-latest
-    needs: build_binary
+    needs: build
     steps:
     - name: Checkout
       uses: actions/checkout@v3
