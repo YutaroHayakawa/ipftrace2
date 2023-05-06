@@ -63,7 +63,7 @@ tracer.o: $(BPF_HEADERS)
 	$(CLANG) $(BPF_CFLAGS) -c $^
 
 %.bpf.o.h: %.bpf.o
-	$(XXD) -i $^ >> $@
+	$(XXD) -i $^ > $@
 
 format:
 	clang-format -i *.c
