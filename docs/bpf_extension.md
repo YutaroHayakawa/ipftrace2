@@ -13,9 +13,9 @@ In this BPF-based extension mechanism, users don't need to write Lua script. The
 extension is purely consists of BPF and users don't need to write code to decode
 the event data.
 
-## Basic Format
+## Program Structure
 
-The format of the BPF program is almost the same as the one in Lua script. The only
+The structure of the BPF program is almost the same as the one in Lua script. The only
 difference is `__ipft_event_struct` annotation. You must define a special struct
 annotated with `__ipft_event_struct` and must format the output data 
 (`data[64]` buffer in the function argument). This tells ipftrace2 userspace
@@ -76,6 +76,114 @@ the end of the trace.
 464048546207009      005                  vmlinux               tcp_v4_early_demux ( len: 2688 )
 464048546208553      005                  vmlinux                 ip_local_deliver ( len: 2688 )
 464048546209310      005                  vmlinux                     nf_hook_slow ( len: 2688 )
+```
+
+### Format Specifiers
+
+By default, `ipft` formats your field based on the type of the fields. Here, we have a list
+of "default" format of each C primitive types.
+
+- Signed integer types (int, short, long, etc) => signed integer (e.g. `10`, `-1`)
+- Unsigned integer types (unsigned int, unsigned short, etc) => unsigned integer (e.g. `10`, `20`)
+- char => ASCII character (e.g. `a`, `b`, `C`)
+- bool => `true` or `false`
+- Pointer => Hex representation of the pointer (e.g. `0x00000000111111`)
+
+You can override this default format by annotating your struct fields with "Format Specifier".
+For example, `__ipft_fmt_hex` formats annotated field with hex. You can use it like following.
+
+```c
+struct event {
+  unsigned int len __ipft_fmt_hex;
+} __ipft_event_struct;
+```
+
+Then it should produces output like this.
+
+```
+464048546191357      005             nf_conntrack                ipv4_conntrack_in ( len: 0xa80 )
+```
+
+Following is a list of supported format specifiers.
+
+#### __ipft_fmt_hex
+
+Formats the field as a hex decimal.
+
+```c
+struct event {
+  unsigned int len __ipft_fmt_hex;
+} __ipft_event_struct;
+```
+
+Output
+
+```
+464048546191357      005             nf_conntrack                ipv4_conntrack_in ( len: 0xa80 )
+```
+
+#### __ipft_fmt_enum(ref)
+
+Formats the field with the name of the `enum` field. You need to declare the `enum` used for formatting
+beforehand with `__ipft_ref` annotation and reference it from `__ipft_fmt_enum`.
+
+```c
+enum {
+  tcpv4           = 1 << 0,
+  dodgy           = 1 << 1,
+  tcp_ecn         = 1 << 2,
+  tcp_fixedid     = 1 << 3,
+  tcpv6           = 1 << 4,
+  fcoe            = 1 << 5,
+  gre             = 1 << 6,
+  gre_csum        = 1 << 7,
+  ipxip4          = 1 << 8,
+  ipxip6          = 1 << 9,
+  udp_tunnel      = 1 << 10,
+  udp_tunnel_csum = 1 << 11,
+  partial         = 1 << 12,
+  tunnel_remcsum  = 1 << 13,
+  sctp            = 1 << 14,
+  esp             = 1 << 15,
+  udp             = 1 << 16,
+  udp_l4          = 1 << 17,
+  flaglist        = 1 << 18,
+} __ipft_ref(gso_types);
+
+struct event {
+  unsigned int len;
+  __u16 gso_size;
+  __u16 gso_segs;
+  __u32 gso_type __ipft_fmt_enum(gso_types);
+} __ipft_event_struct;
+```
+
+Output with `__ipft_fmt_hex`
+
+```
+3146600050450265     005                  vmlinux             ip_route_input_noref ( gso_type: 0x1 )
+```
+
+Output with `__ipft_fmt_enum`
+
+```
+3146600050450265     005                  vmlinux             ip_route_input_noref ( gso_type: tcpv4 )
+```
+
+#### __ipft_fmt_enum_flag(ref)
+
+Similar to `__ipft_fmt_enum`, but interprets the field as a bit flag and prints all active bits.
+
+Output with `__ipft_fmt_hex`
+
+```
+3146600050597677     004                  vmlinux             ip_route_input_noref ( gso_type: 0x101 )
+```
+
+Output with `__ipft_fmt_enum_flag`
+
+```
+3146505009019580     000                  vmlinux             ip_route_input_noref ( gso_type: tcpv4|ipxip4 )
 ```
 
 ## Usage
