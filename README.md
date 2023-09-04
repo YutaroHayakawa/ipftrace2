@@ -18,7 +18,7 @@
   - CONFIG_BPF=y
   - CONFIG_BPF_SYSCALL=y
 
-  - CONFIG_DEBUG_INFO_BTF_MODULE=y (Optional)
+  - CONFIG_DEBUG_INFO_BTF=y (Optional)
     - Enabling this allows ipftrace2 to trace kernel module's functions
 
 ## Install
