@@ -5,6 +5,8 @@ on:
     branches:
     - master
   pull_request:
+  schedule:
+  - cron: '0 6 * * 5'
 
 jobs:
   build:
@@ -76,7 +78,7 @@ jobs:
 
   run_with_minimum_kernel:
     runs-on: macos-latest
-    needs: build_binary
+    needs: build
     steps:
     - name: Checkout
       uses: actions/checkout@v3
