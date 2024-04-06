@@ -76,7 +76,7 @@ jobs:
       run: ./scripts/docs.sh check_diff
 
   run_with_minimum_kernel:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     needs: build
     steps:
     - name: Checkout
@@ -87,29 +87,27 @@ jobs:
       with:
         name: ipft
 
-    - name: Boot Rocky Linux 8
-      run: |
-        cp ./tests/Vagrantfile.rocky-linux8 ./Vagrantfile
-        vagrant up
-
-    - name: Display kernel version
-      run: vagrant ssh -- "/bin/sh -c 'uname -a'"
-
-    - name: Move ipft binary to executable path
-      run: vagrant ssh -- "/bin/sh -c 'cd /vagrant && chmod +x ipft && sudo mv ipft /usr/bin'"
-
-    - name: Install required packages
-      run: |
-        vagrant ssh -- "/bin/sh -c 'sudo dnf -y install jq nc clang make elfutils-libelf-devel'"
-        vagrant ssh -- "/bin/sh -c 'curl -OL https://github.com/libbpf/libbpf/archive/refs/tags/v1.1.0.tar.gz'"
-        vagrant ssh -- "/bin/sh -c 'tar xf v1.1.0.tar.gz && sudo make -C libbpf-1.1.0/src install'"
-
-    - name: Run smoke test
-      timeout-minutes: 5
-      run: vagrant ssh -- "/bin/sh -c 'cd /vagrant && sudo ./tests/smoke-test.sh function'"
+    - name: Run smoke test on LVH VM
+      uses: cilium/little-vm-helper@a4311c6d054de3008bdf9195b0fabf6ee60d8bdd # v0.0.17
+      with:
+        test-name: min-kernel
+        image: complexity-test
+        image-version: rhel8-20240305.092417
+        cpu: 4
+        mem: 4G
+        host-mount: ./
+        install-dependencies: 'true'
+        cmd: |
+          uname -a
+          # TODO: Create our own image to get rid of this
+          apt-get update
+          apt-get install -y netcat-traditional jq
+          cd /host
+          chmod +x ./ipft
+          IPFT=./ipft ./tests/smoke-test.sh function
 
   run_with_maximum_kernel:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     needs: build
     steps:
     - name: Checkout
@@ -120,22 +118,21 @@ jobs:
       with:
         name: ipft
 
-    - name: Boot Arch Linux
-      run: |
-        cp ./tests/Vagrantfile.archlinux-latest ./Vagrantfile
-        vagrant up
-
-    - name: Display kernel version
-      run: vagrant ssh -- "/bin/sh -c 'uname -a'"
-
-    - name: Move ipft binary to executable path
-      run: vagrant ssh -- "/bin/sh -c 'cd /vagrant && chmod +x ipft && sudo mv ipft /usr/bin'"
-
-    - name: Install required packages
-      run: |
-        vagrant ssh -- "/bin/sh -c 'yes | sudo pacman -S jq gnu-netcat clang libbpf'"
-
-    - name: Run smoke test
-      timeout-minutes: 20  # function_graph tracing takes time for detaching
-      run: |
-        vagrant ssh -- "/bin/sh -c 'cd /vagrant && sudo ./tests/smoke-test.sh function function_graph'"
+    - name: Run smoke test on LVH VM
+      uses: cilium/little-vm-helper@a4311c6d054de3008bdf9195b0fabf6ee60d8bdd # v0.0.17
+      with:
+        test-name: max-kernel
+        image: complexity-test
+        image-version: bpf-next-20240315.012542
+        cpu: 4
+        mem: 4G
+        host-mount: ./
+        install-dependencies: 'true'
+        cmd: |
+          uname -a
+          # TODO: Create our own image to get rid of this
+          apt-get update
+          apt-get install -y netcat-traditional jq
+          cd /host
+          chmod +x ./ipft
+          IPFT=./ipft ./tests/smoke-test.sh function function_graph
