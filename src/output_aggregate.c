@@ -63,8 +63,8 @@ aggregate_output_on_event(struct ipft_output *_out, struct ipft_event *_e)
   }
 
   /* Update the status on screen */
-  INFO("\rGot %zu traces", ++out->ntraces);
-  fflush(stderr);
+  // INFO("\rGot %zu traces", ++out->ntraces);
+  // fflush(stderr);
 
   return 0;
 }
