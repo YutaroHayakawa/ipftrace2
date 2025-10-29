@@ -35,7 +35,7 @@ LDLIBS := \
   -lm \
   -lfts \
 
-ARCH := $(shell uname -m | sed 's/x86_64/x86/')
+ARCH := $(shell uname -m | sed -e 's/x86_64/x86/' -e 's/s390x/s390/')
 BPF_CFLAGS := \
   -g \
   -O3 \
